@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* GmNC Brand Colors - Deep Emerald Theme */
+  --color-primary: #064E3B; /* Emerald 900 */
+  --color-brand: #059669; /* Emerald 600 */
+  --color-brand-hover: #047857; /* Emerald 700 */
+  --color-accent: #F59E0B; /* Amber 500 */
+  --color-accent-hover: #D97706; /* Amber 600 */
+  --color-content-bg: #F8FAFC; /* Slate 50 */
+  --color-glass: rgba(255, 255, 255, 0.7);
+}
+:root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+}
+
+@layer base {
+  * {
+    /* Borders removed globally as per user request for cleaner text appearance */
+  }
+  body {
+    @apply bg-content-bg text-primary antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
+}
+
+.shadow-premium {
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.015;
+}
+
+@keyframes blob-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+.animate-blob {
+  animation: blob-bounce 20s infinite ease-in-out;
+}
+
+.animate-blob-delayed {
+  animation: blob-bounce 25s infinite ease-in-out -5s;
+}
+
+.animate-blob-slow {
+  animation: blob-bounce 30s infinite ease-in-out -10s;
+}
