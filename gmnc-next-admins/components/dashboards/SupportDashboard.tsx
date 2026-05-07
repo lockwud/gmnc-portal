@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import { Search as SearchIcon, Clock as ClockIcon, AlertCircle as AlertCircleIcon, CheckCircle2 as CheckCircle2Icon, Inbox as InboxIcon, Phone as PhoneIcon, Mail as MailIcon, History as HistoryIcon, MessageSquareIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';

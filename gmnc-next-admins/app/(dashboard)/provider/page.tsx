@@ -1,13 +1,5 @@
-'use client';
+import ProviderDashboardPage from "@/components/dashboards/ProviderDashboardPage";
 
-import React from 'react';
-import { ProviderDashboard } from '@/components/dashboards/ProviderDashboard';
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-
-export default function ProviderPage() {
-  return (
-    <ProtectedRoute requiredPermission="appointment.read">
-      <ProviderDashboard />
-    </ProtectedRoute>
-  );
+export default function ProviderRoute() {
+  return <ProviderDashboardPage />;
 }
