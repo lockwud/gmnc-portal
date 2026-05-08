@@ -1,5 +1,10 @@
-import DashboardRedirectPage from "@/components/dashboards/DashboardRedirectPage";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import OverviewPage from "@/components/dashboards/OverviewPage";
 
 export default function DashboardRoute() {
-  return <DashboardRedirectPage />;
+  return (
+    <ProtectedRoute>
+      <OverviewPage />
+    </ProtectedRoute>
+  );
 }

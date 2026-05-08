@@ -1,5 +1,5 @@
-import ProviderDashboardPage from "@/components/dashboards/ProviderDashboardPage";
+import { ProviderDashboard } from '@/components/dashboards/ProviderDashboard';
 
-export default function ProviderRoute() {
-  return <ProviderDashboardPage />;
+export default function ProviderPage() {
+  return <ProviderDashboard />;
 }

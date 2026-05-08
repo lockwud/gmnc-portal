@@ -1,191 +1,234 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
-import { 
-  REVENUE_DATA, 
-  AUDIT_LOGS 
-} from '@/lib/data/mockData';
-import { OryxStatCard } from '@/components/ui/OryxStatCard';
-import { ChartContainer } from '@/components/ui/ChartContainer';
-import { Modal } from '@/components/ui/Modal';
-import { 
-  UsersIcon, 
-  CreditCardIcon, 
-  DollarSignIcon, 
+import {
+  UsersIcon,
   AlertTriangleIcon,
-  ShieldAlertIcon,
-  PlusIcon,
-  DownloadIcon
+  ActivityIcon,
+  UserCheckIcon,
+  HeartPulseIcon,
+  RefreshCwIcon,
+  TrendingUpIcon,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import Badge from '@/components/ui/Badge';
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
-  PieChart, 
-  Pie, 
+  PieChart,
+  Pie,
   Cell as PieCell,
-  Legend
+  Legend,
+  LineChart,
+  Line,
 } from 'recharts';
 import { cn } from '@/lib/utils';
-import { Input } from '../ui/Input';
 
 const PIE_DATA = [
-  { name: 'Active', value: 756, color: '#059669' },
-  { name: 'Inactive', value: 12, color: '#f59e0b' },
-  { name: 'New', value: 648, color: '#3b82f6' },
+  { name: 'Verified', value: 756, color: '#059669' },
+  { name: 'Pending', value: 82, color: '#f59e0b' },
+  { name: 'Flagged', value: 24, color: '#ef4444' },
 ];
 
-const MOCK_PATIENTS = [
-  { 
-    id: '1', 
-    name: 'Amelia Hart', 
-    mrn: 'NC-10293', 
-    dob: '1992-05-14',
-    gender: 'Female',
-    ward: 'Neuro ICU',
-    diagnosis: 'Ischemic Stroke',
-    neuroStatus: 'Stable',
-    gcs: '15',
-    neurologist: 'Dr. Sarah Chen',
-    notes: 'Admitted following sudden onset of left-sided weakness.'
-  },
-  { 
-    id: '2', 
-    name: 'Marcus Lin', 
-    mrn: 'NC-10318', 
-    dob: '1988-11-02',
-    gender: 'Male',
-    ward: 'Epilepsy Monitoring (EMU)',
-    diagnosis: 'Refractory Epilepsy',
-    neuroStatus: 'Alert',
-    gcs: '15',
-    neurologist: 'Dr. James Wilson',
-    notes: 'Routine monitoring for seizure activity.'
-  },
+const IMPROVEMENT_TREND_DATA = [
+  { name: 'Mon', improvement: 42 },
+  { name: 'Tue', improvement: 48 },
+  { name: 'Wed', improvement: 51 },
+  { name: 'Thu', improvement: 57 },
+  { name: 'Fri', improvement: 63 },
+  { name: 'Sat', improvement: 68 },
+  { name: 'Sun', improvement: 72 },
 ];
+
+const DAILY_TASKS_DATA = [
+  { name: 'Mon', assigned: 18 },
+  { name: 'Tue', assigned: 22 },
+  { name: 'Wed', assigned: 20 },
+  { name: 'Thu', assigned: 26 },
+  { name: 'Fri', assigned: 24 },
+  { name: 'Sat', assigned: 16 },
+  { name: 'Sun', assigned: 14 },
+];
+
+const PATIENT_RECOVERY_DATA = [
+  { label: 'Improving', value: '68%', note: 'Steady therapy response', color: 'emerald' },
+  { label: 'Stable', value: '21%', note: 'Monitoring continues', color: 'blue' },
+  { label: 'Needs attention', value: '11%', note: 'Closer intervention required', color: 'amber' },
+];
+
+type CompactStatCardProps = {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  meta?: string;
+  footer?: React.ReactNode;
+  badge?: string;
+};
+
+function CompactStatCard({
+  title,
+  value,
+  icon,
+  meta,
+  footer,
+  badge,
+}: CompactStatCardProps) {
+  return (
+    <div className="group relative h-[118px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-4 transition-all duration-200 hover:border-slate-300">
+      <div className="absolute inset-0 bg-slate-50 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+
+      <div className="relative z-10 flex h-full flex-col justify-between">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[11px] font-semibold leading-none text-slate-600">
+            {title}
+          </p>
+
+          <div className="flex items-center gap-1.5">
+            {badge && (
+              <span className="rounded-full border-none bg-slate-50 px-1.5 py-0.5 text-[8px] font-medium uppercase leading-none text-slate-500">
+                {badge}
+              </span>
+            )}
+            <div className="text-slate-400">{icon}</div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-[24px] font-bold leading-none tracking-tight text-slate-900">
+            {value}
+          </h3>
+
+          {meta ? (
+            <p className="mt-2 line-clamp-1 text-[10px] leading-none text-slate-400">
+              {meta}
+            </p>
+          ) : (
+            <div className="mt-3 min-h-[24px] text-[9px] font-medium leading-none">
+              {footer}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AdminDashboard() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
-  const [isEditPatientModalOpen, setIsEditPatientModalOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [isEditingPatient, setIsEditingPatient] = useState(false);
   const [activeFilter, setActiveFilter] = useState('This Week');
 
-  const handleEditPatient = (patient: any) => {
-    setSelectedPatient(patient);
-    setIsEditingPatient(false);
-    setIsEditPatientModalOpen(true);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Searching for:', searchQuery);
-  };
-
   return (
-    <div className="space-y-6 pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded border border-slate-200">
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">System Overview</h1>
-          <p className="text-slate-400 text-xs mt-1 font-bold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Live Analytics & Operations
+    <div className="space-y-4 pb-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-[16px] font-bold tracking-tight text-slate-900">
+            Dashboard
+          </h1>
+          <p className="mt-1 flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest text-slate-400">
+            Platform operations
           </p>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          <button 
-            onClick={() => setIsNewPatientModalOpen(true)}
-            className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:border-[#059669] hover:text-[#059669] transition-all flex items-center gap-2 shadow-sm"
-          >
-            <PlusIcon size={14} />
-            New Patient
-          </button>
-          
-          <button className="p-2 bg-white border border-slate-200 rounded text-slate-400 hover:text-[#059669] hover:bg-emerald-50">
-            <DownloadIcon size={18} />
-          </button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {['Today', 'This Week', 'This Month', 'All Time'].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[9px] font-medium transition-all',
+                activeFilter === filter
+                  ? 'border-slate-300 bg-slate-100 text-slate-900'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+              )}
+            >
+              <RefreshCwIcon size={10} className="shrink-0" />
+              <span>{filter}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex justify-end items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {['Today', 'This Week', 'This Month', 'All Time'].map((filter) => (
-          <button 
-            key={filter}
-            onClick={() => setActiveFilter(filter)}
-            className={cn(
-              "px-2 py-1 text-[9px] font-semibold uppercase tracking-widest rounded-lg border transition-all whitespace-nowrap",
-               activeFilter === filter 
-                ? "bg-slate-900 border-slate-900 text-white shadow-md"
-                : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-            )}
-          >
-            {filter}
-          </button>
-        ))}
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <OryxStatCard 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <CompactStatCard
           title="Total Users"
           value="2,450"
-          icon={<UsersIcon size={20} />}
-          subMetrics={[
-            { label: 'Active', value: '98%', color: 'emerald' },
-            { label: 'New', value: '+124', color: 'blue' }
-          ]}
+          icon={<UsersIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Active 98%</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">New +124</span>
+            </div>
+          }
         />
-        <OryxStatCard 
-          title="Revenue (MTD)"
-          value="GH₵ 85,210"
-          icon={<DollarSignIcon size={20} />}
-          subMetrics={[
-            { label: 'Growth', value: '+15%', color: 'emerald' },
-            { label: 'Target', value: '92%', color: 'amber' }
-          ]}
+
+        <CompactStatCard
+          title="Verified Providers"
+          value="862"
+          icon={<UserCheckIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">Pending 82</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Flagged 24</span>
+            </div>
+          }
         />
-        <OryxStatCard 
-          title="Active Subscriptions"
-          value="1,240"
-          icon={<CreditCardIcon size={20} />}
-          subMetrics={[
-            { label: 'Pro', value: 890, color: 'blue' },
-            { label: 'Basic', value: 350, color: 'slate' }
-          ]}
-        />
-        <OryxStatCard 
-          title="Open Tickets"
+
+        <CompactStatCard
+          title="Open Support Tickets"
           value="12"
-          icon={<AlertTriangleIcon size={20} />}
-          subMetrics={[
-            { label: 'Critical', value: 3, color: 'rose' },
-            { label: 'Queue', value: 'Stable', color: 'emerald' }
-          ]}
+          icon={<AlertTriangleIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Critical 3</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">SLA On Track</span>
+            </div>
+          }
+        />
+
+        <CompactStatCard
+          title="Care Plan Adherence"
+          value="84%"
+          icon={<HeartPulseIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">On Track 68%</span>
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">At Risk 16%</span>
+            </div>
+          }
+        />
+
+        <CompactStatCard
+          title="Pending Approvals"
+          value="34"
+          icon={<ActivityIcon size={14} />}
+          badge="Queue"
+          meta="Users, providers and escalations"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Patient Status Breakdown (Circular Chart) */}
-        <ChartContainer title="Patient Overview" subtitle="Status distribution breakdown">
-          <div className="h-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height={250}>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-slate-900">
+              Provider Verification
+            </h3>
+            <p className="mt-1 text-[10px] text-slate-400">
+              Verification and review distribution
+            </p>
+          </div>
+
+          <div className="flex h-full items-center justify-center">
+            <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
                   data={PIE_DATA}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
+                  cy="48%"
+                  innerRadius={48}
+                  outerRadius={68}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -194,312 +237,156 @@ export function AdminDashboard() {
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </ChartContainer>
+        </div>
 
-        {/* Daily Attendance (Bar Chart) */}
-        <ChartContainer title="Daily Session Activity" subtitle="Attendance status by weekday" className="lg:col-span-2">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={REVENUE_DATA}>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 lg:col-span-2">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-slate-900">
+              CP Improvement Trend
+            </h3>
+            <p className="mt-1 text-[10px] text-slate-400">
+              Trend of improvement across active cerebral palsy care plans
+            </p>
+          </div>
+
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={IMPROVEMENT_TREND_DATA}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-              <Tooltip 
-                cursor={{ fill: '#f8fafc' }}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              <XAxis
+                dataKey="name"
+                stroke="#94a3b8"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
               />
-              <Bar dataKey="subscriptions" name="Sessions" radius={[4, 4, 0, 0]}>
-                {REVENUE_DATA.map((entry, index) => (
-                  <PieCell key={`cell-${index}`} fill={index % 2 === 0 ? '#059669' : '#fda4af'} />
-                ))}
-              </Bar>
+              <YAxis
+                stroke="#94a3b8"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="improvement"
+                stroke="#059669"
+                strokeWidth={3}
+                dot={{ r: 3, fill: '#059669' }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-slate-900">
+              Assigned Daily Tasks
+            </h3>
+            <p className="mt-1 text-[10px] text-slate-400">
+              Daily assigned care and operational tasks across the platform
+            </p>
+          </div>
+
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={DAILY_TASKS_DATA} barCategoryGap={18}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis
+                dataKey="name"
+                stroke="#94a3b8"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="#94a3b8"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: '#f8fafc' }}
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                }}
+              />
+              <Bar dataKey="assigned" radius={[4, 4, 0, 0]} fill="#059669" />
             </BarChart>
           </ResponsiveContainer>
-        </ChartContainer>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         {/* User Growth */}
-         <ChartContainer title="Platform Growth" subtitle="Monthly new registrations">
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={REVENUE_DATA}>
-                <defs>
-                  <linearGradient id="colorGrowth" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#059669" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Area type="monotone" dataKey="revenue" stroke="#059669" strokeWidth={3} fillOpacity={1} fill="url(#colorGrowth)" />
-              </AreaChart>
-            </ResponsiveContainer>
-         </ChartContainer>
-
-         {/* Active Patients List */}
-         <div className="bg-white rounded p-5 overflow-hidden">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-slate-900 tracking-tight">Active Patients</h3>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                {MOCK_PATIENTS.length} admitted
-              </div>
-            </div>
-            <div className="space-y-4">
-              {MOCK_PATIENTS.map((patient) => (
-                <div 
-                  key={patient.id} 
-                  onClick={() => handleEditPatient(patient)}
-                  className="p-4 rounded-xl bg-slate-50/50 hover:bg-emerald-50/10 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-700">{patient.name}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">MRN {patient.mrn}</p>
-                    </div>
-                    <Badge variant="outline" className="text-[9px] uppercase border-emerald-100 text-emerald-600 bg-white font-bold">
-                      {patient.ward}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Diagnosis</p>
-                      <p className="text-[10px] font-semibold text-slate-600">{patient.diagnosis}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Neuro status</p>
-                      <p className="text-[10px] font-semibold text-slate-600">{patient.neuroStatus}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">GCS</p>
-                      <p className="text-[10px] font-semibold text-slate-600">{patient.gcs}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-         </div>
-
-         <div className="bg-white rounded p-5  overflow-hidden relative">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-slate-900 tracking-tight">Recent Activity</h3>
-              <button className="text-[10px] font-bold text-[#059669] uppercase tracking-widest hover:underline">View All</button>
-            </div>
-            <div className="space-y-4">
-              {AUDIT_LOGS.slice(0, 5).map((log) => (
-                <div key={log.id} className="flex items-center gap-4 p-2.5 rounded-lg bg-slate-50 border border-slate-100 group hover:border-emerald-500/20 transition-all cursor-pointer">
-                  <div className="w-8 h-8 rounded-md bg-white border border-slate-200 flex items-center justify-center text-[#059669]">
-                    <ShieldAlertIcon size={16} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[13px] font-bold text-slate-900">{log.action}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">{log.user} • {log.timestamp}</p>
-                  </div>
-                  <div className={cn(
-                    "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
-                    log.status === 'Success' ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-50 text-emerald-600'
-                  )}>
-                    {log.status}
-                  </div>
-                </div>
-              ))}
-            </div>
-         </div>
-      </div>
-
-      <Modal 
-        isOpen={isNewPatientModalOpen} 
-        onClose={() => setIsNewPatientModalOpen(false)} 
-        title="Admit New Patient"
-        className="max-w-2xl"
-      >
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest -mt-4">Enter the patient's neurological intake details.</p>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full name</label>
-              <Input placeholder="Jane Doe" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date of birth</label>
-                <Input type="date" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gender</label>
-                <select className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm outline-none">
-                  <option>Select</option>
-                  <option>Male</option>
-                  <option>Female</option>
-                  <option>Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">MRN</label>
-                <Input placeholder="NC-00000" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ward</label>
-                <select className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm outline-none">
-                  <option>Neuro ICU</option>
-                  <option>Stroke Unit</option>
-                  <option>EMU</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Primary diagnosis</label>
-              <Input placeholder="e.g. Ischemic stroke" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Neurological status</label>
-                <select className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm outline-none">
-                  <option>Alert</option>
-                  <option>Stable</option>
-                  <option>Critical</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">GCS (3–15)</label>
-                <Input type="number" placeholder="15" min="3" max="15" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attending neurologist</label>
-              <Input placeholder="Dr. ..." />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admission notes</label>
-              <textarea 
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm min-h-[100px] outline-none resize-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all"
-                placeholder="Presenting symptoms, NIHSS, plan..."
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t border-slate-50">
-            <button 
-              onClick={() => setIsNewPatientModalOpen(false)}
-              className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50"
-            >
-              Close
-            </button>
-            <button 
-              onClick={() => setIsNewPatientModalOpen(false)}
-              className="flex-1 py-2.5 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-brand-hover shadow-xl shadow-brand/20 transition-all"
-            >
-              Admit patient
-            </button>
-          </div>
         </div>
-      </Modal>
 
-      {/* Edit Patient Modal */}
-      <Modal
-        isOpen={isEditPatientModalOpen}
-        onClose={() => setIsEditPatientModalOpen(false)}
-        title={selectedPatient?.name || "Patient Record"}
-        className="max-w-2xl"
-      >
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-           <div className="flex items-center justify-between bg-emerald-50/50 p-4 rounded-2xl -mt-4 mb-6">
-              <div>
-                <p className="text-sm font-bold text-slate-900">{selectedPatient?.name}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Viewing patient record</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Edit</span>
-                <button 
-                  onClick={() => setIsEditingPatient(!isEditingPatient)}
-                  className={cn(
-                    "w-10 h-5 rounded-full transition-all relative p-1",
-                    isEditingPatient ? "bg-[#059669]" : "bg-slate-200"
-                  )}
-                >
-                  <div className={cn(
-                    "w-3 h-3 bg-white rounded-full transition-all",
-                    isEditingPatient ? "ml-5" : "ml-0"
-                  )} />
-                </button>
-              </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-5">
+          <div className="mb-3 flex items-start justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Patient Recovery
+              </h3>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Snapshot of recovery outcomes across active patient cohorts
+              </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full name</label>
-                  <Input disabled={!isEditingPatient} defaultValue={selectedPatient?.name} />
-               </div>
-               <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">MRN</label>
-                  <Input disabled={!isEditingPatient} defaultValue={selectedPatient?.mrn} />
-               </div>
+            <div className="rounded-md bg-emerald-50 p-1.5 text-emerald-600">
+              <TrendingUpIcon size={12} />
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ward</label>
-                <select 
-                  disabled={!isEditingPatient} 
-                  defaultValue={selectedPatient?.ward}
-                  className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm outline-none"
-                >
-                  <option value="Neuro ICU">Neuro ICU</option>
-                  <option value="Stroke Unit">Stroke Unit</option>
-                  <option value="EMU">EMU</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Neurologist</label>
-                <Input disabled={!isEditingPatient} defaultValue={selectedPatient?.neurologist} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Primary Diagnosis</label>
-              <Input disabled={!isEditingPatient} defaultValue={selectedPatient?.diagnosis} />
-            </div>
-
-            <div className="space-y-2">
-               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admission notes</label>
-               <textarea 
-                  disabled={!isEditingPatient}
-                  defaultValue={selectedPatient?.notes}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm min-h-[100px] outline-none resize-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all"
-               />
-            </div>
-
-            <div className="flex gap-3 pt-4 border-t border-slate-50">
-              <button 
-                onClick={() => setIsEditPatientModalOpen(false)}
-                className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50"
+          <div className="space-y-2.5">
+            {PATIENT_RECOVERY_DATA.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2.5"
               >
-                Close
-              </button>
-              {isEditingPatient && (
-                <button className="flex-1 py-2.5 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-brand/20 transition-all">
-                  Update Record
-                </button>
-              )}
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-900">
+                      {item.label}
+                    </p>
+                    <p className="mt-0.5 text-[9px] text-slate-400">
+                      {item.note}
+                    </p>
+                  </div>
+                  <div
+                    className={cn(
+                      'text-[13px] font-bold',
+                      item.color === 'emerald' && 'text-emerald-600',
+                      item.color === 'blue' && 'text-blue-600',
+                      item.color === 'amber' && 'text-amber-600'
+                    )}
+                  >
+                    {item.value}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between text-[10px] text-slate-400">
+              <span>Recovery trend</span>
+              <span className="font-semibold text-emerald-600">Improving overall</span>
             </div>
+          </div>
         </div>
-      </Modal>
+      </div>
     </div>
   );
 }

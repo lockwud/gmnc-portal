@@ -1,59 +1,27 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/context/AuthContext';
-import { useLayout } from '@/lib/context/LayoutContext';
-import { Permission } from '@/lib/rbac';
-import {
-  ActivityIcon,
-  BarChart3Icon,
-  CalendarIcon,
-  ChevronRightIcon,
-  CreditCardIcon,
-  Gamepad2Icon,
-  GiftIcon,
-  HelpCircleIcon,
-  InboxIcon,
-  LayoutDashboardIcon,
-  LogOutIcon,
-  MessageSquareIcon,
-  ServerIcon,
-  SettingsIcon,
-  ShieldAlertIcon,
-  ShieldCheckIcon,
-  StethoscopeIcon,
-  UserIcon,
-  UsersIcon,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { COLORS } from '@/lib/colors';
 
-interface SidebarItem {
+type MenuItem = {
   label: string;
-  icon: LucideIcon;
-  href?: string;
-  permission?: Permission;
-  children?: SidebarItem[];
-}
+  path?: string;
+  icon?: string;
+  children?: MenuItem[];
+  collapsible?: boolean;
+};
 
-interface MenuCategory {
-  title: string;
-  items: SidebarItem[];
-}
-
-const MENU_CATEGORIES: MenuCategory[] = [
+const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
   {
     title: 'MAIN',
     items: [
-      { label: 'Overview', icon: LayoutDashboardIcon, href: '/dashboard' },
-      { label: 'Admin Dashboard', icon: ShieldAlertIcon, href: '/admin', permission: 'system.manage' },
-      { label: 'Provider Dashboard', icon: StethoscopeIcon, href: '/provider', permission: 'appointment.read' },
-      { label: 'Caregiver Dashboard', icon: UserIcon, href: '/caregiver', permission: 'caregiver.read' },
-      { label: 'Support Dashboard', icon: HelpCircleIcon, href: '/support', permission: 'support.read' },
-      { label: 'Infrastructure Dashboard', icon: ServerIcon, href: '/tester', permission: 'tester.all' },
+      { label: 'Overview', path: '/dashboard', icon: 'dashboard', collapsible: false },
+      { label: 'Admin Dashboard', path: '/admin', icon: 'admin_panel_settings', collapsible: false },
+      { label: 'Provider Dashboard', path: '/provider', icon: 'medical_services', collapsible: false },
+      { label: 'Support Dashboard', path: '/support', icon: 'support_agent', collapsible: false },
     ],
   },
   {
@@ -61,227 +29,370 @@ const MENU_CATEGORIES: MenuCategory[] = [
     items: [
       {
         label: 'Admin',
-        icon: ShieldAlertIcon,
-        permission: 'system.manage',
+        icon: 'shield',
+        collapsible: true,
         children: [
-          { label: 'Analytics', icon: BarChart3Icon, href: '/admin/analytics', permission: 'system.manage' },
-          { label: 'Inbox', icon: InboxIcon, href: '/admin/inbox', permission: 'system.manage' },
-          { label: 'Users', icon: UsersIcon, href: '/admin/users', permission: 'system.manage' },
-          { label: 'Roles & Access', icon: ShieldCheckIcon, href: '/admin/roles', permission: 'system.manage' },
-          { label: 'Audit Viewer', icon: ActivityIcon, href: '/admin/audit', permission: 'system.manage' },
-          { label: 'Referral Campaigns', icon: UsersIcon, href: '/admin/referrals', permission: 'system.manage' },
-          { label: 'Integrations', icon: ServerIcon, href: '/admin/integrations', permission: 'system.manage' },
-          { label: 'Provider Network', icon: StethoscopeIcon, href: '/admin/providers', permission: 'system.manage' },
+          { label: 'Analytics', path: '/admin/analytics', icon: 'insights' },
+          { label: 'Inbox', path: '/admin/inbox', icon: 'inbox' },
+          { label: 'Users', path: '/admin/users', icon: 'groups' },
+          { label: 'Roles & Access', path: '/admin/roles', icon: 'verified_user' },
+          { label: 'Audit Viewer', path: '/admin/audit', icon: 'history' },
+          { label: 'Provider Network', path: '/admin/providers', icon: 'medical_services' },
         ],
       },
       {
         label: 'Provider',
-        icon: StethoscopeIcon,
-        permission: 'appointment.read',
+        icon: 'medical_services',
+        collapsible: true,
         children: [
-          { label: 'Appointments', icon: CalendarIcon, href: '/provider/appointments', permission: 'appointment.read' },
-          { label: 'Patient List', icon: UsersIcon, href: '/provider/clients', permission: 'appointment.read' },
-          { label: 'Referral Track', icon: MessageSquareIcon, href: '/provider/referrals', permission: 'appointment.read' },
-          { label: 'Tasks & Notes', icon: ActivityIcon, href: '/provider/tasks', permission: 'appointment.read' },
-          { label: 'Billing & Usage', icon: CreditCardIcon, href: '/provider/billing', permission: 'appointment.read' },
+          { label: 'Appointments', path: '/provider/appointments', icon: 'event' },
+          { label: 'Patient List', path: '/provider/clients', icon: 'groups' },
+          { label: 'Referral Track', path: '/provider/referrals', icon: 'compare_arrows' },
+          { label: 'Tasks & Notes', path: '/provider/tasks', icon: 'task_alt' },
         ],
       },
       {
         label: 'Caregiver',
-        icon: UserIcon,
-        permission: 'caregiver.read',
+        icon: 'person',
+        collapsible: true,
         children: [
-          { label: 'Telehealth', icon: MessageSquareIcon, href: '/caregiver/telehealth', permission: 'caregiver.read' },
-          { label: 'Games & Well-being', icon: Gamepad2Icon, href: '/caregiver/games', permission: 'caregiver.read' },
-          { label: 'Rewards', icon: GiftIcon, href: '/caregiver/rewards', permission: 'caregiver.read' },
+          { label: 'Telehealth', path: '/caregiver/telehealth', icon: 'videocam' },
+          { label: 'Games & Well-being', path: '/caregiver/games', icon: 'sports_esports' },
+          { label: 'Rewards', path: '/caregiver/rewards', icon: 'redeem' },
         ],
       },
       {
         label: 'Support',
-        icon: HelpCircleIcon,
-        permission: 'support.read',
-        children: [
-          { label: 'FAQ Database', icon: MessageSquareIcon, href: '/support/faqs', permission: 'support.read' },
-        ],
+        icon: 'support_agent',
+        collapsible: true,
+        children: [{ label: 'FAQ Database', path: '/support/faqs', icon: 'help_center' }],
       },
-    ],
-  },
-  {
-    title: 'SYSTEM',
-    items: [
-      { label: 'Settings', icon: SettingsIcon, href: '/settings' },
     ],
   },
 ];
 
-export function Sidebar() {
+const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
+  {
+    title: 'SYSTEM',
+    items: [
+      { label: 'Reports', path: '/reports', icon: 'assessment', collapsible: false },
+      { label: 'Audit Logs', path: '/audit-logs', icon: 'history', collapsible: false },
+      { label: 'System Settings', path: '/settings', icon: 'settings', collapsible: false },
+    ],
+  },
+];
+
+type Props = {
+  collapsed?: boolean;
+};
+
+const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
-  const { isCollapsed } = useLayout();
-  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
 
-  const hasAccess = React.useCallback(
-    (item: SidebarItem) => {
-      if (user?.roles.includes('tester')) return true;
-      return !item.permission || user?.permissions.includes(item.permission);
-    },
-    [user]
-  );
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [collapsedOpenGroup, setCollapsedOpenGroup] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
-  const isHrefActive = React.useCallback(
-    (href?: string) => {
-      if (!href) return false;
-      return pathname === href || pathname.startsWith(`${href}/`);
-    },
-    [pathname]
-  );
+  useEffect(() => {
+    setSelectedKey(pathname ?? null);
+  }, [pathname]);
 
-  const getVisibleChildren = React.useCallback(
-    (item: SidebarItem) => (item.children || []).filter(hasAccess),
-    [hasAccess]
-  );
+  const toggleGroup = (groupLabel: string) =>
+    setOpenGroups((prev) => ({ ...prev, [groupLabel]: !prev[groupLabel] }));
 
-  const isGroupActive = React.useCallback(
-    (item: SidebarItem) => getVisibleChildren(item).some((child) => isHrefActive(child.href)),
-    [getVisibleChildren, isHrefActive]
-  );
-
-  const toggleGroup = (label: string) => {
-    setOpenGroups((current) => ({
-      ...current,
-      [label]: !current[label],
-    }));
+  const handleGroupClick = (item: MenuItem) => {
+    const key = `group:${item.label}`;
+    setSelectedKey(key);
+    if (collapsed) setCollapsedOpenGroup((p) => (p === item.label ? null : item.label));
+    else toggleGroup(item.label);
   };
 
-  const renderLinkItem = (item: SidebarItem, nested = false) => {
-    if (!item.href) return null;
+  const handleLeafClick = (path: string) => setSelectedKey(path);
 
-    const isActive = isHrefActive(item.href);
+  const sidebarWidth = collapsed ? 56 : 220;
 
-    return (
-      <Link
-        key={item.label}
-        href={item.href}
-        className={cn(
-          'group relative flex items-center gap-3 text-[13px] font-medium transition-all duration-200',
-          nested ? 'ml-6 rounded-xl px-3 py-2' : 'px-4 py-1.5',
-          isActive ? 'bg-[#059669] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-        )}
-      >
-        <item.icon
-          className={cn(
-            'h-4 w-4 shrink-0 transition-transform duration-200',
-            isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'
-          )}
-        />
-        {!isCollapsed && <span className="tracking-tight">{item.label}</span>}
-        {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white/20" />}
-      </Link>
-    );
+  const iconSizeClass = 'text-xs';
+  const itemFontClass = 'text-[11px]';
+  const itemPadding = 'px-2 py-1.5';
+  const itemGap = 'gap-2';
+  const groupHeaderPadding = 'px-2 py-1';
+  const childItemPadding = 'px-3 py-1';
+  const childFont = 'text-[10px]';
+
+  const SELECT_BG = '#059669';
+  const SELECT_TEXT = '#ffffff';
+  const HOVER_BG = '#D1FAE5';
+
+  const groupIsSelected = (group: MenuItem) => {
+    const gkey = `group:${group.label}`;
+    if (selectedKey === gkey) return true;
+    if (group.children) return group.children.some((c) => selectedKey === c.path);
+    if (group.path) return selectedKey === group.path;
+    return false;
   };
 
-  const renderMenuItems = (items: SidebarItem[]) => {
-    return items
-      .filter(hasAccess)
-      .map((item) => {
-        const visibleChildren = getVisibleChildren(item);
+  const renderChildrenExpanded = (children: MenuItem[]) =>
+    children.map((child) => {
+      const key = child.path ?? `group:${child.label}`;
+      const isSelected = selectedKey === key;
+      const isHovered = hoveredKey === key;
+      const bg = isSelected ? SELECT_BG : isHovered ? HOVER_BG : 'transparent';
+      const color = isSelected ? SELECT_TEXT : COLORS.text;
 
-        if (!item.children || visibleChildren.length === 0) {
-          return renderLinkItem(item);
-        }
-
-        const isActive = isGroupActive(item);
-        const isOpen = openGroups[item.label] ?? isActive;
-
+      if (child.children) {
+        const open = !!openGroups[child.label];
         return (
-          <div key={item.label}>
+          <div key={key}>
             <button
-              type="button"
-              onClick={() => toggleGroup(item.label)}
-              className={cn(
-                'group relative flex w-full items-center gap-3 px-4 py-2 text-[13px] font-medium transition-all duration-200',
-                isActive ? 'bg-emerald-50 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              )}
+              onClick={() => {
+                setSelectedKey(`group:${child.label}`);
+                toggleGroup(child.label);
+              }}
+              onMouseEnter={() => setHoveredKey(`group:${child.label}`)}
+              onMouseLeave={() => setHoveredKey(null)}
+              className={`w-full flex items-center ${itemGap} ${groupHeaderPadding} rounded-md ${itemFontClass}`}
+              style={{ background: bg, color }}
             >
-              <item.icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-[#059669]' : 'text-slate-400 group-hover:text-slate-600')} />
-              {!isCollapsed && (
-                <>
-                  <span className="flex-1 text-left tracking-tight">{item.label}</span>
-                  <ChevronRightIcon className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-90', isActive ? 'text-[#059669]' : 'text-slate-400')} />
-                </>
-              )}
+              <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
+              <span className="flex-1 text-left">{child.label}</span>
+              <span className="material-icons text-[12px]" aria-hidden>
+                {open ? 'expand_more' : 'chevron_right'}
+              </span>
             </button>
 
-            {!isCollapsed && isOpen && (
-              <div className="mt-1 space-y-1 border-l border-slate-200/80 pl-2">
-                {visibleChildren.map((child) => renderLinkItem(child, true))}
+            {open && (
+              <div className="pl-4 mt-1 space-y-1">
+                {child.children.map((gc) => (
+                  <Link
+                    key={gc.path}
+                    href={gc.path!}
+                    onClick={() => handleLeafClick(gc.path!)}
+                    onMouseEnter={() => setHoveredKey(gc.path!)}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    className={`flex items-center gap-2 ${childItemPadding} rounded-md ${childFont}`}
+                    style={{
+                      background: selectedKey === gc.path ? SELECT_BG : 'transparent',
+                      color: selectedKey === gc.path ? SELECT_TEXT : COLORS.text,
+                    }}
+                  >
+                    <span className={`material-icons ${iconSizeClass}`}>{gc.icon}</span>
+                    <span>{gc.label}</span>
+                  </Link>
+                ))}
               </div>
             )}
           </div>
         );
-      });
-  };
+      }
+
+      return (
+        <Link
+          key={key}
+          href={child.path ?? '#'}
+          onClick={() => child.path && handleLeafClick(child.path)}
+          onMouseEnter={() => setHoveredKey(key)}
+          onMouseLeave={() => setHoveredKey(null)}
+          className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass}`}
+          style={{ background: bg, color }}
+        >
+          <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
+          <span className="text-left">{child.label}</span>
+        </Link>
+      );
+    });
+
+  const renderChildrenCollapsed = (children: MenuItem[]) =>
+    children.map((child) => {
+      const key = child.path ?? `group:${child.label}`;
+      const isSelected = selectedKey === key;
+      const bg = isSelected ? SELECT_BG : 'transparent';
+      const color = isSelected ? SELECT_TEXT : COLORS.text;
+
+      if (child.children) {
+        return (
+          <div key={key} className="w-full">
+            <button
+              onClick={() => {
+                setSelectedKey(`group:${child.label}`);
+                setCollapsedOpenGroup((p) => (p === child.label ? null : child.label));
+              }}
+              onMouseEnter={() => setHoveredKey(`group:${child.label}`)}
+              onMouseLeave={() => setHoveredKey(null)}
+              className="w-full flex items-center justify-center p-2 rounded-md"
+              title={child.label}
+              style={{ background: bg, color }}
+            >
+              <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
+            </button>
+
+            {collapsedOpenGroup === child.label && (
+              <div className="flex flex-col items-center mt-1 space-y-1">
+                {child.children.map((gc) => (
+                  <Link
+                    key={gc.path}
+                    href={gc.path!}
+                    onClick={() => handleLeafClick(gc.path!)}
+                    className="w-full flex items-center justify-center p-2 rounded-md"
+                    title={gc.label}
+                    style={{
+                      background: selectedKey === gc.path ? SELECT_BG : 'transparent',
+                      color: selectedKey === gc.path ? SELECT_TEXT : COLORS.text,
+                    }}
+                  >
+                    <span className={`material-icons ${iconSizeClass}`}>{gc.icon}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <Link
+          key={key}
+          href={child.path ?? '#'}
+          onClick={() => child.path && handleLeafClick(child.path)}
+          onMouseEnter={() => setHoveredKey(key)}
+          onMouseLeave={() => setHoveredKey(null)}
+          className="w-full flex items-center justify-center p-2 rounded-md"
+          title={child.label}
+          style={{ background: bg, color }}
+        >
+          <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
+        </Link>
+      );
+    });
+
+  const renderSection = (section: { title?: string; items: MenuItem[] }, keyPrefix: string) => (
+    <div key={keyPrefix}>
+      {!collapsed && section.title && (
+        <p className="mb-1 px-2 text-[10px] font-semibold uppercase text-emerald-600">
+          {section.title}
+        </p>
+      )}
+
+      <div className="space-y-1">
+        {section.items.map((item) => {
+          const groupKey = `group:${item.label}`;
+          const groupSel = groupIsSelected(item);
+          const groupBg = groupSel ? SELECT_BG : 'transparent';
+          const groupColor = groupSel ? SELECT_TEXT : COLORS.text;
+
+          if (item.children && item.collapsible !== false) {
+            const open = !!openGroups[item.label];
+            return (
+              <div key={item.label} className="relative">
+                <button
+                  onClick={() => handleGroupClick(item)}
+                  onMouseEnter={() => setHoveredKey(groupKey)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                  className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass}`}
+                  title={item.label}
+                  style={{ background: groupBg, color: groupColor }}
+                >
+                  <span className={`material-icons ${iconSizeClass}`}>{item.icon}</span>
+                  {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+                  {!collapsed && (
+                    <span className="material-icons text-[12px]" aria-hidden>
+                      {open ? 'expand_more' : 'chevron_right'}
+                    </span>
+                  )}
+                </button>
+
+                {!collapsed && open && (
+                  <div className="mt-1 space-y-1 pl-4">{renderChildrenExpanded(item.children)}</div>
+                )}
+
+                {collapsed && collapsedOpenGroup === item.label && (
+                  <div className="mt-1 flex flex-col items-center space-y-1">
+                    {renderChildrenCollapsed(item.children)}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const key = item.path ?? groupKey;
+          const isSel = selectedKey === key;
+          const bg = isSel ? SELECT_BG : 'transparent';
+          const color = isSel ? SELECT_TEXT : COLORS.text;
+
+          return (
+            <Link
+              key={key}
+              href={item.path ?? '#'}
+              onClick={() => item.path && handleLeafClick(item.path)}
+              onMouseEnter={() => setHoveredKey(key)}
+              onMouseLeave={() => setHoveredKey(null)}
+              className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass}`}
+              title={item.label}
+              style={{ background: bg, color }}
+            >
+              <span className={`material-icons ${iconSizeClass}`}>{item.icon}</span>
+              {!collapsed && <span className="text-left">{item.label}</span>}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <aside
-      className={cn(
-        'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-slate-200 bg-[#F8F9FA] transition-all duration-300',
-        isCollapsed ? 'w-[80px]' : 'w-[256px]'
-      )}
+      className="flex h-screen flex-col border-r border-slate-200 bg-white"
+      style={{
+        width: sidebarWidth,
+        minWidth: sidebarWidth,
+        background: COLORS.sidebarBg,
+      }}
     >
-      <div className="border-b border-slate-100 bg-white p-4">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-2 py-2">
+        <Link href="/" className="flex items-center gap-2">
           <div
-            className={cn(
-              'rounded-md border border-slate-200 bg-white p-1.5 shadow-sm transition-all',
-              isCollapsed ? 'h-10 w-10' : 'h-12 w-12'
-            )}
+            className={`relative flex-shrink-0 ${collapsed ? 'h-9 w-9' : 'h-12 w-12'}`}
+            style={{ minWidth: collapsed ? 36 : 48, minHeight: collapsed ? 36 : 48 }}
           >
-            <Image src="/logo.png" alt="Logo" width={48} height={48} className="h-full w-full object-contain" />
+            <Image
+              src="/logo.png"
+              alt="GmNC"
+              fill
+              sizes={collapsed ? '36px' : '48px'}
+              className="rounded-md object-contain"
+            />
           </div>
-          {!isCollapsed && (
-            <div className="transition-opacity duration-300">
-              <span className="block text-xl font-bold tracking-tight text-[#059669]">GmNC</span>
-              <span className="-mt-1 block text-[8px] font-extrabold uppercase tracking-widest text-slate-500">getmyneurocare</span>
+
+          {!collapsed && (
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold text-emerald-600" style={{ lineHeight: 1 }}>
+                GmNC
+              </span>
+              <span className="text-[11px] text-gray-400">GETMYNEUROCARE</span>
             </div>
           )}
-        </div>
+        </Link>
       </div>
 
-      <nav className="scrollbar-hide flex-1 space-y-6 overflow-y-auto py-4">
-        {MENU_CATEGORIES.map((category) => {
-          const visibleItems = category.items.filter((item) => {
-            if (item.children) {
-              return getVisibleChildren(item).length > 0;
-            }
-
-            return hasAccess(item);
-          });
-
-          if (visibleItems.length === 0) return null;
-
-          return (
-            <div key={category.title} className="space-y-1">
-              {!isCollapsed && (
-                <h3 className="mb-2 px-4 text-[10px] font-bold uppercase tracking-[0.1em] text-[#059669]/60">
-                  {category.title}
-                </h3>
-              )}
-              <div className="space-y-0.5">{renderMenuItems(category.items)}</div>
-            </div>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-slate-100 bg-white p-4">
-        <button
-          onClick={logout}
-          className="group flex w-full items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-slate-500 transition-all duration-200 hover:bg-emerald-50 hover:text-[#059669]"
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <nav
+          className="no-scrollbar flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-1 py-2"
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}
         >
-          <LogOutIcon className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-1" />
-          {!isCollapsed && <span className="tracking-tight">Sign Out</span>}
-        </button>
+          {topSidebarSections.map((section, idx) => renderSection(section, `top-${idx}`))}
+        </nav>
+
+        <div className="border-t border-slate-100 px-1 pt-1.5 pb-1">
+          <div className="space-y-2">
+            {bottomSidebarSections.map((section, idx) => renderSection(section, `bottom-${idx}`))}
+          </div>
+        </div>
       </div>
     </aside>
   );
-}
+};
+
+export default Sidebar;

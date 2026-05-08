@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Table } from "@/components/ui/Table";
-import { Button } from "@/components/ui/Button";
+import Button  from "@/components/ui/Button";
 import { LinkIcon, SettingsIcon, AlertCircleIcon, GlobeIcon, DatabaseIcon } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { cn } from "@/lib/utils";
@@ -23,9 +23,9 @@ export default function IntegrationsPage() {
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Institutional Integrations</h1>
             <p className="mt-1 text-xs font-bold text-slate-400">Manage external connections, health systems, and data synchronization.</p>
           </div>
-          <Button variant="amber" className="gap-2 rounded-xl px-6 font-bold shadow-lg shadow-accent/20">
+          <button type="button" className="flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-accent/20">
             <LinkIcon size={18} /> Add Integration
-          </Button>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -85,9 +85,9 @@ export default function IntegrationsPage() {
                 </div>
               ))}
             </div>
-            <Button variant="ghost" className="w-full text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <button type="button" className="w-full text-[10px] font-bold uppercase tracking-widest text-slate-400">
               View All Logs
-            </Button>
+            </button>
           </div>
         </div>
       </div>
