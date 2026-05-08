@@ -2,7 +2,7 @@
 
 // import * as React from "react";
 // import { MailCheck, RefreshCcw, ArrowLeft, Mail } from "lucide-react";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { Input } from "@/components/ui/Input";
 // import { motion } from "framer-motion";
 // import { useRouter } from "next/navigation";
@@ -125,7 +125,7 @@
 //               </Button>
 
 //               <Link href="/login" className="block">
-//                 <Button type="button" variant="ghost" className="h-11 w-full rounded-xl gap-2 font-bold text-slate-500 transition-all hover:bg-white/60">
+//                 <Button type="button" variant="gray" className="h-11 w-full rounded-xl gap-2 font-bold text-slate-500 transition-all hover:bg-white/60">
 //                   <ArrowLeft size={18} />
 //                   Back to Login
 //                 </Button>

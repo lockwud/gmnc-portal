@@ -1,7 +1,7 @@
 // "use client";
 
 // import React from "react";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { GiftIcon, Share2Icon, TrophyIcon, CopyIcon, UsersIcon } from "lucide-react";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 // import { OryxStatCard } from "@/components/ui/OryxStatCard";

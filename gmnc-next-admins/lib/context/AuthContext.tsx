@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
       setSelectedRoleState(role);
       localStorage.setItem('gmnc_selected_role', role);
-      router.push('/otp');
+      router.push(getDashboardRoute(role));
     } else {
       setError('Invalid email or password');
     }

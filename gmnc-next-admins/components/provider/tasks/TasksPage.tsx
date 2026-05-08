@@ -16,11 +16,11 @@
 //   Layers,
 //   FileText,
 // } from "lucide-react";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { Input } from "@/components/ui/Input";
-// import { Badge } from "@/components/ui/Badge";
+// import Badge from "@/components/ui/Badge";
 // import { Card } from "@/components/ui/Card";
-// import { Modal } from "@/components/ui/Modal";
+// import Modal from "@/components/ui/Modal";
 // import { cn } from "@/lib/utils";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
@@ -74,10 +74,10 @@
 //                 <input placeholder="Search tasks, clients or providers..." className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-50 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" />
 //               </div>
 //               <div className="flex items-center gap-2">
-//                 <Button variant="ghost" className="h-12 px-5 text-slate-500 text-sm font-bold gap-2 hover:bg-slate-50 rounded-2xl border border-slate-50">
+//                 <Button variant="gray" className="h-12 px-5 text-slate-500 text-sm font-bold gap-2 hover:bg-slate-50 rounded-2xl border border-slate-50">
 //                   <Filter size={18} className="text-slate-400" /> Filters
 //                 </Button>
-//                 <Button variant="ghost" className="h-12 px-5 text-slate-500 text-sm font-bold gap-2 hover:bg-slate-50 rounded-2xl border border-slate-50">
+//                 <Button variant="gray" className="h-12 px-5 text-slate-500 text-sm font-bold gap-2 hover:bg-slate-50 rounded-2xl border border-slate-50">
 //                   <Layers size={18} className="text-slate-400" /> Category
 //                 </Button>
 //               </div>
@@ -128,7 +128,7 @@
 //                       </div>
 //                     </td>
 //                     <td className="p-5">
-//                       <Badge variant="outline" className="text-[10px] font-bold text-slate-400 border-slate-100 bg-white">
+//                       <Badge color="gray" className="text-[10px] font-bold text-slate-400 border-slate-100 bg-white">
 //                         {task.category}
 //                       </Badge>
 //                     </td>
@@ -146,7 +146,7 @@
 //                       <span className="text-sm font-extrabold text-slate-500">{task.dueDate}</span>
 //                     </td>
 //                     <td className="p-5 pr-8 text-right">
-//                       <Button variant="ghost" size="icon" className="text-slate-300 group-hover:text-primary">
+//                       <Button variant="gray" size="icon" className="text-slate-300 group-hover:text-primary">
 //                         <MoreVertical size={18} />
 //                       </Button>
 //                     </td>
@@ -203,7 +203,7 @@
 //             </div>
 
 //             <div className="flex gap-3 pt-6 border-t border-slate-50 mt-4">
-//               <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-slate-500" onClick={() => setShowAssignTaskModal(false)}>
+//               <Button type="button" variant="gray" className="flex-1 h-14 rounded-2xl text-slate-500" onClick={() => setShowAssignTaskModal(false)}>
 //                 Cancel
 //               </Button>
 //               <Button variant="amber" className="flex-2 h-14 rounded-2xl font-bold px-12 shadow-lg shadow-accent/10">Assign Task</Button>

@@ -132,17 +132,6 @@ export default function LoginPage() {
                 <span className="bg-white px-4 py-0.5">Secure Access</span>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <button type="button" className="flex items-center justify-center gap-3 py-3 bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 rounded-2xl transition-all font-bold text-xs text-slate-600 shadow-sm">
-                <Image src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" width={16} height={16} unoptimized />
-                Google
-              </button>
-              <button type="button" className="flex items-center justify-center gap-3 py-3 bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 rounded-2xl transition-all font-bold text-xs text-slate-600 shadow-sm">
-                <Image src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" width={16} height={16} unoptimized />
-                Microsoft
-              </button>
-            </div>
           </form>
         </div>
       </motion.div>

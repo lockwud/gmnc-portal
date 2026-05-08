@@ -158,7 +158,7 @@ export function ProvidersPageContent() {
       specialty: "Occupational Therapy",
       licenseNumber: "",
     });
-    addToast("New provider registered and awaiting credentials verification.", "success");
+    addToast("New provider registered and awaiting credentials verification.", "emerald");
   };
 
   const filteredProviders = data.filter((p) => {

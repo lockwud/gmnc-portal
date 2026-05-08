@@ -5,7 +5,6 @@ import './globals.css';
 
 import { AuthProvider } from '../lib/context/AuthContext';
 import { UIProvider } from '../lib/context/UIContext';
-import MainLayout from '@/components/layout/MainLayout';
 
 const geistSans = GeistSans;
 const geistMono = GeistMono;
@@ -39,7 +38,7 @@ export default function RootLayout({
       <body className="min-h-full w-full">
         <AuthProvider>
           <UIProvider>
-            <MainLayout>{children}</MainLayout>
+            {children}
           </UIProvider>
         </AuthProvider>
       </body>

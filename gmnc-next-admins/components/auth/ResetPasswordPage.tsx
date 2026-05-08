@@ -2,7 +2,7 @@
 
 // import * as React from "react";
 // import { Lock, Eye, EyeOff, CheckCircle2, MoveRight } from "lucide-react";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { Input } from "@/components/ui/Input";
 // import { motion } from "framer-motion";
 // import { useRouter } from "next/navigation";

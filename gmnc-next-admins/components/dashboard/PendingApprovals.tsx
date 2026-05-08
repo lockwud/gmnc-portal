@@ -1,6 +1,6 @@
 // import * as React from "react";
-// import { Badge } from "@/components/ui/Badge";
-// import { Button } from "@/components/ui/Button";
+// import Badge from "@/components/ui/Badge";
+// import Button from "@/components/ui/Button";
 // import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 // import { User, Check, X, Clock, Filter } from "lucide-react";
 // import { useUI } from "@/lib/context/UIContext";
@@ -20,9 +20,9 @@
 //   const handleAction = (id: number, name: string, type: "accept" | "reject") => {
 //     setProviders(prev => prev.filter(p => p.no !== id));
 //     if (type === "accept") {
-//       addToast(`${name} has been verified successfully.`, "success");
+//       addToast(`${name} has been verified successfully.`, "emerald");
 //     } else {
-//       addToast(`Registration for ${name} was declined.`, "info");
+//       addToast(`Registration for ${name} was declined.`, "blue");
 //     }
 //   };
 
@@ -32,7 +32,7 @@
 //         <CardTitle className="text-xl font-bold text-primary">Pending Approvals</CardTitle>
 //         <div className="flex items-center gap-3">
 //            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Sort</span>
-//            <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 bg-slate-50/50 rounded-xl hover:bg-slate-100 transition-all">
+//            <Button variant="gray" size="icon" className="h-9 w-9 text-slate-400 bg-slate-50/50 rounded-xl hover:bg-slate-100 transition-all">
 //              <Filter size={18} />
 //            </Button>
 //         </div>
@@ -88,7 +88,7 @@
 //                     <div className="flex justify-end gap-3">
 //                       <Button 
 //                         size="icon" 
-//                         variant="ghost" 
+//                         variant="gray" 
 //                         className="h-9 w-9 text-rose-500 bg-rose-50/30 hover:bg-rose-50 rounded-xl transition-colors"
 //                         onClick={() => handleAction(provider.no, provider.name, "reject")}
 //                       >
@@ -96,7 +96,7 @@
 //                       </Button>
 //                       <Button 
 //                         size="icon" 
-//                         variant="ghost" 
+//                         variant="gray" 
 //                         className="h-9 w-9 text-emerald-500 bg-emerald-50/50 hover:bg-emerald-100 rounded-xl transition-colors"
 //                         onClick={() => handleAction(provider.no, provider.name, "accept")}
 //                       >

@@ -1,7 +1,7 @@
 // "use client";
 
 // import React from "react";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { ArrowUpRightIcon, CheckCircle2Icon, ShieldCheckIcon } from "lucide-react";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 // import { cn } from "@/lib/utils";

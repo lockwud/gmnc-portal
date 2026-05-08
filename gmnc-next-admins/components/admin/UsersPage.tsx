@@ -2,12 +2,12 @@
 
 // import React, { useState } from "react";
 // import { Table } from "@/components/ui/Table";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { Input } from "@/components/ui/Input";
-// import { Modal } from "@/components/ui/Modal";
+// import Modal from "@/components/ui/Modal";
 // import { SearchIcon, UserPlusIcon, MoreVerticalIcon, ShieldCheckIcon, GhostIcon, UserIcon, MailIcon, PhoneIcon } from "lucide-react";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-// import { Badge } from "@/components/ui/Badge";
+// import Badge from "@/components/ui/Badge";
 // import { cn } from "@/lib/utils";
 
 // type UserRecord = {

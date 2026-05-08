@@ -5,19 +5,23 @@ import { ChevronDown } from "lucide-react";
 export interface SelectProps
   extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  description?: string;
   error?: string;
   icon?: React.ReactNode;
   options: { label: string; value: string }[];
 }
 
 const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, error, icon, options, ...props }, ref) => {
+  ({ className, label, description, error, icon, options, ...props }, ref) => {
     return (
       <div className="w-full space-y-1.5">
         {label && (
           <label className="text-sm font-medium text-slate-700 ml-1">
             {label}
           </label>
+        )}
+        {description && (
+          <p className="text-xs text-slate-400 ml-1 -mt-1 mb-2 font-medium">{description}</p>
         )}
         <div className="relative group">
           {icon && (

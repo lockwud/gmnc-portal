@@ -15,11 +15,11 @@
 //   Phone,
 //   Home,
 // } from "lucide-react";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { Input } from "@/components/ui/Input";
-// import { Badge } from "@/components/ui/Badge";
+// import Badge from "@/components/ui/Badge";
 // import { Card } from "@/components/ui/Card";
-// import { Modal } from "@/components/ui/Modal";
+// import Modal from "@/components/ui/Modal";
 // import { cn } from "@/lib/utils";
 // import { useUI } from "@/lib/context/UIContext";
 // import { motion, AnimatePresence } from "framer-motion";
@@ -69,7 +69,7 @@
 
 //   const handleDeactivate = (id: string, name: string) => {
 //     setData((prev) => prev.filter((client) => client.id !== id));
-//     addToast(`Account for ${name} has been deactivated.`, "info");
+//     addToast(`Account for ${name} has been deactivated.`, "blue");
 //   };
 
 //   const handleAddClient = (e: React.FormEvent) => {
@@ -96,7 +96,7 @@
 //       address: "",
 //     });
 //     setShowAddClientModal(false);
-//     addToast("New client registered successfully awaiting verification.", "success");
+//     addToast("New client registered successfully awaiting verification.", "emerald");
 //   };
 
 //   const handleClientFormChange = (field: keyof typeof clientForm, value: string) => {
@@ -155,7 +155,7 @@
 //               <div className="flex items-center gap-2">
 //                 <div className="relative group">
 //                   <Button
-//                     variant="ghost"
+//                     variant="gray"
 //                     className={cn(
 //                       "h-12 px-5 text-slate-500 text-sm font-bold gap-2 hover:bg-slate-50 rounded-2xl border border-slate-50",
 //                       regionFilter !== "All Regions" && "border-emerald-500 bg-emerald-50 text-emerald-700"
@@ -227,7 +227,7 @@
 //                         <span className="text-sm font-bold text-slate-600">{client.phone}</span>
 //                       </td>
 //                       <td className="p-5">
-//                         <Badge variant={client.status === "Verified" ? "success" : client.status === "Pending" ? "warning" : "danger"} className="text-[10px] uppercase font-bold border-none px-2.5 py-1">
+//                         <Badge color={client.status === "Verified" ? "emerald" : client.status === "Pending" ? "amber" : "rose"} className="text-[10px] uppercase font-bold border-none px-2.5 py-1">
 //                           {client.status}
 //                         </Badge>
 //                       </td>
@@ -239,7 +239,7 @@
 //                       </td>
 //                       <td className="p-5 pr-8 text-right relative">
 //                         <div className="group/menu relative inline-block">
-//                           <Button variant="ghost" size="icon" className="text-slate-300 group-hover:text-primary">
+//                           <Button variant="gray" size="icon" className="text-slate-300 group-hover:text-primary">
 //                             <MoreVertical size={18} />
 //                           </Button>
 //                           <div className="absolute right-10 top-1/2 -translate-y-1/2 w-40 bg-white border border-slate-100 shadow-xl rounded-xl p-2 hidden group-hover/menu:block z-50 animate-in fade-in zoom-in duration-200">
@@ -279,7 +279,7 @@
 //             </div>
 
 //             <div className="flex gap-3 pt-8 border-t border-slate-50">
-//               <Button type="button" variant="ghost" className="flex-1 h-14 text-slate-500" onClick={() => setShowAddClientModal(false)}>
+//               <Button type="button" variant="gray" className="flex-1 h-14 text-slate-500" onClick={() => setShowAddClientModal(false)}>
 //                 Cancel
 //               </Button>
 //               <Button type="submit" variant="amber" className="flex-2 h-14 font-bold px-12 shadow-lg shadow-accent/10">Register Client</Button>

@@ -2,10 +2,10 @@
 
 // import React from "react";
 // import { Table } from "@/components/ui/Table";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { VideoIcon, CalendarIcon } from "lucide-react";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-// import { Badge } from "@/components/ui/Badge";
+// import Badge from "@/components/ui/Badge";
 
 // export default function TelehealthPage() {
 //   return (
@@ -48,7 +48,7 @@
 //             { header: "Provider", accessor: "doctor", className: "font-bold text-slate-900" },
 //             { header: "Date", accessor: "date", className: "text-[11px] font-bold text-slate-400" },
 //             { header: "Duration", accessor: "duration", className: "text-xs text-slate-500 font-medium" },
-//             { header: "Status", accessor: (item: { status: string }) => <Badge variant="success" className="text-[9px] uppercase font-bold">{item.status}</Badge> },
+//             { header: "Status", accessor: (item: { status: string }) => <Badge color="green" className="text-[9px] uppercase font-bold">{item.status}</Badge> },
 //           ]}
 //         />
 //       </div>

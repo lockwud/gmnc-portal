@@ -3,7 +3,7 @@
 import * as React from "react";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 
-type UIToastVariant = "success" | "info" | "error";
+type UIToastVariant = "emerald" | "blue" | "rose";
 
 type UIContextValue = {
   addToast: (message: string, variant?: UIToastVariant) => void;
@@ -18,11 +18,11 @@ function UIProviderContent({ children }: { children: React.ReactNode }) {
   const [isSearchOpen, setSearchOpen] = React.useState(false);
 
   const addToast = React.useCallback(
-    (message: string, variant: UIToastVariant = "info") => {
+    (message: string, variant: UIToastVariant = "blue") => {
       const titleByVariant: Record<UIToastVariant, string> = {
-        success: "Success",
-        info: "Notice",
-        error: "Error",
+        emerald: "Success",
+        blue: "Notice",
+        rose: "Error",
       };
 
       show({

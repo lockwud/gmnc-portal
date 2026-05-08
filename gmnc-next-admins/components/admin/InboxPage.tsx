@@ -10,10 +10,10 @@
 //   Lock,
 //   ShieldCheck,
 // } from "lucide-react";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { Input } from "@/components/ui/Input";
 // import { Card } from "@/components/ui/Card";
-// import { Badge } from "@/components/ui/Badge";
+// import Badge from "@/components/ui/Badge";
 // import { cn } from "@/lib/utils";
 // import { motion, AnimatePresence } from "framer-motion";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -86,7 +86,7 @@
 //                   <p className="text-xs text-slate-500 truncate mt-0.5">{contact.lastMsg}</p>
 //                 </div>
 //                 {contact.unread > 0 && (
-//                   <Badge variant="warning" className="h-5 w-5 rounded-full flex items-center justify-center p-0 text-[10px]">
+//                   <Badge color="yellow" className="h-5 w-5 rounded-full flex items-center justify-center p-0 text-[10px]">
 //                     {contact.unread}
 //                   </Badge>
 //                 )}
@@ -108,11 +108,11 @@
 //               </div>
 //             </div>
 //             <div className="flex items-center gap-2">
-//               <Button variant={isUnlocked ? "success" : "outline"} size="sm" className="gap-2 text-xs font-bold h-9" onClick={() => (isUnlocked ? setIsUnlocked(false) : setShowPrompt(true))}>
+//               <Button variant={isUnlocked ? "emerald" : "outline"} size="sm" className="gap-2 text-xs font-bold h-9" onClick={() => (isUnlocked ? setIsUnlocked(false) : setShowPrompt(true))}>
 //                 {isUnlocked ? <ShieldCheck size={14} /> : <Lock size={14} />}
 //                 {isUnlocked ? "SECURE SESSION ACTIVE" : "UNLOCK SENSITIVE DATA"}
 //               </Button>
-//               <Button variant="ghost" size="icon" className="text-slate-400 h-9 w-9">
+//               <Button variant="gray" size="icon" className="text-slate-400 h-9 w-9">
 //                 <MoreVertical size={18} />
 //               </Button>
 //             </div>
@@ -153,7 +153,7 @@
 
 //           <div className="p-4 bg-white border-t border-slate-100">
 //             <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-2 pl-4 focus-within:ring-2 focus-within:ring-accent/10 focus-within:border-accent transition-all">
-//               <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
+//               <Button variant="gray" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
 //                 <Paperclip size={18} />
 //               </Button>
 //               <input placeholder="Type your secure message..." className="flex-1 bg-transparent border-none text-sm focus:outline-none" />
@@ -178,7 +178,7 @@
 //                   <form onSubmit={handleUnlock} className="space-y-4">
 //                     <Input placeholder="Enter admin password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} autoFocus />
 //                     <div className="flex gap-2 pt-2">
-//                       <Button type="button" variant="ghost" className="flex-1 h-11" onClick={() => setShowPrompt(false)}>Cancel</Button>
+//                       <Button type="button" variant="gray" className="flex-1 h-11" onClick={() => setShowPrompt(false)}>Cancel</Button>
 //                       <Button type="submit" variant="amber" className="flex-1 h-11 font-bold">Unlock Access</Button>
 //                     </div>
 //                   </form>

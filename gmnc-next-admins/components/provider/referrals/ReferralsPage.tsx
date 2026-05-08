@@ -2,10 +2,10 @@
 
 // import React from "react";
 // import { Table } from "@/components/ui/Table";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { SendIcon, SearchIcon, MoreVerticalIcon, ExternalLinkIcon } from "lucide-react";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-// import { Badge } from "@/components/ui/Badge";
+// import Badge from "@/components/ui/Badge";
 
 // const MOCK_REFERRALS = [
 //   { id: "REF-001", patient: "Sedem Gadokey", to: "Dr. Mensah (Physio)", date: "May 10, 2025", status: "Pending" },
@@ -45,7 +45,7 @@
 //             {
 //               header: "Status",
 //               accessor: (item: { status: string }) => (
-//                 <Badge variant={item.status === "Accepted" ? "success" : item.status === "Pending" ? "warning" : "secondary"} className="text-[9px] uppercase font-bold">
+//                 <Badge color={item.status === "Accepted" ? "emerald" : item.status === "Pending" ? "amber" : "gray"} className="text-[9px] uppercase font-bold">
 //                   {item.status}
 //                 </Badge>
 //               ),

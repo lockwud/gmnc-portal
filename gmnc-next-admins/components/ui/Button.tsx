@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 type Props = {
   children: React.ReactNode;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'gray';
   className?: string;
   onClick?: () => void;
   type?: 'button' | 'submit' | 'reset';
@@ -20,7 +20,7 @@ const Button: React.FC<Props> = ({
 }) => {
   const variants = {
     primary: 'bg-emerald-600 text-white hover:bg-emerald-700',
-    secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+    gray: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
   };
 
   return (

@@ -3,8 +3,8 @@
 // import * as React from "react";
 // import { X, User, Phone, Mail, MapPin, Shield, CheckCircle, Ban, AlertCircle } from "lucide-react";
 // import { motion, AnimatePresence } from "framer-motion";
-// import { Button } from "@/components/ui/Button";
-// import { Badge } from "@/components/ui/Badge";
+// import Button from "@/components/ui/Button";
+// import Badge from "@/components/ui/Badge";
 
 // interface ProfileSlideOverProps {
 //   isOpen: boolean;
@@ -47,7 +47,7 @@
 //             {/* Header */}
 //             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
 //               <h2 className="text-xl font-bold text-primary">Provider Profile</h2>
-//               <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+//               <Button variant="gray" size="icon" onClick={onClose} className="rounded-full">
 //                 <X size={20} />
 //               </Button>
 //             </div>
@@ -63,7 +63,7 @@
 //                   <h3 className="text-2xl font-bold text-primary">{provider.name}</h3>
 //                   <p className="text-slate-500 font-medium">{provider.role}</p>
 //                 </div>
-//                 <Badge variant={provider.status === "Verified" ? "success" : "warning"} className="px-4 py-1 text-sm">
+//                 <Badge color={provider.status === "Verified" ? "emerald" : "amber"} className="px-4 py-1 text-sm">
 //                   {provider.status}
 //                 </Badge>
 //               </div>
@@ -112,7 +112,7 @@
 //                       <p className="text-xs text-emerald-600/70">Verified on 12/01/25</p>
 //                     </div>
 //                   </div>
-//                   <Button variant="ghost" size="sm" className="text-emerald-700 text-xs font-bold">View</Button>
+//                   <Button variant="gray" size="sm" className="text-emerald-700 text-xs font-bold">View</Button>
 //                 </div>
 //               </div>
 //             </div>
@@ -127,7 +127,7 @@
 //                   <Ban size={18} /> Reject / Suspend
 //                 </Button>
 //               </div>
-//               <Button variant="ghost" className="w-full gap-2 text-slate-400 py-4 hover:text-primary">
+//               <Button variant="gray" className="w-full gap-2 text-slate-400 py-4 hover:text-primary">
 //                 <Mail size={18} /> Send Warning Message
 //               </Button>
 //             </div>

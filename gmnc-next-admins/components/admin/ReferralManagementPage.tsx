@@ -2,7 +2,7 @@
 
 // import React from "react";
 // import { Table } from "@/components/ui/Table";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { UsersIcon, GiftIcon, TrendingUpIcon, MegaphoneIcon, Share2Icon } from "lucide-react";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 // import { OryxStatCard } from "@/components/ui/OryxStatCard";

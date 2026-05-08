@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const MOCK_INTEGRATIONS = [
   { id: 1, name: "National Health ID (NHIS)", status: "Connected", lastSync: "2 mins ago", type: "Gov API" },
-  { id: 2, name: "Korle-Bu HMS", status: "Error", lastSync: "1 hour ago", type: "Institutional" },
+  { id: 2, name: "Korle-Bu HMS", status: "rose", lastSync: "1 hour ago", type: "Institutional" },
   { id: 3, name: "St. John's Hospital", status: "Connected", lastSync: "15 mins ago", type: "Institutional" },
   { id: 4, name: "Payment Gateway (Paystack)", status: "Connected", lastSync: "Real-time", type: "Financial" },
 ];

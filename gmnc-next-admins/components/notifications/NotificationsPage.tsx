@@ -74,12 +74,12 @@ export default function NotificationsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="secondary" className="gap-2 border border-slate-200 bg-white text-slate-700">
+          <Button variant="gray" className="gap-2 border border-slate-200 bg-white text-slate-700">
             <Filter size={18} /> Filters
           </Button>
 
           <Button
-            variant="secondary"
+            variant="gray"
             className="font-bold text-emerald-600 hover:bg-emerald-50"
           >
             Mark all as read
@@ -161,7 +161,7 @@ export default function NotificationsPage() {
 
                     <div className="flex flex-col items-end justify-between">
                       <Button
-                        variant="secondary"
+                        variant="gray"
                         className="min-h-0 bg-transparent p-2 text-slate-300 shadow-none hover:bg-slate-50 hover:text-primary"
                       >
                         <MoreVertical size={18} />

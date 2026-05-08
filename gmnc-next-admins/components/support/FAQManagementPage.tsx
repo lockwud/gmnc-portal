@@ -2,10 +2,10 @@
 
 // import React from "react";
 // import { Table } from "@/components/ui/Table";
-// import { Button } from "@/components/ui/Button";
+// import Button from "@/components/ui/Button";
 // import { PlusIcon, SearchIcon, MoreVerticalIcon, EyeIcon } from "lucide-react";
 // import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-// import { Badge } from "@/components/ui/Badge";
+// import Badge from "@/components/ui/Badge";
 
 // const MOCK_FAQS = [
 //   { id: "FAQ-001", question: "How to add a new provider?", category: "Onboarding", status: "Published" },
@@ -45,7 +45,7 @@
 //             {
 //               header: "Status",
 //               accessor: (item: { status: string }) => (
-//                 <Badge variant={item.status === "Published" ? "success" : "secondary"} className="text-[9px] uppercase font-bold">
+//                 <Badge color={item.status === "Published" ? "emerald" : "gray"} className="text-[9px] uppercase font-bold">
 //                   {item.status}
 //                 </Badge>
 //               ),
