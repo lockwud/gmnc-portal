@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Mail, Lock, Eye, EyeOff, MoveRight } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import  Button  from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -109,7 +109,7 @@ export default function LoginPage() {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}>
-              <Button type="submit" className="w-full h-12 rounded-2xl text-base font-bold shadow-xl shadow-emerald-500/20 group hover:scale-[1.01] active:scale-[0.99] transition-all bg-emerald-600 hover:bg-emerald-700 text-white border-none" disabled={isLoading}>
+              <button type="submit" className="w-full h-12 rounded-2xl text-base font-bold shadow-xl shadow-emerald-500/20 group hover:scale-[1.01] active:scale-[0.99] transition-all bg-emerald-600 hover:bg-emerald-700 text-white border-none disabled:cursor-not-allowed disabled:opacity-60" disabled={isLoading}>
                 {isLoading ? (
                   <div className="flex items-center gap-3">
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -121,7 +121,7 @@ export default function LoginPage() {
                     <MoveRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
-              </Button>
+              </button>
             </motion.div>
 
             <div className="relative my-8">

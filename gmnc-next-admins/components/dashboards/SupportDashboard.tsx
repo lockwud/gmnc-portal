@@ -1,376 +1,500 @@
-"use client";
+'use client';
 
-import { useState } from 'react';
-import { Search as SearchIcon, Clock as ClockIcon, AlertCircle as AlertCircleIcon, CheckCircle2 as CheckCircle2Icon, Inbox as InboxIcon, Phone as PhoneIcon, Mail as MailIcon, History as HistoryIcon, MessageSquareIcon } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import Badge from '@/components/ui/Badge';
+import {
+  InboxIcon,
+  Clock3Icon,
+  AlertTriangleIcon,
+  CheckCircle2Icon,
+  RefreshCwIcon,
+  HeadsetIcon,
+  ShieldAlertIcon,
+  ActivityIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Table } from '@/components/ui/Table';
-import { Drawer } from '@/components/ui/Drawer';
-import { OryxStatCard } from '@/components/ui/OryxStatCard';
-import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
 
-const TICKETS = [
+const SUPPORT_BOARD = [
   {
-    id: 'TKT-001',
-    user: 'Sarah Mitchell',
-    issue: 'Unable to download patient reports. The PDF button is greyed out.',
-    priority: 'High',
-    status: 'In Progress',
-    date: '2024-01-15'
+    title: 'New Requests',
+    count: 11,
+    items: [
+      {
+        id: 'SUP-001',
+        time: 'Mon, Jan 15 • 08:32 AM',
+        tag: 'ACCESS ISSUE',
+        title: 'Provider unable to access patient report',
+        subtitle: 'Report export action disabled',
+        assignees: ['AM', 'JO'],
+        more: '+3',
+        ref: 'SR102',
+        priority: 'High',
+      },
+      {
+        id: 'SUP-002',
+        time: 'Mon, Jan 15 • 09:05 AM',
+        tag: 'LOGIN',
+        title: 'Session timeout during clinical review',
+        subtitle: 'User signed out after 5 minutes',
+        assignees: ['DE', 'LS'],
+        more: '+2',
+        ref: 'SR108',
+        priority: 'Critical',
+      },
+    ],
   },
   {
-    id: 'TKT-002',
-    user: 'Dr. Evans',
-    issue: 'Platform login timeout after 5 minutes. Very disruptive during sessions.',
-    priority: 'Critical',
-    status: 'Open',
-    date: '2024-01-15'
+    title: 'In Progress',
+    count: 18,
+    items: [
+      {
+        id: 'SUP-004',
+        time: 'Mon, Jan 15 • 10:40 AM',
+        tag: 'TELEHEALTH',
+        title: 'Video session audio inconsistency',
+        subtitle: 'Intermittent dropout reported',
+        assignees: ['DA', 'EO', 'BK'],
+        more: '+4',
+        ref: 'SR120',
+        priority: 'High',
+      },
+      {
+        id: 'SUP-005',
+        time: 'Mon, Jan 15 • 11:12 AM',
+        tag: 'PROFILE',
+        title: 'Therapist profile image not rendering',
+        subtitle: 'Broken image on provider listing',
+        assignees: ['LS', 'AN'],
+        more: '+2',
+        ref: 'SR123',
+        priority: 'Low',
+      },
+      {
+        id: 'SUP-006',
+        time: 'Mon, Jan 15 • 11:51 AM',
+        tag: 'APP FREEZE',
+        title: 'Tablet app freezes on patient switch',
+        subtitle: 'Occurs when navigating between children',
+        assignees: ['GI', 'PO'],
+        more: '+3',
+        ref: 'SR127',
+        priority: 'Medium',
+      },
+    ],
   },
   {
-    id: 'TKT-003',
-    user: 'Michael Chen',
-    issue: 'Tablet app freezes when switching between children.',
-    priority: 'Medium',
-    status: 'Resolved',
-    date: '2024-01-14'
+    title: 'Escalated',
+    count: 5,
+    items: [
+      {
+        id: 'SUP-007',
+        time: 'Mon, Jan 15 • 12:21 PM',
+        tag: 'SECURITY',
+        title: 'Role access mismatch for provider account',
+        subtitle: 'Unexpected admin privilege exposure',
+        assignees: ['AD', 'SE'],
+        more: '+5',
+        ref: 'SR131',
+        priority: 'Critical',
+      },
+      {
+        id: 'SUP-008',
+        time: 'Mon, Jan 15 • 01:02 PM',
+        tag: 'DATA',
+        title: 'Patient progress chart not syncing',
+        subtitle: 'Latest adherence data missing',
+        assignees: ['QA', 'MX'],
+        more: '+2',
+        ref: 'SR135',
+        priority: 'High',
+      },
+    ],
   },
   {
-    id: 'TKT-004',
-    user: 'James Peterson',
-    issue: 'Billing statement not accessible for last month.',
-    priority: 'Low',
-    status: 'Open',
-    date: '2024-01-14'
+    title: 'Awaiting User',
+    count: 7,
+    items: [
+      {
+        id: 'SUP-009',
+        time: 'Mon, Jan 15 • 01:18 PM',
+        tag: 'FOLLOW-UP',
+        title: 'Requested browser and device details',
+        subtitle: 'Awaiting response from caregiver',
+        assignees: ['LI', 'OM'],
+        more: '+1',
+        ref: 'SR140',
+        priority: 'Low',
+      },
+      {
+        id: 'SUP-010',
+        time: 'Mon, Jan 15 • 01:48 PM',
+        tag: 'VERIFICATION',
+        title: 'Need provider confirmation on issue scope',
+        subtitle: 'Pending workflow reproduction details',
+        assignees: ['TR', 'FE'],
+        more: '+1',
+        ref: 'SR142',
+        priority: 'Medium',
+      },
+    ],
   },
   {
-    id: 'TKT-005',
-    user: 'Lisa Rodriguez',
-    issue: 'Therapist profile picture not displaying correctly.',
-    priority: 'Low',
-    status: 'Escalated',
-    date: '2024-01-13'
-  }
+    title: 'Resolved',
+    count: 24,
+    items: [
+      {
+        id: 'SUP-011',
+        time: 'Mon, Jan 15 • 02:15 PM',
+        tag: 'RESOLVED',
+        title: 'Report export restored successfully',
+        subtitle: 'Permission mapping corrected',
+        assignees: ['AM', 'JO'],
+        more: '+2',
+        ref: 'SR147',
+        priority: 'High',
+      },
+      {
+        id: 'SUP-012',
+        time: 'Mon, Jan 15 • 02:42 PM',
+        tag: 'RESOLVED',
+        title: 'Login timeout issue updated',
+        subtitle: 'Session policy aligned with expected duration',
+        assignees: ['DE', 'LS'],
+        more: '+2',
+        ref: 'SR151',
+        priority: 'Critical',
+      },
+    ],
+  },
 ];
 
-export function SupportDashboard() {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isManualTicketModalOpen, setIsManualTicketModalOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('All');
+type CompactStatCardProps = {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  meta?: string;
+  footer?: React.ReactNode;
+  badge?: string;
+};
 
-  const handleTicketClick = (ticket: any) => {
-    setSelectedTicket(ticket);
-    setIsDrawerOpen(true);
+function CompactStatCard({
+  title,
+  value,
+  icon,
+  meta,
+  footer,
+  badge,
+}: CompactStatCardProps) {
+  return (
+    <div className="group relative h-[118px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-4 transition-all duration-200 hover:border-slate-300">
+      <div className="absolute inset-0 bg-slate-50 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+
+      <div className="relative z-10 flex h-full flex-col justify-between">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[11px] font-semibold leading-none text-slate-600">
+            {title}
+          </p>
+
+          <div className="flex items-center gap-1.5">
+            {badge && (
+              <Badge className="border-none bg-slate-50 px-1.5 py-0.5 text-[8px] font-medium uppercase leading-none text-slate-500">
+                {badge}
+              </Badge>
+            )}
+            <div className="text-slate-400">{icon}</div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-[24px] font-bold leading-none tracking-tight text-slate-900">
+            {value}
+          </h3>
+
+          {meta ? (
+            <p className="mt-2 line-clamp-1 text-[10px] leading-none text-slate-400">
+              {meta}
+            </p>
+          ) : (
+            <div className="mt-3 min-h-[24px] text-[9px] font-medium leading-none">
+              {footer}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AvatarPill({ text, color }: { text: string; color: string }) {
+  return (
+    <div
+      className={cn(
+        'flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-bold',
+        color === 'red' && 'border-rose-200 bg-rose-50 text-rose-500',
+        color === 'blue' && 'border-blue-200 bg-blue-50 text-blue-500',
+        color === 'green' && 'border-emerald-200 bg-emerald-50 text-emerald-500',
+        color === 'amber' && 'border-amber-200 bg-amber-50 text-amber-500',
+        color === 'slate' && 'border-slate-200 bg-slate-50 text-slate-500'
+      )}
+    >
+      {text}
+    </div>
+  );
+}
+
+function SupportCard({
+  item,
+}: {
+  item: {
+    id: string;
+    time: string;
+    tag: string;
+    title: string;
+    subtitle: string;
+    assignees: string[];
+    more: string;
+    ref: string;
+    priority: string;
   };
+}) {
+  const priorityClass =
+    item.priority === 'Critical'
+      ? 'bg-rose-50 text-rose-600'
+      : item.priority === 'High'
+        ? 'bg-amber-50 text-amber-600'
+        : item.priority === 'Medium'
+          ? 'bg-blue-50 text-blue-600'
+          : 'bg-slate-100 text-slate-600';
 
-  const filteredTickets = TICKETS.filter(ticket => {
-    const matchesSearch = ticket.user.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         ticket.issue.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPriority = priorityFilter === 'All' || ticket.priority === priorityFilter;
-    return matchesSearch && matchesPriority;
-  });
+  const colors = ['red', 'blue', 'green', 'amber', 'slate'] as const;
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <p className="text-[10px] text-slate-400">{item.time}</p>
+
+      <div className="mt-2 inline-flex rounded-full bg-blue-600 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white">
+        {item.tag}
+      </div>
+
+      <div className="mt-2">
+        <p className="text-[11px] font-semibold text-slate-700">
+          {item.title}
+        </p>
+        <p className="mt-1 text-[12px] font-bold text-slate-900">
+          {item.subtitle}
+        </p>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="flex items-center -space-x-1">
+          {item.assignees.map((assignee, index) => (
+            <AvatarPill
+              key={assignee}
+              text={assignee}
+              color={colors[index % colors.length]}
+            />
+          ))}
+          <div className="flex h-6 items-center rounded-full border border-slate-200 bg-amber-50 px-1.5 text-[9px] font-bold text-slate-600">
+            {item.more}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className={cn('rounded-full px-2 py-0.5 text-[8px] font-bold uppercase', priorityClass)}>
+            {item.priority}
+          </span>
+          <span className="text-[9px] text-slate-500">{item.ref}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SupportDashboard() {
+  const [activeFilter, setActiveFilter] = useState('This Week');
+
+  const totalOpen = useMemo(
+    () =>
+      SUPPORT_BOARD.filter((col) => col.title !== 'Resolved').reduce(
+        (sum, col) => sum + col.count,
+        0
+      ),
+    []
+  );
+
+  return (
+    <div className="space-y-5 overflow-x-hidden pb-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Support Queue</h1>
-          <p className="text-slate-400 text-xs mt-1 font-bold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Service Level Agreement: Healthy
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900">
+            Support
+          </h1>
+          <p className="mt-1 flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            Service queues, escalations, SLA health 
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative group hidden md:block">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-[#059669] transition-colors" />
-            <input
-              type="text"
-              placeholder="Search tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-[#F3F4F6] border-transparent focus:border-[#059669]/20 focus:bg-white focus:ring-4 focus:ring-[#059669]/5 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-900 w-64 transition-all outline-none"
-            />
-          </div>
-          <button 
-            onClick={() => setIsManualTicketModalOpen(true)}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:border-[#059669] hover:text-[#059669] transition-all shadow-sm"
-          >
-            Manual Ticket
-          </button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {['Today', 'This Week', 'This Month', 'All Time'].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[9px] font-medium transition-all',
+                activeFilter === filter
+                  ? 'border-slate-300 bg-slate-100 text-slate-900'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+              )}
+            >
+              <RefreshCwIcon size={10} className="shrink-0" />
+              <span>{filter}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {['All', 'Critical', 'High', 'Medium', 'Low'].map((p) => (
-          <button 
-            key={p}
-            onClick={() => setPriorityFilter(p)}
-            className={cn(
-              "px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border transition-all whitespace-nowrap",
-              priorityFilter === p 
-                ? "bg-slate-900 border-slate-900 text-white shadow-sm"
-                : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50 hover:border-slate-300"
-            )}
-          >
-            {p} Priority
-          </button>
-        ))}
-      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <CompactStatCard
+          title="Open Queue"
+          value={`${totalOpen}`}
+          icon={<InboxIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">New 11</span>
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">In Progress 18</span>
+            </div>
+          }
+        />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <OryxStatCard
-          title="New Tickets"
-          value="12"
-          icon={<InboxIcon size={20} />}
-          subMetrics={[{ label: 'Unassigned', value: 4, color: 'rose' }]}
+        <CompactStatCard
+          title="Critical Escalations"
+          value="5"
+          icon={<ShieldAlertIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-rose-50 px-2 py-1 text-rose-600">Immediate Attention</span>
+            </div>
+          }
         />
-        <OryxStatCard
-          title="Avg Response"
+
+        <CompactStatCard
+          title="Avg Response Time"
           value="14m"
-          icon={<ClockIcon size={20} />}
-          subMetrics={[{ label: 'Goal', value: '<15m', color: 'emerald' }]}
+          icon={<Clock3Icon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Goal &lt; 15m</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">SLA Healthy</span>
+            </div>
+          }
         />
-        <OryxStatCard
-          title="Queue Status"
-          value="Healthy"
-          icon={<AlertCircleIcon size={20} />}
-          subMetrics={[{ label: 'Backlog', value: 3, color: 'amber' }]}
-        />
-        <OryxStatCard
+
+        <CompactStatCard
           title="Resolved Today"
           value="24"
-          icon={<CheckCircle2Icon size={20} />}
-          subMetrics={[{ label: 'Efficiency', value: '94%', color: 'emerald' }]}
+          icon={<CheckCircle2Icon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Efficiency 94%</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">Backlog 3</span>
+            </div>
+          }
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Ticket Queue */}
-        <div className="lg:col-span-8 space-y-8">
-          <Table
-            title="Active Support Queue"
-            data={filteredTickets}
-            columns={[
-              { header: 'ID', accessor: 'id', className: 'font-mono text-[10px] font-bold text-slate-500' },
-              { header: 'User', accessor: 'user', className: 'font-extrabold text-slate-900' },
-              { header: 'Issue', accessor: 'issue', className: 'text-slate-500 text-xs font-medium max-w-[200px] truncate' },
-              {
-                header: 'Priority',
-                accessor: (item) => (
-                  <span className={cn(
-                    "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border",
-                    item.priority === 'Critical' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                      item.priority === 'High' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                        'bg-blue-50 text-blue-600 border-blue-100'
-                  )}>
-                    {item.priority}
-                  </span>
-                )
-              },
-              {
-                header: 'Status',
-                accessor: (item) => (
-                  <span className={cn(
-                    "flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest",
-                    item.status === 'Open' ? 'text-blue-600' :
-                      item.status === 'In Progress' ? 'text-amber-600' :
-                        item.status === 'Escalated' ? 'text-emerald-600' :
-                          'text-emerald-600'
-                  )}>
-                    <div className={cn(
-                      "w-1.5 h-1.5 rounded-full animate-pulse",
-                      item.status === 'Open' ? 'bg-blue-500' :
-                        item.status === 'In Progress' ? 'bg-amber-500' :
-                          item.status === 'Escalated' ? 'bg-emerald-500' :
-                            'bg-emerald-500'
-                    )} />
-                    {item.status}
-                  </span>
-                )
-              },
-            ]}
-            onRowClick={handleTicketClick}
-          />
-
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-             <div className="flex items-center justify-between mb-8">
-                <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">User Lookup</h3>
-                <PhoneIcon className="text-slate-300" size={20} />
-             </div>
-             <div className="flex gap-4">
-                <div className="relative flex-1">
-                   <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                   <input 
-                     placeholder="Search users to view profiles or escalate tickets..." 
-                     className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-primary/5 outline-none transition-all"
-                   />
-                </div>
-                <Button variant="amber" className="px-8 font-bold rounded-2xl">Search</Button>
-             </div>
-          </div>
-        </div>
-
-        {/* Sidebar: SLA & FAQs */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-extrabold text-slate-900 tracking-tight uppercase tracking-widest opacity-60">SLA Monitoring</h3>
-              <ClockIcon size={18} className="text-[#059669]" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        {SUPPORT_BOARD.map((column) => (
+          <div
+            key={column.title}
+            className="flex h-[620px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+          >
+            <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-2">
+              <h3 className="truncate pr-3 text-[12px] font-semibold text-slate-900">
+                {column.title}
+              </h3>
+              <span className="text-[10px] text-slate-500">{column.count}</span>
             </div>
-            <div className="space-y-6">
-              {[
-                { label: 'Critical Response', time: '12m remaining', val: 85, color: 'rose' },
-                { label: 'Standard Support', time: '2h 15m remaining', val: 30, color: 'emerald' },
-              ].map((sla, idx) => (
-                <div key={idx} className="space-y-2">
-                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                    <span className="text-slate-400">{sla.label}</span>
-                    <span className={sla.color === 'rose' ? 'text-emerald-600' : 'text-emerald-600'}>{sla.time}</span>
-                  </div>
-                  <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={cn("h-full transition-all duration-500", sla.color === 'rose' ? "bg-emerald-500" : "bg-emerald-500")} style={{ width: `${sla.val}%` }} />
-                  </div>
-                </div>
+
+            <div className="support-column-scroll space-y-3 overflow-y-auto pr-1">
+              {column.items.map((item) => (
+                <SupportCard key={item.id} item={item} />
               ))}
+
+              {column.items.length === 0 && (
+                <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white text-[11px] text-slate-400">
+                  No items
+                </div>
+              )}
             </div>
           </div>
+        ))}
 
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-extrabold text-slate-900 tracking-tight uppercase tracking-widest opacity-60">FAQ Management</h3>
-              <MessageSquareIcon size={18} className="text-blue-500" />
+        <div className="flex h-[620px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-2">
+            <h3 className="truncate pr-3 text-[12px] font-semibold text-slate-900">
+              Operations Watch
+            </h3>
+            <span className="text-[10px] text-slate-500">Live</span>
+          </div>
+
+          <div className="support-column-scroll space-y-3 overflow-y-auto pr-1">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <HeadsetIcon size={14} className="text-emerald-600" />
+                <p className="text-[11px] font-semibold text-slate-900">
+                  Support staffing healthy
+                </p>
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400">
+                Active queue coverage is within expected threshold.
+              </p>
             </div>
-            <div className="space-y-4">
-               {[
-                 'Adding new providers',
-                 'Billing cycle issues',
-                 'Telehealth setup guide',
-               ].map(q => (
-                 <button key={q} className="w-full text-left p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all text-xs font-bold text-slate-600 flex items-center justify-between">
-                    {q}
-                    <InboxIcon size={12} className="text-slate-300" />
-                 </button>
-               ))}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <AlertTriangleIcon size={14} className="text-amber-600" />
+                <p className="text-[11px] font-semibold text-slate-900">
+                  Telehealth incident cluster
+                </p>
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400">
+                Multiple video-session issues reported within the last hour.
+              </p>
             </div>
-            <button className="w-full mt-4 py-3 border border-dashed border-slate-200 rounded-xl text-[10px] font-bold uppercase text-slate-400 hover:border-primary/20 hover:text-primary transition-all">
-               Manage All FAQs
-            </button>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <ActivityIcon size={14} className="text-blue-600" />
+                <p className="text-[11px] font-semibold text-slate-900">
+                  Escalation review in progress
+                </p>
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400">
+                Security and data-sync cases are currently being reviewed.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <Drawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title={`Ticket Detail: ${selectedTicket?.id}`}
-      >
-        <div className="space-y-8">
-          <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100">
-            <h4 className="text-[10px] font-bold text-[#059669] uppercase tracking-widest mb-4">User Contact</h4>
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-[#059669] text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-emerald-500/20">
-                {selectedTicket?.user.charAt(0)}
-              </div>
-              <div>
-                <p className="font-extrabold text-slate-900 text-base tracking-tight">{selectedTicket?.user}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Premium Member • 2024</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-[#059669] hover:border-emerald-100 transition-all shadow-sm">
-                <MailIcon size={14} /> Email
-              </button>
-              <button className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-[#059669] hover:border-emerald-100 transition-all shadow-sm">
-                <PhoneIcon size={14} /> Call
-              </button>
-            </div>
-          </div>
+      <style jsx>{`
+        .support-column-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
 
-          <div className="space-y-3">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Issue Reported</h4>
-            <div className="p-5 rounded-2xl bg-white border border-slate-100 text-[13px] text-slate-600 leading-relaxed font-medium shadow-sm">
-              {selectedTicket?.issue}. User reports they are unable to see the "Download PDF" button on the clinical notes page. They have tried clearing cache and restarting the browser.
-            </div>
-          </div>
+        .support-column-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
 
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <HistoryIcon size={14} /> Interaction History
-            </h4>
-            <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1.5px] before:bg-slate-100">
-              <div className="relative pl-8">
-                <div className="absolute left-0 top-1 w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center z-10 shadow-sm group hover:border-[#059669]/30 transition-all">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                </div>
-                <p className="text-[13px] font-bold text-slate-900">Ticket Created</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">Today • 09:12 AM</p>
-              </div>
-              <div className="relative pl-8">
-                <div className="absolute left-0 top-1 w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center z-10 shadow-sm group hover:border-[#059669]/30 transition-all">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                </div>
-                <p className="text-[13px] font-bold text-slate-900">Assigned to Support Agent</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">Today • 10:05 AM</p>
-              </div>
-            </div>
-          </div>
+        .support-column-scroll::-webkit-scrollbar-thumb {
+          background: rgba(148, 163, 184, 0.25);
+          border-radius: 9999px;
+        }
 
-          <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
-            <textarea
-              placeholder="Add internal note or reply to user..."
-              className="w-full bg-[#F3F4F6] border-transparent focus:border-[#059669]/20 focus:bg-white focus:ring-4 focus:ring-[#059669]/5 rounded-2xl p-4 text-[13px] text-slate-900 font-medium min-h-[120px] transition-all outline-none"
-            />
-            <div className="flex gap-3">
-              <button className="flex-1 py-4 bg-[#059669] text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:opacity-90 transition-opacity">Send Reply</button>
-              <button className="px-6 py-4 bg-slate-100 text-slate-500 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-colors">Close</button>
-            </div>
-          </div>
-        </div>
-      </Drawer>
-
-      <Modal 
-        isOpen={isManualTicketModalOpen} 
-        onClose={() => setIsManualTicketModalOpen(false)} 
-        title="Create Support Ticket"
-      >
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">User Name</label>
-            <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#059669]/20 outline-none transition-all" placeholder="Enter user name" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Priority</label>
-            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#059669]/20 outline-none transition-all appearance-none cursor-pointer">
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
-              <option>Critical</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Issue Description</label>
-            <textarea className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#059669]/20 outline-none transition-all min-h-[100px] resize-none" placeholder="Describe the problem..." />
-          </div>
-          <div className="pt-4 flex gap-3">
-            <button 
-              onClick={() => setIsManualTicketModalOpen(false)}
-              className="flex-1 py-3 bg-[#059669] text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:opacity-90 transition-opacity"
-            >
-              Create Ticket
-            </button>
-            <button 
-              onClick={() => setIsManualTicketModalOpen(false)}
-              className="px-6 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
+        .support-column-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(148, 163, 184, 0.4);
+        }
+      `}</style>
     </div>
   );
 }

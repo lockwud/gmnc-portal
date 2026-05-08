@@ -1,235 +1,386 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  PROVIDER_STATS, 
-  APPOINTMENTS,
-  REVENUE_DATA
-} from '@/lib/data/mockData';
-import { OryxStatCard } from '@/components/ui/OryxStatCard';
-import { ChartContainer } from '@/components/ui/ChartContainer';
-import { Table } from '@/components/ui/Table';
-import { Modal } from '@/components/ui/Modal';
-import { 
-  CalendarIcon, 
-  CheckCircleIcon, 
-  VideoIcon,
-  PlusIcon,
-  FileTextIcon,
-  UserPlusIcon,
-  PlayIcon,
-  StethoscopeIcon
+import Badge from '@/components/ui/Badge';
+import {
+  CheckCircleIcon,
+  ActivityIcon,
+  HeartPulseIcon,
+  Clock3Icon,
+  RefreshCwIcon,
+  TrendingUpIcon,
+  GitPullRequestArrowIcon,
+  ClipboardCheckIcon,
 } from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  BarChart,
+  Bar,
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
-export function ProviderDashboard() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<any>(null);
+const IMPROVEMENT_DATA = [
+  { name: 'Mon', value: 42 },
+  { name: 'Tue', value: 46 },
+  { name: 'Wed', value: 51 },
+  { name: 'Thu', value: 56 },
+  { name: 'Fri', value: 61 },
+  { name: 'Sat', value: 64 },
+  { name: 'Sun', value: 69 },
+];
 
-  const handleStartSession = (session: any) => {
-    setSelectedSession(session);
-    setIsModalOpen(true);
-  };
+const ADHERENCE_DATA = [
+  { name: 'Mon', value: 68 },
+  { name: 'Tue', value: 70 },
+  { name: 'Wed', value: 73 },
+  { name: 'Thu', value: 76 },
+  { name: 'Fri', value: 78 },
+  { name: 'Sat', value: 81 },
+  { name: 'Sun', value: 84 },
+];
+
+const TASK_DATA = [
+  { name: 'Mon', assigned: 8 },
+  { name: 'Tue', assigned: 10 },
+  { name: 'Wed', assigned: 9 },
+  { name: 'Thu', assigned: 11 },
+  { name: 'Fri', assigned: 7 },
+  { name: 'Sat', assigned: 5 },
+  { name: 'Sun', assigned: 4 },
+];
+
+const PROVIDER_RECOVERY_DATA = [
+  { label: 'Improving Patients', value: '18', note: 'Responding well to therapy', color: 'emerald' },
+  { label: 'Stable Cases', value: '7', note: 'Routine monitoring ongoing', color: 'blue' },
+  { label: 'Needs Review', value: '3', note: 'Closer clinical attention', color: 'amber' },
+];
+
+type CompactStatCardProps = {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  meta?: string;
+  footer?: React.ReactNode;
+  badge?: string;
+};
+
+function CompactStatCard({
+  title,
+  value,
+  icon,
+  meta,
+  footer,
+  badge,
+}: CompactStatCardProps) {
+  return (
+    <div className="group relative h-[118px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-4 transition-all duration-200 hover:border-slate-300">
+      <div className="absolute inset-0 bg-slate-50 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+
+      <div className="relative z-10 flex h-full flex-col justify-between">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[11px] font-semibold leading-none text-slate-600">
+            {title}
+          </p>
+
+          <div className="flex items-center gap-1.5">
+            {badge && (
+              <span className="rounded-full border-none bg-slate-50 px-1.5 py-0.5 text-[8px] font-medium uppercase leading-none text-slate-500">
+                {badge}
+              </span>
+            )}
+            <div className="text-slate-400">{icon}</div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-[24px] font-bold leading-none tracking-tight text-slate-900">
+            {value}
+          </h3>
+
+          {meta ? (
+            <p className="mt-2 line-clamp-1 text-[10px] leading-none text-slate-400">
+              {meta}
+            </p>
+          ) : (
+            <div className="mt-3 min-h-[24px] text-[9px] font-medium leading-none">
+              {footer}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+  className,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('rounded-lg border border-slate-200 bg-white p-4', className)}>
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <p className="mt-1 text-[10px] text-slate-400">{subtitle}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export function ProviderDashboard() {
+  const [activeFilter, setActiveFilter] = useState('This Week');
 
   return (
-    <div className="space-y-6 pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+    <div className="space-y-5 pb-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Clinical Workflow</h1>
-          <p className="text-slate-400 text-xs mt-1 font-bold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse" />
-            Next session starts in 15 minutes
+          <h1 className="text-[16px] font-bold tracking-tight text-slate-900">
+            Dashboard
+          </h1>
+          <p className="mt-1 flex items-center gap-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            Clinical progress, referrals, adherence
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
-            <PlusIcon className="w-3.5 h-3.5" />
-            New Appointment
-          </button>
-           <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:border-[#059669] hover:text-[#059669] transition-all shadow-sm flex items-center gap-2">
-            <VideoIcon className="w-3.5 h-3.5" />
-            Start Telehealth
-          </button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {['Today', 'This Week', 'This Month', 'All Time'].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[9px] font-medium transition-all',
+                activeFilter === filter
+                  ? 'border-slate-300 bg-slate-100 text-slate-900'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+              )}
+            >
+              <RefreshCwIcon size={10} className="shrink-0" />
+              <span>{filter}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <OryxStatCard 
-          title="Today's Appointments"
-          value="8"
-          icon={<CalendarIcon size={20} />}
-          subMetrics={[
-            { label: 'Confirmed', value: 5, color: 'emerald' },
-            { label: 'Pending', value: 3, color: 'amber' }
-          ]}
-        />
-        <OryxStatCard 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <CompactStatCard
           title="Sessions Completed"
           value="124"
-          icon={<CheckCircleIcon size={20} />}
-          subMetrics={[
-            { label: 'This Week', value: '+12', color: 'blue' },
-            { label: 'Rating', value: '4.9/5', color: 'emerald' }
-          ]}
+          icon={<CheckCircleIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">This Week +12</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Rating 4.9/5</span>
+            </div>
+          }
         />
-        <OryxStatCard 
-          title="Clinical Hours"
-          value="32.5h"
-          icon={<StethoscopeIcon size={20} />}
-          subMetrics={[
-            { label: 'Utilization', value: '88%', color: 'blue' },
-            { label: 'Admin', value: '4h', color: 'slate' }
-          ]}
+
+        <CompactStatCard
+          title="Referrals"
+          value="28"
+          icon={<GitPullRequestArrowIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">Pending 9</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Approved 16</span>
+              <span className="rounded-full bg-rose-50 px-2 py-1 text-rose-600">Declined 3</span>
+            </div>
+          }
+        />
+
+        <CompactStatCard
+          title="Care Plan Adherence"
+          value="84%"
+          icon={<HeartPulseIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">On Track 68%</span>
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">At Risk 16%</span>
+            </div>
+          }
+        />
+
+        <CompactStatCard
+          title="Assigned Tasks"
+          value="11"
+          icon={<ActivityIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Done 7</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">Open 4</span>
+            </div>
+          }
+        />
+
+        <CompactStatCard
+          title="Approvals"
+          value="19"
+          icon={<ClipboardCheckIcon size={14} />}
+          footer={
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">Pending 5</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Approved 12</span>
+              <span className="rounded-full bg-rose-50 px-2 py-1 text-rose-600">Rejected 2</span>
+            </div>
+          }
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Schedule */}
-        <div className="lg:col-span-2 space-y-6">
-          <Table 
-            title="Today's Schedule"
-            data={APPOINTMENTS}
-            columns={[
-              { header: 'Time', accessor: 'time', className: 'font-bold text-slate-900' },
-              { header: 'Patient', accessor: 'patient', className: 'font-extrabold text-slate-900' },
-              { header: 'Condition', accessor: 'condition', className: 'text-slate-500 text-xs font-medium' },
-              { 
-                header: 'Status', 
-                accessor: (item) => (
-                  <span className={cn(
-                    "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border",
-                    item.status === 'Upcoming' ? 'bg-slate-50 text-slate-600 border-slate-100' : 
-                    item.status === 'Confirmed' ? 'bg-slate-50 text-slate-600 border-slate-100' :
-                    'bg-slate-50 text-slate-600 border-slate-100'
-                  )}>
-                    {item.status}
-                  </span>
-                )
-              },
-            ]}
-            actions={(item) => (
-              <button 
-                onClick={() => handleStartSession(item)}
-                className="flex items-center gap-2 px-3 py-1 bg-white text-slate-600 border border-slate-200 rounded-lg text-[9px] font-bold uppercase hover:border-slate-900 hover:text-slate-900 transition-all group shadow-sm"
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <SectionCard
+          title="Patient Progress"
+          subtitle="Aggregate neurological improvement across active patients"
+        >
+          <div className="flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={IMPROVEMENT_DATA}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#fff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    boxShadow: '0 8px 14px -3px rgb(0 0 0 / 0.08)',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#64748b"
+                  strokeWidth={2.5}
+                  dot={{ r: 2.5, fill: '#64748b' }}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Adherence Trend"
+          subtitle="Exercise and session completion rate across active care plans"
+        >
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={ADHERENCE_DATA}>
+              <defs>
+                <linearGradient id="providerAdherenceFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.12} />
+                  <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  boxShadow: '0 8px 14px -3px rgb(0 0 0 / 0.08)',
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="#94a3b8"
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#providerAdherenceFill)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <SectionCard
+          title="Assigned Daily Tasks"
+          subtitle="Scheduled provider tasks and follow-ups across the week"
+        >
+          <ResponsiveContainer width="100%" height={230}>
+            <BarChart data={TASK_DATA} barCategoryGap={18}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+              <Tooltip
+                cursor={{ fill: '#f8fafc' }}
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  boxShadow: '0 8px 14px -3px rgb(0 0 0 / 0.08)',
+                }}
+              />
+              <Bar dataKey="assigned" radius={[4, 4, 0, 0]} fill="#059669" />
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-5">
+          <div className="mb-3 flex items-start justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Patient Recovery
+              </h3>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Snapshot of recovery outcomes across your active patient cohort
+              </p>
+            </div>
+            <div className="rounded-md bg-emerald-50 p-1.5 text-emerald-600">
+              <TrendingUpIcon size={12} />
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {PROVIDER_RECOVERY_DATA.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2.5"
               >
-                <PlayIcon className="w-3 h-3 fill-current group-hover:scale-110 transition-transform" />
-                Start
-              </button>
-            )}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ChartContainer title="Patient Progress" subtitle="Aggregate neurological index">
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={REVENUE_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                  <Line type="monotone" dataKey="subscriptions" stroke="#64748b" strokeWidth={3} dot={{ fill: '#64748b', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-
-            <ChartContainer title="Adherence Rate" subtitle="Exercise completion frequency">
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={REVENUE_DATA}>
-                  <defs>
-                    <linearGradient id="colorAdh" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                  <Area type="monotone" dataKey="revenue" stroke="#94a3b8" strokeWidth={2} fillOpacity={1} fill="url(#colorAdh)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </div>
-        </div>
-
-        {/* Quick Actions Panel */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <h3 className="text-sm font-extrabold text-slate-900 tracking-tight mb-6 uppercase tracking-widest opacity-60">Quick Actions</h3>
-            <div className="grid grid-cols-1 gap-4">
-              {[
-                { label: 'Refer Patient', sub: 'Send to specialist', icon: PlusIcon, color: 'slate' },
-                { label: 'Clinical Notes', sub: 'Add to recent session', icon: FileTextIcon, color: 'slate' },
-                { label: 'Enrollment', sub: 'New patient signup', icon: UserPlusIcon, color: 'slate' },
-              ].map((action, i) => (
-                <button key={i} className="flex items-center gap-4 p-3.5 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-500/20 hover:bg-white transition-all group shadow-sm">
-                  <div className={cn(
-                    "p-2 rounded-md transition-all bg-slate-100 text-slate-500 group-hover:bg-slate-900 group-hover:text-white"
-                  )}>
-                    <action.icon size={18} />
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-900">{item.label}</p>
+                    <p className="mt-0.5 text-[9px] text-slate-400">{item.note}</p>
                   </div>
-                  <div className="text-left">
-                    <p className="text-[13px] font-bold text-slate-900">{action.label}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{action.sub}</p>
+                  <div
+                    className={cn(
+                      'text-[13px] font-bold',
+                      item.color === 'emerald' && 'text-emerald-600',
+                      item.color === 'blue' && 'text-blue-600',
+                      item.color === 'amber' && 'text-amber-600'
+                    )}
+                  >
+                    {item.value}
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 overflow-hidden relative group shadow-sm">
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-              <StethoscopeIcon size={80} className="text-[#059669]" />
+          <div className="mt-4 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between text-[10px] text-slate-400">
+              <span>Recovery outlook</span>
+              <span className="font-semibold text-emerald-600">Stable improvement</span>
             </div>
-            <h4 className="text-sm font-extrabold text-slate-900 tracking-tight relative z-10">NeuroCare Pro Tip</h4>
-            <p className="text-xs text-slate-500 mt-2 relative z-10 leading-relaxed font-bold uppercase tracking-wider opacity-60">
-              Patients with Cerebral Palsy show 15% better adherence when reminders are sent 2 hours before the session.
-            </p>
-            <button className="mt-4 text-[10px] font-extrabold text-[#059669] hover:underline relative z-10 uppercase tracking-widest">Configure Reminders</button>
           </div>
         </div>
       </div>
-
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title={`Start Telehealth Session: ${selectedSession?.patient}`}
-      >
-        <div className="space-y-6">
-          <div className="aspect-video bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
-             <VideoIcon className="w-12 h-12 text-slate-300" />
-          </div>
-          <div className="space-y-1 text-center">
-            <p className="text-sm text-slate-500 font-medium">Patient: <span className="text-slate-900 font-bold">{selectedSession?.patient}</span></p>
-            <p className="text-sm text-slate-500 font-medium">Condition: <span className="text-slate-900 font-bold">{selectedSession?.condition}</span></p>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="flex-1 py-3 bg-[#059669] text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 hover:opacity-90 transition-opacity uppercase text-xs tracking-widest"
-            >
-              Launch Video Call
-            </button>
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors uppercase text-xs tracking-widest"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

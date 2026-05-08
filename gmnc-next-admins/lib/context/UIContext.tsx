@@ -1,63 +1,69 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import * as React from "react";
+import { ToastProvider, useToast } from "@/components/ui/Toast";
 
-interface Toast {
-  id: string;
-  message: string;
-  type: "success" | "error" | "info";
-}
+type UIToastVariant = "success" | "info" | "error";
 
-interface UIContextType {
+type UIContextValue = {
+  addToast: (message: string, variant?: UIToastVariant) => void;
   isSearchOpen: boolean;
-  setSearchOpen: (open: boolean) => void;
-  isNotificationsOpen: boolean;
-  setNotificationsOpen: (open: boolean) => void;
-  isProfileOpen: boolean;
-  setProfileOpen: (open: boolean) => void;
-  toasts: Toast[];
-  addToast: (message: string, type: Toast["type"]) => void;
-  removeToast: (id: string) => void;
-}
+  setSearchOpen: React.Dispatch<React.SetStateAction<boolean>>;
+};
 
-const UIContext = createContext<UIContextType | undefined>(undefined);
+const UIContext = React.createContext<UIContextValue | undefined>(undefined);
+
+function UIProviderContent({ children }: { children: React.ReactNode }) {
+  const { show, hide } = useToast();
+  const [isSearchOpen, setSearchOpen] = React.useState(false);
+
+  const addToast = React.useCallback(
+    (message: string, variant: UIToastVariant = "info") => {
+      const titleByVariant: Record<UIToastVariant, string> = {
+        success: "Success",
+        info: "Notice",
+        error: "Error",
+      };
+
+      show({
+        title: titleByVariant[variant],
+        message,
+        duration: 4000,
+        proceedLabel: "Close",
+        dismissLabel: "Dismiss",
+        onProceed: hide,
+        onDismiss: hide,
+      });
+    },
+    [hide, show],
+  );
+
+  const value = React.useMemo(
+    () => ({
+      addToast,
+      isSearchOpen,
+      setSearchOpen,
+    }),
+    [addToast, isSearchOpen],
+  );
+
+  return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
+}
 
 export function UIProvider({ children }: { children: React.ReactNode }) {
-  const [isSearchOpen, setSearchOpen] = useState(false);
-  const [isNotificationsOpen, setNotificationsOpen] = useState(false);
-  const [isProfileOpen, setProfileOpen] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const addToast = (message: string, type: Toast["type"]) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    
-    // Auto-remove after 3 seconds
-    setTimeout(() => {
-      removeToast(id);
-    }, 3000);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
   return (
-    <UIContext.Provider value={{ 
-      isSearchOpen, setSearchOpen, 
-      isNotificationsOpen, setNotificationsOpen,
-      isProfileOpen, setProfileOpen,
-      toasts, addToast, removeToast 
-    }}>
-      {children}
-    </UIContext.Provider>
+    <ToastProvider>
+      <UIProviderContent>{children}</UIProviderContent>
+    </ToastProvider>
   );
 }
 
 export function useUI() {
-  const context = useContext(UIContext);
-  if (context === undefined) {
-    throw new Error("useUI must be used within a UIProvider");
+  const context = React.useContext(UIContext);
+
+  if (!context) {
+    throw new Error("useUI must be used within UIProvider");
   }
+
   return context;
 }

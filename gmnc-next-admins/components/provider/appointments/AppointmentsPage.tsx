@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import { Table } from "@/components/ui/Table";
-import { Button } from "@/components/ui/Button";
+import  Button  from "@/components/ui/Button";
 import { CalendarIcon, PlusIcon, VideoIcon, ClockIcon, UserIcon, MoreHorizontalIcon } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { Badge } from "@/components/ui/Badge";
+import  Badge  from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 
 const MOCK_APPOINTMENTS = [
@@ -47,9 +47,9 @@ export default function AppointmentsPage() {
                 Calendar
               </button>
             </div>
-            <Button variant="amber" className="gap-2 rounded-xl px-6 font-bold shadow-lg shadow-accent/20">
+            <button type="button" className="flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-accent/20">
               <PlusIcon size={18} /> Book New
-            </Button>
+            </button>
           </div>
         </div>
 
@@ -92,18 +92,18 @@ export default function AppointmentsPage() {
               {
                 header: "Status",
                 accessor: (item: { status: string }) => (
-                  <Badge variant={item.status === "Upcoming" ? "warning" : item.status === "In Progress" ? "success" : "secondary"} className="text-[9px] font-bold uppercase">
+                  <span className="text-[9px] font-bold uppercase text-slate-500">
                     {item.status}
-                  </Badge>
+                  </span>
                 ),
               },
             ]}
             actions={(item: { type: string }) => (
               <div className="flex items-center gap-2">
                 {item.type === "Telehealth" && (
-                  <Button size="sm" className="flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[10px] font-bold text-white hover:bg-blue-700">
+                  <button type="button" className="flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[10px] font-bold text-white hover:bg-blue-700">
                     <VideoIcon size={12} /> JOIN
-                  </Button>
+                  </button>
                 )}
                 <button aria-label="More appointment actions" className="p-2 text-slate-300 transition-all hover:text-primary">
                   <MoreHorizontalIcon size={18} />
@@ -118,9 +118,9 @@ export default function AppointmentsPage() {
             </div>
             <h2 className="text-xl font-bold text-slate-900">Interactive Calendar View</h2>
             <p className="max-w-sm text-sm text-slate-400">Synchronizing your professional calendar with external providers (Google/Outlook) to display full scheduling details.</p>
-            <Button variant="ghost" className="text-[11px] font-bold uppercase tracking-widest text-accent">
+            <button type="button" className="text-[11px] font-bold uppercase tracking-widest text-accent">
               Refresh Calendar
-            </Button>
+            </button>
           </div>
         )}
       </div>

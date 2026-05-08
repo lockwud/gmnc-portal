@@ -12,7 +12,7 @@ import {
   PolarAngleAxis,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import  Button  from "@/components/ui/Button";
 import { Filter, MoreVertical, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -108,9 +108,9 @@ export default function AnalyticsPage() {
                     <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
                     <input placeholder="Search..." className="pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-100 rounded-xl focus:outline-none w-48" />
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                  <button type="button" className="h-8 w-8 text-slate-400">
                     <Filter size={16} />
-                  </Button>
+                  </button>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -157,16 +157,16 @@ export default function AnalyticsPage() {
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Missed {item.days}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 group-hover:text-primary">
+                    <button type="button" className="h-8 w-8 text-slate-300 group-hover:text-primary">
                       <MoreVertical size={16} />
-                    </Button>
+                    </button>
                   </div>
                 ))}
               </div>
               <div className="pt-8">
-                <Button variant="ghost" className="w-full rounded-2xl bg-slate-50 text-slate-400 font-bold text-xs py-5">
+                <button type="button" className="w-full rounded-2xl bg-slate-50 text-slate-400 font-bold text-xs py-5">
                   View Full Report
-                </Button>
+                </button>
               </div>
             </Card>
           </div>
