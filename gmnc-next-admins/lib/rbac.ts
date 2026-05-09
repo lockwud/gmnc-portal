@@ -36,7 +36,7 @@ export function getDashboardRoute(role: Role): string {
     case 'support':
       return '/support';
     case 'tester':
-      return '/tester';
+      return '/dashboard';
     case 'caregiver':
       return '/caregiver';
     default:

@@ -1,30 +1,18 @@
 'use client';
 
-import { useAuth } from '../lib/context/AuthContext';
 import { Permission } from '../lib/rbac';
 
 export const usePermissions = () => {
-  const { user } = useAuth();
+  const hasPermission = (_permission: Permission) => true;
 
-  const hasPermission = (permission: Permission) => {
-    if (!user) return false;
-    return user.permissions.includes(permission);
-  };
+  const hasAnyPermission = (_permissions: Permission[]) => true;
 
-  const hasAnyPermission = (permissions: Permission[]) => {
-    if (!user) return false;
-    return permissions.some((p) => user.permissions.includes(p));
-  };
-
-  const hasAllPermissions = (permissions: Permission[]) => {
-    if (!user) return false;
-    return permissions.every((p) => user.permissions.includes(p));
-  };
+  const hasAllPermissions = (_permissions: Permission[]) => true;
 
   return {
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    role: user?.roles,
+    role: undefined,
   };
 };
