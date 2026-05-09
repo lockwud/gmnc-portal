@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Role, ROLE_PERMISSIONS, getDashboardRoute } from '../rbac';
+import { User, Role, getDashboardRoute } from '../rbac';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -9,7 +9,7 @@ interface AuthContextType {
   token: string | null;
   selectedRole: Role | null;
   setSelectedRole: (role: Role) => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   error: string | null;
@@ -17,64 +17,24 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock Database for demo
-const MOCK_DB_USERS = [
-  {
-    email: 'admin@getmyneurocare.com',
-    password: 'password123',
-    user: {
-      id: '1',
-      name: 'Edmond Admin',
-      email: 'admin@getmyneurocare.com',
-      roles: ['admin', 'provider'] as Role[],
-      permissions: [...ROLE_PERMISSIONS.admin, ...ROLE_PERMISSIONS.provider],
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=edmond',
-    },
-    token: 'mock-jwt-token-admin',
-  },
-  {
-    email: 'provider@getmyneurocare.com',
-    password: 'password123',
-    user: {
-      id: '2',
-      name: 'Dr. Sarah Adams',
-      email: 'provider@getmyneurocare.com',
-      roles: ['provider'] as Role[],
-      permissions: ROLE_PERMISSIONS.provider,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah',
-    },
-    token: 'mock-jwt-token-provider',
-  },
-  {
-    email: 'tester@getmyneurocare.com',
-    password: 'password123',
-    user: {
-      id: '3',
-      name: 'Super Tester',
-      email: 'tester@getmyneurocare.com',
-      roles: ['tester'] as Role[],
-      permissions: ROLE_PERMISSIONS.tester,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=tester',
-    },
-    token: 'mock-jwt-token-tester',
-  },
-  {
-    email: 'support@getmyneurocare.com',
-    password: 'password123',
-    user: {
-      id: '4',
-      name: 'Alice Support',
-      email: 'support@getmyneurocare.com',
-      roles: ['support'] as Role[],
-      permissions: ROLE_PERMISSIONS.support,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice',
-    },
-    token: 'mock-jwt-token-support',
-  },
-];
+type AuthUser = User & {
+  avatar?: string | null;
+};
+
+function resolveSelectedRole(nextUser: AuthUser, storedRole?: string | null) {
+  if (storedRole && nextUser.roles.includes(storedRole as Role)) {
+    return storedRole as Role;
+  }
+
+  if (nextUser.roles.includes('admin')) {
+    return 'admin';
+  }
+
+  return nextUser.roles[0] ?? null;
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [selectedRole, setSelectedRoleState] = useState<Role | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,63 +42,121 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const router = useRouter();
 
   useEffect(() => {
-    // Load from localStorage
-    const storedUser = localStorage.getItem('gmnc_user');
-    const storedToken = localStorage.getItem('gmnc_token');
-    const storedRole = localStorage.getItem('gmnc_selected_role') as Role;
+    let isMounted = true;
 
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
-      setSelectedRoleState(storedRole || null);
+    async function hydrateAuth() {
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          if (isMounted) {
+            setUser(null);
+            setToken(null);
+            setSelectedRoleState(null);
+          }
+          return;
+        }
+
+        const data = await response.json() as { user?: AuthUser | null };
+
+        if (!isMounted || !data.user) {
+          return;
+        }
+
+        const storedRole = localStorage.getItem('gmnc_selected_role');
+        setUser(data.user);
+        setToken(null);
+        setSelectedRoleState(resolveSelectedRole(data.user, storedRole));
+      } catch {
+        if (isMounted) {
+          setUser(null);
+          setToken(null);
+          setSelectedRoleState(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     }
-    setIsLoading(false);
+
+    void hydrateAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     setIsLoading(true);
     setError(null);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const dbUser = MOCK_DB_USERS.find(u => u.email === email && u.password === password);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ identifier, password }),
+      });
 
-    if (dbUser) {
-      setUser(dbUser.user);
-      setToken(dbUser.token);
-      localStorage.setItem('gmnc_user', JSON.stringify(dbUser.user));
-      localStorage.setItem('gmnc_token', dbUser.token);
+      const data = await response.json() as {
+        user?: AuthUser;
+        message?: string;
+      };
 
-      // Handle Role Redirection (Always Automatic)
-      // If multiple roles, pick 'admin' if present, else first one
-      const role = dbUser.user.roles.includes('admin') 
-        ? 'admin' 
-        : dbUser.user.roles[0];
-        
+      if (!response.ok || !data.user) {
+        setError(data.message ?? 'Login failed');
+        return;
+      }
+
+      const role = resolveSelectedRole(data.user);
+
+      setUser(data.user);
+      setToken(null);
       setSelectedRoleState(role);
-      localStorage.setItem('gmnc_selected_role', role);
-      router.push('/otp');
-    } else {
-      setError('Invalid email or password');
+
+      if (role) {
+        localStorage.setItem('gmnc_selected_role', role);
+        router.replace(getDashboardRoute(role));
+      } else {
+        localStorage.removeItem('gmnc_selected_role');
+        router.replace('/dashboard');
+      }
+
+      router.refresh();
+    } catch {
+      setError('Unable to sign in right now');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const setSelectedRole = (role: Role) => {
     setSelectedRoleState(role);
     localStorage.setItem('gmnc_selected_role', role);
-    router.push(getDashboardRoute(role));
+    router.replace(getDashboardRoute(role));
+    router.refresh();
   };
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    setSelectedRoleState(null);
-    localStorage.removeItem('gmnc_user');
-    localStorage.removeItem('gmnc_token');
-    localStorage.removeItem('gmnc_selected_role');
-    router.push('/login');
+    void (async () => {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+        });
+      } finally {
+        setUser(null);
+        setToken(null);
+        setSelectedRoleState(null);
+        localStorage.removeItem('gmnc_selected_role');
+        router.replace('/login');
+        router.refresh();
+      }
+    })();
   };
 
   return (
