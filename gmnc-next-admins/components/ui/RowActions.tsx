@@ -1,130 +1,151 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 
-/**
- * RowActions
- * - Renders a 3-dot button that opens a portal menu (Edit / Delete)
- * - Menu items are icon-only; a text label fades in on hover (group-hover)
- * - Stops propagation so clicks don't bubble to row/sidebar
- */
+type Props = {
+  onEdit?: () => void;
+  onDelete?: () => void;
+  ariaLabel?: string;
+  hideEdit?: boolean;
+  hideDelete?: boolean;
+};
 
 export default function RowActions({
   onEdit,
   onDelete,
   ariaLabel = 'Row actions',
-}: {
-  onEdit?: () => void;
-  onDelete?: () => void;
-  ariaLabel?: string;
-}) {
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  hideEdit = false,
+  hideDelete = false,
+}: Props) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  const toggle = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (!btnRef.current) {
-      setOpen((v) => !v);
-      return;
-    }
-    const r = btnRef.current.getBoundingClientRect();
-    setPos({
-      top: r.bottom + window.scrollY + 8,
-      left: Math.max(8, r.right + window.scrollX - 160), // keep on screen
-    });
-    setOpen((v) => !v);
-  };
 
   useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (btnRef.current?.contains(e.target as Node)) return;
-      if (menuRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
+    function handleOutsideClick(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
     }
+
     if (open) {
-      document.addEventListener('click', onDocClick);
-      document.addEventListener('keydown', onKey);
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleEscape);
     }
+
     return () => {
-      document.removeEventListener('click', onDocClick);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [open]);
 
-  useEffect(() => {
-    if (open && menuRef.current) {
-      const b = menuRef.current.querySelector('button');
-      (b as HTMLElement | null)?.focus();
-    }
-  }, [open]);
-
   return (
-    <>
+    <div
+      ref={rootRef}
+      className="relative inline-flex"
+      onClick={(e) => e.stopPropagation()}
+    >
       <button
-        ref={btnRef}
-        onClick={toggle}
-        onMouseDown={(e) => e.stopPropagation()}
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="More actions"
-        className="p-1 rounded hover:bg-gray-100"
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-700"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <circle cx="12" cy="5" r="1.6" fill="#6B7280" />
-          <circle cx="12" cy="12" r="1.6" fill="#6B7280" />
-          <circle cx="12" cy="19" r="1.6" fill="#6B7280" />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="12" cy="5" r="1.7" fill="currentColor" />
+          <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+          <circle cx="12" cy="19" r="1.7" fill="currentColor" />
         </svg>
       </button>
 
-      {open && pos && createPortal(
+      {open && (
         <div
-          ref={menuRef}
           role="menu"
           aria-label={ariaLabel}
-          style={{ position: 'absolute', top: pos.top, left: pos.left, zIndex: 9999 }}
-          onClick={(e) => e.stopPropagation()}
+          className="absolute right-0 top-9 z-50 min-w-[88px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
         >
-          <div className="bg-white border rounded-md shadow-md w-40">
-            {/* Edit - icon only, label visible on hover */}
+          {!hideEdit && (
             <button
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit?.(); }}
-              className="group w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
+              type="button"
               role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onEdit?.();
+              }}
+              className="flex h-8 w-full items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+              aria-label="Edit"
               title="Edit"
             >
-              {/* pencil icon */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className="text-gray-700">
-                <path d="M3 21l3-1 11-11 1-3-3 1L4 20z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M3 21l3.75-.75L18.5 8.5l-3-3L3.75 17.25 3 21z"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M14.5 6.5l3 3"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
-              <span className="text-sm text-gray-700 opacity-0 group-hover:opacity-100 transition">Edit</span>
             </button>
+          )}
 
-            {/* Delete */}
+          {!hideDelete && (
             <button
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete?.(); }}
-              className="group w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50"
+              type="button"
               role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onDelete?.();
+              }}
+              className="flex h-8 w-full items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+              aria-label="Delete"
               title="Delete"
             >
-              {/* trash icon */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className="text-red-600">
-                <path d="M3 6h18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 7h16"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M7 7l1 12a1 1 0 001 1h6a1 1 0 001-1l1-12"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M10 11v5M14 11v5"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
-              <span className="text-sm text-gray-700 opacity-0 group-hover:opacity-100 transition">Delete</span>
             </button>
-          </div>
-        </div>,
-        document.body
+          )}
+        </div>
       )}
-    </>
+    </div>
   );
 }

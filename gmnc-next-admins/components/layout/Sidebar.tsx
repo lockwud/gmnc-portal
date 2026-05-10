@@ -75,7 +75,7 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
             children: [
               {
                 label: "Patient List",
-                path: "/provider/clients",
+                path: "/provider/cp-patient",
                 icon: "groups",
               },
               {
