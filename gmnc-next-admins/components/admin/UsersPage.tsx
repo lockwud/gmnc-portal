@@ -1,251 +1,734 @@
-// "use client";
+'use client';
 
-// import React, { useState } from "react";
-// import { Table } from "@/components/ui/Table";
-// import { Button } from "@/components/ui/Button";
-// import { Input } from "@/components/ui/Input";
-// import { Modal } from "@/components/ui/Modal";
-// import { SearchIcon, UserPlusIcon, MoreVerticalIcon, ShieldCheckIcon, GhostIcon, UserIcon, MailIcon, PhoneIcon } from "lucide-react";
-// import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-// import { Badge } from "@/components/ui/Badge";
-// import { cn } from "@/lib/utils";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Button from '@/components/ui/Button';
+import EmptyState from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
+import Pagination from '@/components/ui/Pagination';
+import RowActions from '@/components/ui/RowActions';
+import { useToast } from '@/components/ui/Toast';
+import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X } from 'lucide-react';
 
-// type UserRecord = {
-//   id: string;
-//   name: string;
-//   email: string;
-//   roles: string[];
-//   status: string;
-// };
+type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
+type RegistrationStep = 1 | 2 | 3;
 
-// const MOCK_USERS: UserRecord[] = [
-//   { id: "USR-001", name: "Dr. Louisa Parker", email: "louisa@example.com", roles: ["provider"], status: "Active" },
-//   { id: "USR-002", name: "Admin User", email: "admin@gmnc.com", roles: ["admin"], status: "Active" },
-//   { id: "USR-003", name: "Tijani Dromo", email: "tijani@care.com", roles: ["caregiver"], status: "Active" },
-//   { id: "USR-004", name: "Inactive Tester", email: "tester@test.com", roles: ["tester"], status: "Deactivated" },
-// ];
+type UserRecord = {
+  id: string;
+  fullName: string;
+  email?: string | null;
+  phoneNumber: string;
+  userType: Exclude<UserType, 'ALL'>;
+  accountStatus: 'ACTIVE' | 'PENDING' | 'INVITED';
+  updatedAt: string;
+};
 
-// export default function UsersPage() {
-//   const [search, setSearch] = useState("");
-//   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-//   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-//   const [isEditing, setIsEditing] = useState(false);
-//   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
+const mockUsers: UserRecord[] = [
+  {
+    id: 'USR-001',
+    fullName: 'Akosua Mensah',
+    email: 'akosua.mensah@example.com',
+    phoneNumber: '+233 24 000 1201',
+    userType: 'CAREGIVER',
+    accountStatus: 'ACTIVE',
+    updatedAt: '2026-05-08T09:20:00.000Z',
+  },
+  {
+    id: 'USR-002',
+    fullName: 'Dr. Louisa Parker',
+    email: 'louisa.parker@example.com',
+    phoneNumber: '+233 20 555 0189',
+    userType: 'SERVICE_PROVIDER',
+    accountStatus: 'INVITED',
+    updatedAt: '2026-05-09T11:45:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+  {
+    id: 'USR-003',
+    fullName: 'Michael Addo',
+    email: 'michael.addo@gmnc.com',
+    phoneNumber: '+233 27 444 2200',
+    userType: 'ADMIN',
+    accountStatus: 'PENDING',
+    updatedAt: '2026-05-10T08:10:00.000Z',
+  },
+];
 
-//   const handleEditUser = (user: UserRecord) => {
-//     setSelectedUser(user);
-//     setIsEditing(false);
-//     setIsEditModalOpen(true);
-//   };
+const roleOptions: { value: UserType; label: string }[] = [
+  { value: 'ALL', label: 'All roles' },
+  { value: 'CAREGIVER', label: 'Caregiver' },
+  { value: 'SERVICE_PROVIDER', label: 'Service provider' },
+  { value: 'ADMIN', label: 'Admin' },
+];
 
-//   const filteredUsers = MOCK_USERS.filter((user) => user.name.toLowerCase().includes(search.toLowerCase()) || user.email.toLowerCase().includes(search.toLowerCase()));
+function formatRole(role: Exclude<UserType, 'ALL'>) {
+  switch (role) {
+    case 'CAREGIVER':
+      return 'Caregiver';
+    case 'SERVICE_PROVIDER':
+      return 'Service provider';
+    case 'ADMIN':
+      return 'Admin';
+  }
+}
 
-//   return (
-//     <ProtectedRoute requiredRole="admin">
-//       <div className="space-y-8 pb-10">
-//         <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-//           <div>
-//             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">User Management</h1>
-//             <p className="mt-1 text-xs font-bold text-slate-400">Manage system users, roles, and access states.</p>
-//           </div>
-//           <Button className="gap-2 rounded px-2 shadow-lg shadow-accent/20 cursor-pointer" onClick={() => setIsAddModalOpen(true)}>
-//             <UserPlusIcon size={16} /> Add User
-//           </Button>
-//         </div>
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
-//         <div className="flex items-center gap-4">
-//           <div className="relative max-w-md flex-1">
-//             <SearchIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-//             <input
-//               placeholder="Search by name, email or ID..."
-//               className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-sm font-medium transition-all focus:border-accent focus:ring-4 focus:ring-accent/5"
-//               value={search}
-//               onChange={(event) => setSearch(event.target.value)}
-//             />
-//           </div>
-//         </div>
+function getStatusClass(status: UserRecord['accountStatus']) {
+  switch (status) {
+    case 'ACTIVE':
+      return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
+    case 'PENDING':
+      return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+    case 'INVITED':
+      return 'bg-amber-50 text-amber-700 ring-1 ring-amber-100';
+  }
+}
 
-//         <Table
-//           title="System Users"
-//           data={filteredUsers}
-//           columns={[
-//             {
-//               header: "User",
-//               accessor: (item: UserRecord) => (
-//                 <div className="flex items-center gap-3">
-//                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
-//                     <ShieldCheckIcon size={18} />
-//                   </div>
-//                   <div>
-//                     <p className="font-bold text-slate-900">{item.name}</p>
-//                     <p className="text-[10px] font-bold uppercase text-slate-400">{item.email}</p>
-//                   </div>
-//                 </div>
-//               ),
-//             },
-//             {
-//               header: "Roles",
-//               accessor: (item: UserRecord) => (
-//                 <div className="flex gap-1">
-//                   {item.roles.map((role) => (
-//                     <Badge key={role} variant="outline" className="border-slate-100 text-[9px] font-bold uppercase">
-//                       {role}
-//                     </Badge>
-//                   ))}
-//                 </div>
-//               ),
-//             },
-//             {
-//               header: "Status",
-//               accessor: (item: UserRecord) => (
-//                 <span
-//                   className={cn(
-//                     "rounded px-2 py-0.5 text-[10px] font-bold uppercase",
-//                     item.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
-//                   )}
-//                 >
-//                   {item.status}
-//                 </span>
-//               ),
-//             },
-//           ]}
-//           actions={(item: UserRecord) => (
-//             <div className="flex items-center gap-2">
-//               <button aria-label="Impersonate user" className="rounded-lg p-2 text-slate-300 transition-all hover:bg-accent/5 hover:text-accent" title="Impersonate">
-//                 <GhostIcon size={18} />
-//               </button>
-//               <button
-//                 aria-label="Edit user"
-//                 className="rounded-lg p-2 text-slate-300 transition-all hover:bg-slate-50 hover:text-primary"
-//                 onClick={() => handleEditUser(item)}
-//               >
-//                 <MoreVerticalIcon size={18} />
-//               </button>
-//             </div>
-//           )}
-//         />
+function SmallDropdown<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  widthClass = 'w-[180px]',
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  ariaLabel: string;
+  widthClass?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
-//         <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add new user">
-//           <div className="space-y-6">
-//             <p className="text-xs font-medium text-slate-400">Create an account and assign a role. Permissions follow the role and can be fine-tuned.</p>
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
 
-//             <div className="space-y-4">
-//               <div className="space-y-2">
-//                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Full name</label>
-//                 <div className="relative">
-//                   <UserIcon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-//                   <Input className="pl-11" placeholder="Jane Doe" />
-//                 </div>
-//               </div>
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
 
-//               <div className="grid grid-cols-2 gap-4">
-//                 <div className="space-y-2">
-//                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</label>
-//                   <div className="relative">
-//                     <MailIcon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-//                     <Input className="pl-11" placeholder="jane@example.com" />
-//                   </div>
-//                 </div>
-//                 <div className="space-y-2">
-//                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone (optional)</label>
-//                   <div className="relative">
-//                     <PhoneIcon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-//                     <Input className="pl-11" placeholder="+1 555 0100" />
-//                   </div>
-//                 </div>
-//               </div>
+    if (open) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleEscape);
+    }
 
-//               <div className="space-y-2">
-//                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Role</label>
-//                 <select aria-label="New user role" className="h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/5">
-//                   <option>Provider</option>
-//                   <option>Admin</option>
-//                   <option>Caregiver</option>
-//                 </select>
-//                 <p className="mt-1 text-[10px] font-bold text-slate-400">Clinical access — patients, appointments, notes and prescriptions.</p>
-//               </div>
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [open]);
 
-//               <div className="flex items-center gap-2 p-1">
-//                 <input type="checkbox" className="h-4 w-4 rounded border border-slate-200 text-brand focus:ring-brand" id="permissions" />
-//                 <label htmlFor="permissions" className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-//                   <ShieldCheckIcon size={14} className="text-brand" /> Permissions
-//                 </label>
-//               </div>
-//             </div>
+  const selected = options.find((option) => option.value === value);
 
-//             <div className="flex gap-3 pt-4">
-//               <Button variant="outline" className="flex-1 rounded-2xl py-6" onClick={() => setIsAddModalOpen(false)}>
-//                 Cancel
-//               </Button>
-//               <Button className="flex-1 gap-2 rounded-2xl bg-brand py-6 text-white shadow-lg shadow-brand/20 hover:bg-brand-hover">
-//                 <UserPlusIcon size={18} /> Create user
-//               </Button>
-//             </div>
-//           </div>
-//         </Modal>
+  return (
+    <div ref={rootRef} className={`relative ${widthClass}`}>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex h-10 w-full items-center justify-between rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 transition hover:border-slate-300"
+      >
+        <span className="truncate">{selected?.label}</span>
+        <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
 
-//         <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={selectedUser?.name || "Edit user"}>
-//           <div className="space-y-6">
-//             <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
-//               <div className="flex items-center gap-3">
-//                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand">
-//                   <UserIcon size={20} />
-//                 </div>
-//                 <div>
-//                   <p className="text-sm font-bold text-slate-900">{selectedUser?.name}</p>
-//                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Viewing user record</p>
-//                 </div>
-//               </div>
-//               <div className="flex items-center gap-2">
-//                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Edit</span>
-//                 <button
-//                   aria-label="Toggle edit mode"
-//                   onClick={() => setIsEditing((current) => !current)}
-//                   className={cn("relative h-5 w-10 rounded-full p-1 transition-all", isEditing ? "bg-brand" : "bg-slate-200")}
-//                 >
-//                   <div className={cn("h-3 w-3 rounded-full bg-white transition-all", isEditing ? "ml-5" : "ml-0")} />
-//                 </button>
-//               </div>
-//             </div>
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-full rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                  active
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
-//             <div className="space-y-4">
-//               <div className="space-y-2">
-//                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Full name</label>
-//                 <Input disabled={!isEditing} defaultValue={selectedUser?.name} />
-//               </div>
+export default function UserRegistrationPage() {
+  const { show } = useToast();
 
-//               <div className="grid grid-cols-2 gap-4">
-//                 <div className="space-y-2">
-//                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</label>
-//                   <Input disabled={!isEditing} defaultValue={selectedUser?.email} />
-//                 </div>
-//                 <div className="space-y-2">
-//                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Role</label>
-//                   <select
-//                     aria-label="Edit user role"
-//                     disabled={!isEditing}
-//                     defaultValue={selectedUser?.roles[0]}
-//                     className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none"
-//                   >
-//                     <option value="provider">Provider</option>
-//                     <option value="admin">Admin</option>
-//                     <option value="caregiver">Caregiver</option>
-//                   </select>
-//                 </div>
-//               </div>
-//             </div>
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [roleFilter, setRoleFilter] = useState<UserType>('ALL');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-//             <div className="flex gap-3 pt-4">
-//               <Button variant="outline" className="flex-1 rounded-2xl py-6" onClick={() => setIsEditModalOpen(false)}>
-//                 Close
-//               </Button>
-//               {isEditing && (
-//                 <Button className="flex-1 gap-2 rounded-2xl bg-brand py-6 text-white shadow-lg shadow-brand/20">Save Changes</Button>
-//               )}
-//             </div>
-//           </div>
-//         </Modal>
-//       </div>
-//     </ProtectedRoute>
-//   );
-// }
+  const [step, setStep] = useState<RegistrationStep>(1);
+  const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('CAREGIVER');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    password: '',
+  });
+
+  const filteredUsers = useMemo(() => {
+    if (roleFilter === 'ALL') return mockUsers;
+    return mockUsers.filter((user) => user.userType === roleFilter);
+  }, [roleFilter]);
+
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredUsers.slice(start, start + pageSize);
+  }, [currentPage, filteredUsers, pageSize]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setPage(1);
+  };
+
+  const resetModalState = () => {
+    setIsCreateModalOpen(false);
+    setStep(1);
+    setModalRole('CAREGIVER');
+    setShowPassword(false);
+    setFormData({
+      fullName: '',
+      email: '',
+      phoneNumber: '',
+      password: '',
+    });
+  };
+
+  const handleCloseModal = () => {
+    resetModalState();
+  };
+
+  const handleProceed = () => {
+    if (step < 3) {
+      setStep((prev) => (prev + 1) as RegistrationStep);
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep((prev) => (prev - 1) as RegistrationStep);
+    }
+  };
+
+  const handleSave = () => {
+    console.log('Save user payload', {
+      registrationMode: 'SYSTEM',
+      userType: modalRole,
+      ...formData,
+    });
+
+    show({
+      title: 'Success',
+      message: 'User registration saved successfully.',
+      duration: 3000,
+    });
+
+    window.setTimeout(() => {
+      resetModalState();
+    }, 3000);
+  };
+
+  return (
+    <>
+      <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <div>
+            <h1 className="text-[15px] font-semibold text-slate-900">Users</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <SmallDropdown
+              value={roleFilter}
+              options={roleOptions}
+              onChange={(value) => {
+                setRoleFilter(value);
+                setPage(1);
+              }}
+              ariaLabel="Filter users by role"
+            />
+
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
+            >
+              <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <Plus size={10} strokeWidth={2.5} />
+              </span>
+              Create
+            </Button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden bg-white px-4 pt-2 pb-4">
+          <div className="flex h-full min-h-0 flex-col gap-2">
+            {totalItems === 0 ? (
+              <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white">
+                <div className="w-full max-w-md">
+                  <EmptyState
+                    title="No registrations found"
+                    description="There are no users in this role yet. Create a registration to add someone."
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 bg-white">
+                  <div className="h-full overflow-auto scrollbar-none">
+                    <table className="w-full min-w-[980px] border-collapse">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-emerald-600 text-white">
+                          <th className="px-4 py-3 text-left text-[11px] font-medium">User</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-medium">Role</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-medium">Email</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-medium">Phone</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-medium">Status</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-medium">Updated</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-medium">Action</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {paginatedUsers.map((user, index) => (
+                          <tr
+                            key={user.id}
+                            className={`transition ${
+                              index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                            } hover:bg-emerald-50`}
+                          >
+                            <td className="border-b border-slate-100 px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+                                  {user.fullName
+                                    .split(' ')
+                                    .map((part) => part[0])
+                                    .join('')
+                                    .slice(0, 2)}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-slate-900">
+                                    {user.fullName}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-700">
+                              {formatRole(user.userType)}
+                            </td>
+
+                            <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
+                              {user.email || '��'}
+                            </td>
+
+                            <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                              {user.phoneNumber}
+                            </td>
+
+                            <td className="border-b border-slate-100 px-4 py-3">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusClass(
+                                  user.accountStatus
+                                )}`}
+                              >
+                                {user.accountStatus}
+                              </span>
+                            </td>
+
+                            <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                              {formatDate(user.updatedAt)}
+                            </td>
+
+                            <td
+                              className="border-b border-slate-100 px-4 py-3 text-center"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <div className="flex justify-center">
+                                <RowActions
+                                  onEdit={() => console.log('Edit user', user.id)}
+                                  onDelete={() => console.log('Delete user', user.id)}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 bg-white">
+                  <Pagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    pageSize={pageSize}
+                    totalItems={totalItems}
+                    onPageChange={setPage}
+                    onPageSizeChange={handlePageSizeChange}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal}>
+        <div className="mx-auto flex min-h-[620px] w-full max-w-3xl flex-col rounded-[28px] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-900">Create registration</h2>
+              <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+              aria-label="Close modal"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="flex-1">
+            {step === 1 && (
+              <div className="mt-8 grid gap-6 md:grid-cols-2">
+                <div className="space-y-3 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-700">Registration mode</label>
+                  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                    <div className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm">
+                      In system
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-slate-700">User role</label>
+                  <SmallDropdown
+                    value={modalRole}
+                    options={roleOptions.filter(
+                      (option): option is { value: Exclude<UserType, 'ALL'>; label: string } =>
+                        option.value !== 'ALL'
+                    )}
+                    onChange={setModalRole}
+                    ariaLabel="Select registration role"
+                    widthClass="w-full"
+                  />
+                </div>
+
+                <Input
+                  placeholder="Full name"
+                  icon={<User size={16} />}
+                  value={formData.fullName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, fullName: e.target.value }))
+                  }
+                  containerClassName="md:col-span-2"
+                />
+
+                <Input
+                  placeholder="Email address"
+                  icon={<Mail size={16} />}
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                />
+
+                <Input
+                  placeholder="Phone number"
+                  icon={<Phone size={16} />}
+                  value={formData.phoneNumber}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="mt-8 grid gap-6">
+                <div className="relative max-w-xl">
+                  <Input
+                    placeholder="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, password: e.target.value }))
+                    }
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="mt-8 space-y-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
+                  <p className="text-base font-semibold text-slate-900">Review information</p>
+
+                  <div className="mt-4 grid gap-4 text-base text-slate-600 md:grid-cols-2">
+                    <p>
+                      <span className="font-medium text-slate-900">Mode:</span> In system
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Role:</span> {formatRole(modalRole)}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Full name:</span>{' '}
+                      {formData.fullName || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Email:</span>{' '}
+                      {formData.email || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Phone:</span>{' '}
+                      {formData.phoneNumber || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Password:</span> ••••••••
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-10 flex items-center justify-end gap-3 pt-6">
+            {step > 1 && (
+              <Button
+                variant="secondary"
+                className="rounded-full px-4 py-2 text-xs font-medium"
+                onClick={handleBack}
+              >
+                Back
+              </Button>
+            )}
+
+            {step === 1 && (
+              <Button
+                variant="secondary"
+                className="rounded-full px-4 py-2 text-xs font-medium"
+                onClick={handleCloseModal}
+              >
+                Cancel
+              </Button>
+            )}
+
+            {step < 3 ? (
+              <Button
+                className="rounded-full px-4 py-2 text-xs font-medium"
+                onClick={handleProceed}
+              >
+                Proceed
+              </Button>
+            ) : (
+              <Button
+                className="rounded-full px-4 py-2 text-xs font-medium"
+                onClick={handleSave}
+              >
+                Save
+              </Button>
+            )}
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}

@@ -127,11 +127,12 @@ export default function CpPatientsPage() {
 
   const totalItems = filteredPatients.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
 
   const paginatedPatients = useMemo(() => {
-    const start = (page - 1) * pageSize;
+    const start = (currentPage - 1) * pageSize;
     return filteredPatients.slice(start, start + pageSize);
-  }, [filteredPatients, page, pageSize]);
+  }, [filteredPatients, currentPage, pageSize]);
 
   const handleRowClick = (slug: string) => {
     router.push(`/provider/cp-patient/${slug}`);
@@ -144,8 +145,10 @@ export default function CpPatientsPage() {
 
   return (
     <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-1">
-        <h1 className="text-[18px] font-semibold text-slate-900">CP Patient</h1>
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+        <div>
+          <h1 className="text-[15px] font-semibold text-slate-900">CP Patient</h1>
+        </div>
 
         <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-0.5">
           <button
@@ -193,153 +196,136 @@ export default function CpPatientsPage() {
         </div>
       </div>
 
-      {totalItems === 0 ? (
-        <div className="flex-1">
-          <EmptyState
-            title="No patients found"
-            description="There are no patients available at the moment."
-          />
-        </div>
-      ) : (
-        <>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <div
-              className="h-full overflow-auto no-scrollbar"
-              style={{
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-              }}
-            >
-              <table className="w-full min-w-[860px] border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-emerald-600 text-white">
-                    <th className="px-3 py-2 text-left text-[11px] font-medium">
-                      Patient
-                    </th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium">
-                      Caregiver
-                    </th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium">
-                      Age
-                    </th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium">
-                      Assessment
-                    </th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium">
-                      Next Appointment
-                    </th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium">
-                      Open Tasks
-                    </th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium">
-                      Referral
-                    </th>
-                    <th className="px-3 py-2 text-center text-[11px] font-medium">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {paginatedPatients.map((patient, index) => (
-                    <tr
-                      key={patient.slug}
-                      onClick={() => handleRowClick(patient.slug)}
-                      className={`cursor-pointer transition ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
-                      } hover:bg-emerald-50`}
-                    >
-                      <td className="border-b border-slate-100 px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
-                            {patient.fullName
-                              .split(' ')
-                              .map((part) => part[0])
-                              .join('')
-                              .slice(0, 2)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-[13px] font-medium text-slate-900">
-                              {patient.fullName}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="border-b border-slate-100 px-3 py-2">
-                        <p className="truncate text-[13px] font-medium text-slate-700">
-                          {patient.caregiver.name}
-                        </p>
-                      </td>
-
-                      <td className="border-b border-slate-100 px-3 py-2 text-[13px] text-slate-600 whitespace-nowrap">
-                        {calculateAge(patient.dateOfBirth)} yrs
-                      </td>
-
-                      <td className="border-b border-slate-100 px-3 py-2">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${getAssessmentBadgeClass(
-                            patient.latestAssessmentStatus
-                          )}`}
-                        >
-                          {patient.latestAssessmentStatus ?? 'None'}
-                        </span>
-                      </td>
-
-                      <td className="border-b border-slate-100 px-3 py-2 text-[13px] text-slate-600 whitespace-nowrap">
-                        {formatDate(patient.nextAppointmentDate)}
-                      </td>
-
-                      <td className="border-b border-slate-100 px-3 py-2">
-                        <span
-                          className={`inline-flex min-w-7 justify-center rounded-full px-2 py-0.5 text-[10px] font-medium ${getTaskBadgeClass(
-                            patient.openTasksCount
-                          )}`}
-                        >
-                          {patient.openTasksCount}
-                        </span>
-                      </td>
-
-                      <td className="border-b border-slate-100 px-3 py-2">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${getReferralBadgeClass(
-                            patient.latestReferralStatus
-                          )}`}
-                        >
-                          {patient.latestReferralStatus ?? 'None'}
-                        </span>
-                      </td>
-
-                      <td
-                        className="border-b border-slate-100 px-3 py-2 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex justify-center">
-                          <RowActions
-                            onEdit={() => console.log('Edit patient', patient.slug)}
-                            onDelete={() => console.log('Delete patient', patient.slug)}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <div className="min-h-0 flex-1 overflow-hidden bg-white px-4 pt-2 pb-4">
+        <div className="flex h-full min-h-0 flex-col gap-2">
+          {totalItems === 0 ? (
+            <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white">
+              <div className="w-full max-w-md">
+                <EmptyState
+                  title="No patients found"
+                  description="There are no patients available at the moment."
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 bg-white">
+                <div className="h-full overflow-auto scrollbar-none">
+                  <table className="w-full min-w-[860px] border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-emerald-600 text-white">
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Patient</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Caregiver</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Age</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Assessment</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Next Appointment</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Open Tasks</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Referral</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-medium">Action</th>
+                      </tr>
+                    </thead>
 
-          <div className="border-t border-slate-200 bg-white">
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              totalItems={totalItems}
-              onPageChange={setPage}
-              onPageSizeChange={handlePageSizeChange}
-            />
-          </div>
-        </>
-      )}
+                    <tbody>
+                      {paginatedPatients.map((patient, index) => (
+                        <tr
+                          key={patient.slug}
+                          onClick={() => handleRowClick(patient.slug)}
+                          className={`cursor-pointer transition ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                          } hover:bg-emerald-50`}
+                        >
+                          <td className="border-b border-slate-100 px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+                                {patient.fullName
+                                  .split(' ')
+                                  .map((part) => part[0])
+                                  .join('')
+                                  .slice(0, 2)}
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-slate-900">
+                                  {patient.fullName}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-700">
+                            {patient.caregiver.name}
+                          </td>
+
+                          <td className="border-b border-slate-100 px-4 py-3 whitespace-nowrap text-sm text-slate-600">
+                            {calculateAge(patient.dateOfBirth)} yrs
+                          </td>
+
+                          <td className="border-b border-slate-100 px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${getAssessmentBadgeClass(
+                                patient.latestAssessmentStatus
+                              )}`}
+                            >
+                              {patient.latestAssessmentStatus ?? 'None'}
+                            </span>
+                          </td>
+
+                          <td className="border-b border-slate-100 px-4 py-3 whitespace-nowrap text-sm text-slate-600">
+                            {formatDate(patient.nextAppointmentDate)}
+                          </td>
+
+                          <td className="border-b border-slate-100 px-4 py-3">
+                            <span
+                              className={`inline-flex min-w-7 justify-center rounded-full px-2.5 py-1 text-[11px] font-medium ${getTaskBadgeClass(
+                                patient.openTasksCount
+                              )}`}
+                            >
+                              {patient.openTasksCount}
+                            </span>
+                          </td>
+
+                          <td className="border-b border-slate-100 px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${getReferralBadgeClass(
+                                patient.latestReferralStatus
+                              )}`}
+                            >
+                              {patient.latestReferralStatus ?? 'None'}
+                            </span>
+                          </td>
+
+                          <td
+                            className="border-b border-slate-100 px-4 py-3 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex justify-center">
+                              <RowActions
+                                onEdit={() => console.log('Edit patient', patient.slug)}
+                                onDelete={() => console.log('Delete patient', patient.slug)}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="border border-slate-200 bg-white">
+                <Pagination
+                  page={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  onPageChange={setPage}
+                  onPageSizeChange={handlePageSizeChange}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
