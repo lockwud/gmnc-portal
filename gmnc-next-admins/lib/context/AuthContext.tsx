@@ -10,6 +10,18 @@ interface AuthContextType {
   selectedRole: Role | null;
   setSelectedRole: (role: Role) => void;
   login: (identifier: string, password: string) => Promise<void>;
+  register: (data: {
+    fullName: string;
+    email?: string;
+    password: string;
+    phoneNumber: string;
+    gender: 'MALE' | 'FEMALE';
+    userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+    profileImage?: string;
+    address?: string;
+    digitalAddress?: string;
+    otpChannel: 'sms' | 'email';
+  }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   error: string | null;
@@ -142,6 +154,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     router.refresh();
   };
 
+  const register = async (data: {
+    fullName: string;
+    email?: string;
+    password: string;
+    phoneNumber: string;
+    gender: 'MALE' | 'FEMALE';
+    userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+    profileImage?: string;
+    address?: string;
+    digitalAddress?: string;
+    otpChannel: 'sms' | 'email';
+  }) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const responseData = await response.json() as {
+        user?: AuthUser;
+        message?: string;
+      };
+
+      if (!response.ok || !responseData.user) {
+        setError(responseData.message ?? 'Registration failed');
+        return;
+      }
+
+      const role = resolveSelectedRole(responseData.user);
+
+      setUser(responseData.user);
+      setToken(null);
+      setSelectedRoleState(role);
+
+      if (role) {
+        localStorage.setItem('gmnc_selected_role', role);
+        router.replace(getDashboardRoute(role));
+      } else {
+        localStorage.removeItem('gmnc_selected_role');
+        router.replace('/dashboard');
+      }
+
+      router.refresh();
+    } catch {
+      setError('Unable to register right now');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = () => {
     void (async () => {
       try {
@@ -160,15 +228,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      selectedRole, 
-      setSelectedRole, 
-      login, 
-      logout, 
-      isLoading, 
-      error 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      selectedRole,
+      setSelectedRole,
+      login,
+      register,
+      logout,
+      isLoading,
+      error
     }}>
       {children}
     </AuthContext.Provider>

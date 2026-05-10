@@ -8,10 +8,13 @@ import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import RowActions from '@/components/ui/RowActions';
 import { useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/lib/context/AuthContext';
 import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X } from 'lucide-react';
 
 type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
 type RegistrationStep = 1 | 2 | 3;
+type Gender = 'MALE' | 'FEMALE';
+type OtpChannel = 'sms' | 'email';
 
 type UserRecord = {
   id: string;
@@ -313,11 +316,10 @@ function SmallDropdown<T extends string>({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                  active
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${active
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -331,6 +333,7 @@ function SmallDropdown<T extends string>({
 
 export default function UserRegistrationPage() {
   const { show } = useToast();
+  const { register, isLoading: authLoading, error: authError } = useAuth();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -340,12 +343,15 @@ export default function UserRegistrationPage() {
   const [step, setStep] = useState<RegistrationStep>(1);
   const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('CAREGIVER');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phoneNumber: '',
     password: '',
+    gender: 'MALE' as Gender,
+    otpChannel: 'sms' as OtpChannel,
   });
 
   const filteredUsers = useMemo(() => {
@@ -372,11 +378,14 @@ export default function UserRegistrationPage() {
     setStep(1);
     setModalRole('CAREGIVER');
     setShowPassword(false);
+    setIsSubmitting(false);
     setFormData({
       fullName: '',
       email: '',
       phoneNumber: '',
       password: '',
+      gender: 'MALE',
+      otpChannel: 'sms',
     });
   };
 
@@ -396,22 +405,38 @@ export default function UserRegistrationPage() {
     }
   };
 
-  const handleSave = () => {
-    console.log('Save user payload', {
-      registrationMode: 'SYSTEM',
-      userType: modalRole,
-      ...formData,
-    });
+  const handleSave = async () => {
+    setIsSubmitting(true);
+    try {
+      await register({
+        fullName: formData.fullName,
+        email: formData.email || undefined,
+        password: formData.password,
+        phoneNumber: formData.phoneNumber,
+        gender: formData.gender,
+        userType: modalRole === 'SERVICE_PROVIDER' ? 'SERVICE_PROVIDER' : modalRole === 'CAREGIVER' ? 'CAREGIVER' : 'ADMIN',
+        otpChannel: formData.otpChannel,
+      });
 
-    show({
-      title: 'Success',
-      message: 'User registration saved successfully.',
-      duration: 3000,
-    });
+      show({
+        title: 'Success',
+        message: 'User registration saved successfully.',
+        duration: 3000,
+      });
 
-    window.setTimeout(() => {
-      resetModalState();
-    }, 3000);
+      window.setTimeout(() => {
+        resetModalState();
+      }, 3000);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : authError || 'Failed to register user';
+      show({
+        title: 'Error',
+        message: errorMessage,
+        duration: 3000,
+
+      });
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -477,9 +502,8 @@ export default function UserRegistrationPage() {
                         {paginatedUsers.map((user, index) => (
                           <tr
                             key={user.id}
-                            className={`transition ${
-                              index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                            } hover:bg-emerald-50`}
+                            className={`transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                              } hover:bg-emerald-50`}
                           >
                             <td className="border-b border-slate-100 px-4 py-3">
                               <div className="flex items-center gap-3">
@@ -603,6 +627,22 @@ export default function UserRegistrationPage() {
                   />
                 </div>
 
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-slate-700">Gender</label>
+                  <SmallDropdown
+                    value={formData.gender}
+                    options={[
+                      { value: 'MALE' as Gender, label: 'Male' },
+                      { value: 'FEMALE' as Gender, label: 'Female' },
+                    ]}
+                    onChange={(value) =>
+                      setFormData((prev) => ({ ...prev, gender: value }))
+                    }
+                    ariaLabel="Select gender"
+                    widthClass="w-full"
+                  />
+                </div>
+
                 <Input
                   placeholder="Full name"
                   icon={<User size={16} />}
@@ -631,6 +671,22 @@ export default function UserRegistrationPage() {
                     setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))
                   }
                 />
+
+                <div className="space-y-3 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-700">OTP Channel</label>
+                  <SmallDropdown
+                    value={formData.otpChannel}
+                    options={[
+                      { value: 'sms' as OtpChannel, label: 'SMS' },
+                      { value: 'email' as OtpChannel, label: 'Email' },
+                    ]}
+                    onChange={(value) =>
+                      setFormData((prev) => ({ ...prev, otpChannel: value }))
+                    }
+                    ariaLabel="Select OTP channel"
+                    widthClass="w-full"
+                  />
+                </div>
               </div>
             )}
 
@@ -674,12 +730,20 @@ export default function UserRegistrationPage() {
                       {formData.fullName || '—'}
                     </p>
                     <p>
+                      <span className="font-medium text-slate-900">Gender:</span>{' '}
+                      {formData.gender}
+                    </p>
+                    <p>
                       <span className="font-medium text-slate-900">Email:</span>{' '}
                       {formData.email || '—'}
                     </p>
                     <p>
                       <span className="font-medium text-slate-900">Phone:</span>{' '}
                       {formData.phoneNumber || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
+                      {formData.otpChannel.toUpperCase()}
                     </p>
                     <p>
                       <span className="font-medium text-slate-900">Password:</span> ••••••••
@@ -696,6 +760,7 @@ export default function UserRegistrationPage() {
                 variant="secondary"
                 className="rounded-full px-4 py-2 text-xs font-medium"
                 onClick={handleBack}
+                disabled={isSubmitting}
               >
                 Back
               </Button>
@@ -706,6 +771,7 @@ export default function UserRegistrationPage() {
                 variant="secondary"
                 className="rounded-full px-4 py-2 text-xs font-medium"
                 onClick={handleCloseModal}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
@@ -715,6 +781,7 @@ export default function UserRegistrationPage() {
               <Button
                 className="rounded-full px-4 py-2 text-xs font-medium"
                 onClick={handleProceed}
+                disabled={isSubmitting}
               >
                 Proceed
               </Button>
@@ -722,8 +789,9 @@ export default function UserRegistrationPage() {
               <Button
                 className="rounded-full px-4 py-2 text-xs font-medium"
                 onClick={handleSave}
+                disabled={isSubmitting || authLoading}
               >
-                Save
+                {isSubmitting ? 'Saving...' : 'Save'}
               </Button>
             )}
           </div>

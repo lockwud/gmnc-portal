@@ -25,7 +25,25 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
+export const genderSchema = z.enum(['MALE', 'FEMALE']);
+export const userTypeSchema = z.enum(['SERVICE_PROVIDER', 'CAREGIVER', 'ADMIN']);
+export const otpChannelSchema = z.enum(['sms', 'email']);
+
+export const registerSchema = z.object({
+  fullName: z.string().trim().min(1, 'Full name is required'),
+  email: z.string().email('A valid email address is required').optional().nullable(),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  phoneNumber: z.string().trim().min(1, 'Phone number is required'),
+  gender: genderSchema,
+  userType: userTypeSchema,
+  profileImage: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  digitalAddress: z.string().optional().nullable(),
+  otpChannel: otpChannelSchema,
+});
+
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;

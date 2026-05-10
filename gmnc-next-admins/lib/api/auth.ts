@@ -1,6 +1,13 @@
 import type { Role } from '@/lib/rbac';
 import { ApiError, apiClient } from '@/lib/api/client';
-import type { BackendLoginResponse, LoginRequest, LoginResult } from '@/lib/api/types';
+import type {
+  BackendLoginResponse,
+  BackendRegisterResponse,
+  LoginRequest,
+  LoginResult,
+  RegisterRequest,
+  RegisterResult,
+} from '@/lib/api/types';
 import { sessionUserSchema } from '@/lib/validators/auth';
 
 function normalizeRole(value: unknown): Role | null {
@@ -35,20 +42,20 @@ function collectRoleValues(rawUser: Record<string, unknown>) {
 
   const nestedUserRoles = Array.isArray(rawUser.userRoles)
     ? rawUser.userRoles.flatMap((userRole) => {
-        if (typeof userRole !== 'object' || userRole === null) {
-          return [];
-        }
-
-        const roleRecord = (userRole as Record<string, unknown>).role;
-
-        if (typeof roleRecord === 'object' && roleRecord !== null) {
-          const slug = (roleRecord as Record<string, unknown>).slug;
-          const name = (roleRecord as Record<string, unknown>).name;
-          return [slug, name];
-        }
-
+      if (typeof userRole !== 'object' || userRole === null) {
         return [];
-      })
+      }
+
+      const roleRecord = (userRole as Record<string, unknown>).role;
+
+      if (typeof roleRecord === 'object' && roleRecord !== null) {
+        const slug = (roleRecord as Record<string, unknown>).slug;
+        const name = (roleRecord as Record<string, unknown>).name;
+        return [slug, name];
+      }
+
+      return [];
+    })
     : [];
 
   return [...directRoles, ...nestedUserRoles];
@@ -61,34 +68,34 @@ function collectPermissionValues(rawUser: Record<string, unknown>) {
 
   const nestedRolePermissions = Array.isArray(rawUser.userRoles)
     ? rawUser.userRoles.flatMap((userRole) => {
-        if (typeof userRole !== 'object' || userRole === null) {
+      if (typeof userRole !== 'object' || userRole === null) {
+        return [];
+      }
+
+      const roleRecord = (userRole as Record<string, unknown>).role;
+      if (typeof roleRecord !== 'object' || roleRecord === null) {
+        return [];
+      }
+
+      const rolePermissions = (roleRecord as Record<string, unknown>).rolePermissions;
+      if (!Array.isArray(rolePermissions)) {
+        return [];
+      }
+
+      return rolePermissions.flatMap((rolePermission) => {
+        if (typeof rolePermission !== 'object' || rolePermission === null) {
           return [];
         }
 
-        const roleRecord = (userRole as Record<string, unknown>).role;
-        if (typeof roleRecord !== 'object' || roleRecord === null) {
+        const permissionRecord = (rolePermission as Record<string, unknown>).permission;
+        if (typeof permissionRecord !== 'object' || permissionRecord === null) {
           return [];
         }
 
-        const rolePermissions = (roleRecord as Record<string, unknown>).rolePermissions;
-        if (!Array.isArray(rolePermissions)) {
-          return [];
-        }
-
-        return rolePermissions.flatMap((rolePermission) => {
-          if (typeof rolePermission !== 'object' || rolePermission === null) {
-            return [];
-          }
-
-          const permissionRecord = (rolePermission as Record<string, unknown>).permission;
-          if (typeof permissionRecord !== 'object' || permissionRecord === null) {
-            return [];
-          }
-
-          const code = (permissionRecord as Record<string, unknown>).code;
-          return typeof code === 'string' ? [code] : [];
-        });
-      })
+        const code = (permissionRecord as Record<string, unknown>).code;
+        return typeof code === 'string' ? [code] : [];
+      });
+    })
     : [];
 
   return [...new Set([...directPermissions, ...nestedRolePermissions])];
@@ -107,8 +114,8 @@ function getTokenFromPayload(payload: BackendLoginResponse, headers: Headers) {
     ?? payload.token
     ?? (typeof payload.data === 'object' && payload.data !== null
       ? (payload.data as Record<string, unknown>).accessToken
-        ?? (payload.data as Record<string, unknown>).access_token
-        ?? (payload.data as Record<string, unknown>).token
+      ?? (payload.data as Record<string, unknown>).access_token
+      ?? (payload.data as Record<string, unknown>).token
       : undefined);
 
   return typeof directToken === 'string' && directToken.length > 0 ? directToken : null;
@@ -187,4 +194,16 @@ export async function resetPasswordRequest(token: string, password: string): Pro
     method: 'POST',
     body: { token, password },
   });
+}
+
+export async function registerRequest(payload: RegisterRequest): Promise<RegisterResult> {
+  const response = await apiClient<BackendRegisterResponse>('/auth/register', {
+    method: 'POST',
+    body: payload,
+  });
+
+  return {
+    user: normalizeUser(response.data),
+    raw: response.data,
+  };
 }

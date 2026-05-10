@@ -13,6 +13,26 @@ export type LoginResult = {
   raw: BackendLoginResponse;
 };
 
+export type RegisterRequest = {
+  fullName: string;
+  email?: string | null;
+  password: string;
+  phoneNumber: string;
+  gender: 'MALE' | 'FEMALE';
+  userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+  profileImage?: string | null;
+  address?: string | null;
+  digitalAddress?: string | null;
+  otpChannel: 'sms' | 'email';
+};
+
+export type BackendRegisterResponse = Record<string, unknown>;
+
+export type RegisterResult = {
+  user: SessionUser;
+  raw: BackendRegisterResponse;
+};
+
 
 // assessments 
 
