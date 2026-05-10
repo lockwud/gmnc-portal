@@ -174,3 +174,17 @@ export async function loginRequest(payload: LoginRequest): Promise<LoginResult> 
     raw: response.data,
   };
 }
+
+export async function forgotPasswordRequest(email: string): Promise<void> {
+  await apiClient<unknown>('/auth/forgot-password', {
+    method: 'POST',
+    body: { identifier: email },
+  });
+}
+
+export async function resetPasswordRequest(token: string, password: string): Promise<void> {
+  await apiClient<unknown>('/auth/reset-password', {
+    method: 'POST',
+    body: { token, password },
+  });
+}

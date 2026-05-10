@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import NotificationsPanel from '@/components/ui/NotificationsPanel';
 import { COLORS } from '@/lib/colors';
+import { useAuth } from '@/lib/context/AuthContext';
 
 type Props = {
   onToggleSidebar: () => void;
@@ -25,6 +26,7 @@ const ToggleIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
+  const { logout } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [userOpen, setUserOpen] = useState(false);
@@ -150,7 +152,7 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
                     <span>Change Password</span>
                   </button>
 
-                  <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm" type="button">
+                  <button onClick={logout} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm" type="button">
                     <span className="material-icons text-sm text-gray-600">logout</span>
                     <span>Logout</span>
                   </button>

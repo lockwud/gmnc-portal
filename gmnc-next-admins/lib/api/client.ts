@@ -40,17 +40,30 @@ export async function apiClient<T>(
     timeoutMs = 15000,
   } = options;
 
-  const response = await fetch(`${env.API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    cache,
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${env.API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      cache,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (networkError) {
+    const isTimeout =
+      networkError instanceof DOMException && networkError.name === 'TimeoutError';
+    throw new ApiError(
+      isTimeout
+        ? 'Request timed out. Please check your connection and try again.'
+        : 'Unable to reach the server. Please check your connection and try again.',
+      503,
+      networkError,
+    );
+  }
 
   const contentType = response.headers.get('content-type');
   let payload: unknown = null;
