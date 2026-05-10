@@ -53,7 +53,6 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         collapsible: true,
         children: [
           { label: "Analytics", path: "/admin/analytics", icon: "insights" },
-          { label: "Inbox", path: "/admin/inbox", icon: "inbox" },
           { label: "Users", path: "/admin/users", icon: "groups" },
           {
             label: "Roles & Access",
