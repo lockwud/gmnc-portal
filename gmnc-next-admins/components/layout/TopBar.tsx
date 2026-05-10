@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import NotificationsPanel from '@/components/ui/NotificationsPanel';
 import { COLORS } from '@/lib/colors';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -26,7 +27,7 @@ const ToggleIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
-  const { logout } = useAuth();
+  const { user, logout, selectedRole } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [userOpen, setUserOpen] = useState(false);
@@ -130,27 +131,27 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
               type="button"
               style={{ color: activeBg, borderColor: '#e6e9f2', fontWeight: 600 }}
             >
-              <span className="text-sm">MA</span>
+              <span className="text-sm">{user?.name ? user.name.substring(0, 2).toUpperCase() : 'MA'}</span>
             </button>
 
             {userOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg z-40 border">
-                <div className="p-3">
-                  <p className="font-semibold text-sm">Marian Augben Nyarko</p>
-                  <p className="text-xs text-gray-500">Super Tester</p>
-                  <p className="text-xs text-gray-500 mt-1">priscilla@example.com</p>
+                <div className="p-3 overflow-hidden">
+                  <p className="font-semibold text-sm truncate" title={user?.name || 'Marian Augben Nyarko'}>{user?.name || 'Marian Augben Nyarko'}</p>
+                  <p className="text-xs text-gray-500 capitalize">{selectedRole || 'Super Tester'}</p>
+                  <p className="text-xs text-gray-500 mt-1 truncate" title={user?.email || 'priscilla@example.com'}>{user?.email || 'priscilla@example.com'}</p>
                 </div>
 
                 <div className="border-t">
-                  <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm" type="button">
+                  <Link href="/profile" onClick={() => setUserOpen(false)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm">
                     <span className="material-icons text-sm text-gray-600">account_circle</span>
                     <span>Profile</span>
-                  </button>
+                  </Link>
 
-                  <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm" type="button">
+                  <Link href="/profile/change-password" onClick={() => setUserOpen(false)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm">
                     <span className="material-icons text-sm text-gray-600">vpn_key</span>
                     <span>Change Password</span>
-                  </button>
+                  </Link>
 
                   <button onClick={logout} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm" type="button">
                     <span className="material-icons text-sm text-gray-600">logout</span>
