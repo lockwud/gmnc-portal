@@ -587,7 +587,7 @@ export default function UserRegistrationPage() {
         <div className="mx-auto flex min-h-[620px] w-full max-w-3xl flex-col rounded-[28px] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Create registration</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">Registration</h2>
               <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>
             </div>
 
