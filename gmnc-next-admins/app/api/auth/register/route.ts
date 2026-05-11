@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            user: data.user,
+            message: data.message || 'Registration successful. Please verify your account.',
+            otpChannel: data.otpChannel,
         });
     } catch (error) {
         return NextResponse.json(
