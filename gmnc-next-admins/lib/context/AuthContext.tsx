@@ -17,10 +17,13 @@ interface AuthContextType {
     phoneNumber: string;
     gender: 'MALE' | 'FEMALE';
     userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+    dateOfBirth?: string;
     profileImage?: string;
     address?: string;
     digitalAddress?: string;
     otpChannel: 'sms' | 'email';
+    verified?: boolean;
+    profileCompleted?: boolean;
   }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -153,63 +156,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     router.replace(getDashboardRoute(role));
     router.refresh();
   };
+const register = async (data: {
+  fullName: string;
+  email?: string;
+  password: string;
+  phoneNumber: string;
+  gender: 'MALE' | 'FEMALE';
+  userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+  profileImage?: string;
+  address?: string;
+  digitalAddress?: string;
+  otpChannel: 'sms' | 'email';
+}) => {
+  setIsLoading(true);
+  setError(null);
 
-  const register = async (data: {
-    fullName: string;
-    email?: string;
-    password: string;
-    phoneNumber: string;
-    gender: 'MALE' | 'FEMALE';
-    userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
-    profileImage?: string;
-    address?: string;
-    digitalAddress?: string;
-    otpChannel: 'sms' | 'email';
-  }) => {
-    setIsLoading(true);
-    setError(null);
+  try {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
 
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+    const responseData = await response.json() as {
+      message?: string;
+      otpChannel?: 'sms' | 'email';
+    };
 
-      const responseData = await response.json() as {
-        user?: AuthUser;
-        message?: string;
-      };
-
-      if (!response.ok || !responseData.user) {
-        setError(responseData.message ?? 'Registration failed');
-        return;
-      }
-
-      const role = resolveSelectedRole(responseData.user);
-
-      setUser(responseData.user);
-      setToken(null);
-      setSelectedRoleState(role);
-
-      if (role) {
-        localStorage.setItem('gmnc_selected_role', role);
-        router.replace(getDashboardRoute(role));
-      } else {
-        localStorage.removeItem('gmnc_selected_role');
-        router.replace('/dashboard');
-      }
-
-      router.refresh();
-    } catch {
-      setError('Unable to register right now');
-    } finally {
-      setIsLoading(false);
+    if (!response.ok) {
+      setError(responseData.message ?? 'Registration failed');
+      return;
     }
-  };
 
+    // Registration succeeded, but backend does not return a logged-in user
+    setUser(null);
+    setToken(null);
+    setSelectedRoleState(null);
+    localStorage.removeItem('gmnc_selected_role');
+
+    // Send them to login or a registration success page
+    router.replace('/admin/users');
+
+    router.refresh();
+  } catch {
+    setError('Unable to register right now');
+  } finally {
+    setIsLoading(false);
+  }
+};
   const logout = () => {
     void (async () => {
       try {

@@ -20,16 +20,20 @@ export type RegisterRequest = {
   phoneNumber: string;
   gender: 'MALE' | 'FEMALE';
   userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+  dateOfBirth?: string | null;
   profileImage?: string | null;
   address?: string | null;
   digitalAddress?: string | null;
   otpChannel: 'sms' | 'email';
+  verified?: boolean;
+  profileCompleted?: boolean;
 };
 
 export type BackendRegisterResponse = Record<string, unknown>;
 
 export type RegisterResult = {
-  user: SessionUser;
+  message?: string;
+  otpChannel?: 'sms' | 'email';
   raw: BackendRegisterResponse;
 };
 

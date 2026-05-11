@@ -195,7 +195,6 @@ export async function resetPasswordRequest(token: string, password: string): Pro
     body: { token, password },
   });
 }
-
 export async function registerRequest(payload: RegisterRequest): Promise<RegisterResult> {
   const response = await apiClient<BackendRegisterResponse>('/auth/register', {
     method: 'POST',
@@ -203,7 +202,14 @@ export async function registerRequest(payload: RegisterRequest): Promise<Registe
   });
 
   return {
-    user: normalizeUser(response.data),
+    message:
+      typeof response.data.message === 'string'
+        ? response.data.message
+        : undefined,
+    otpChannel:
+      response.data.otpChannel === 'sms' || response.data.otpChannel === 'email'
+        ? response.data.otpChannel
+        : undefined,
     raw: response.data,
   };
 }

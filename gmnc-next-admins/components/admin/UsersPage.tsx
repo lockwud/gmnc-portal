@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Button from '@/components/ui/Button';
+import CalendarPopover from '@/components/ui/CalendarPopover';
 import EmptyState from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -9,7 +10,7 @@ import Pagination from '@/components/ui/Pagination';
 import RowActions from '@/components/ui/RowActions';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
-import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar } from 'lucide-react';
 
 type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
 type RegistrationStep = 1 | 2 | 3;
@@ -317,8 +318,8 @@ function SmallDropdown<T extends string>({
                   setOpen(false);
                 }}
                 className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${active
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-slate-100 text-slate-900'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
               >
                 {option.label}
@@ -344,6 +345,9 @@ export default function UserRegistrationPage() {
   const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('CAREGIVER');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const calendarButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -352,6 +356,7 @@ export default function UserRegistrationPage() {
     password: '',
     gender: 'MALE' as Gender,
     otpChannel: 'sms' as OtpChannel,
+    dateOfBirth: '',
   });
 
   const filteredUsers = useMemo(() => {
@@ -379,6 +384,8 @@ export default function UserRegistrationPage() {
     setModalRole('CAREGIVER');
     setShowPassword(false);
     setIsSubmitting(false);
+    setIsCalendarOpen(false);
+    setSelectedDate(undefined);
     setFormData({
       fullName: '',
       email: '',
@@ -386,6 +393,7 @@ export default function UserRegistrationPage() {
       password: '',
       gender: 'MALE',
       otpChannel: 'sms',
+      dateOfBirth: '',
     });
   };
 
@@ -408,6 +416,8 @@ export default function UserRegistrationPage() {
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
+      const isAdmin = modalRole === 'ADMIN';
+
       await register({
         fullName: formData.fullName,
         email: formData.email || undefined,
@@ -415,7 +425,10 @@ export default function UserRegistrationPage() {
         phoneNumber: formData.phoneNumber,
         gender: formData.gender,
         userType: modalRole === 'SERVICE_PROVIDER' ? 'SERVICE_PROVIDER' : modalRole === 'CAREGIVER' ? 'CAREGIVER' : 'ADMIN',
-        otpChannel: formData.otpChannel,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        otpChannel: isAdmin ? 'email' : formData.otpChannel,
+        verified: isAdmin ? true : undefined,
+        profileCompleted: isAdmin ? true : undefined,
       });
 
       show({
@@ -673,19 +686,60 @@ export default function UserRegistrationPage() {
                 />
 
                 <div className="space-y-3 md:col-span-2">
-                  <label className="text-sm font-medium text-slate-700">OTP Channel</label>
-                  <SmallDropdown
-                    value={formData.otpChannel}
-                    options={[
-                      { value: 'sms' as OtpChannel, label: 'SMS' },
-                      { value: 'email' as OtpChannel, label: 'Email' },
-                    ]}
-                    onChange={(value) =>
-                      setFormData((prev) => ({ ...prev, otpChannel: value }))
-                    }
-                    ariaLabel="Select OTP channel"
-                    widthClass="w-full"
+                  <label className="text-sm font-medium text-slate-700">Date of birth</label>
+                  <button
+                    ref={calendarButtonRef}
+                    type="button"
+                    onClick={() => setIsCalendarOpen(true)}
+                    className="flex h-10 w-full items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-600 transition hover:border-slate-300"
+                  >
+                    <Calendar size={16} className="text-slate-400" />
+                    <span className="flex-1 text-left">
+                      {selectedDate
+                        ? selectedDate.toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                        : 'Select date'}
+                    </span>
+                  </button>
+                  <CalendarPopover
+                    anchorRef={calendarButtonRef.current}
+                    open={isCalendarOpen}
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    onApply={() => {
+                      if (selectedDate) {
+                        const dateStr = selectedDate.toISOString().split('T')[0];
+                        setFormData((prev) => ({ ...prev, dateOfBirth: dateStr }));
+                      }
+                      setIsCalendarOpen(false);
+                    }}
+                    onCancel={() => setIsCalendarOpen(false)}
                   />
+                </div>
+
+                <div className="space-y-3 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-700">OTP Channel</label>
+                  {modalRole === 'ADMIN' ? (
+                    <div className="flex h-10 w-full items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
+                      Email (Auto-configured for Admin)
+                    </div>
+                  ) : (
+                    <SmallDropdown
+                      value={formData.otpChannel}
+                      options={[
+                        { value: 'sms' as OtpChannel, label: 'SMS' },
+                        { value: 'email' as OtpChannel, label: 'Email' },
+                      ]}
+                      onChange={(value) =>
+                        setFormData((prev) => ({ ...prev, otpChannel: value }))
+                      }
+                      ariaLabel="Select OTP channel"
+                      widthClass="w-full"
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -718,6 +772,14 @@ export default function UserRegistrationPage() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
                   <p className="text-base font-semibold text-slate-900">Review information</p>
 
+                  {modalRole === 'ADMIN' && (
+                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                      <p className="text-sm text-emerald-700">
+                        <span className="font-medium">Admin Account:</span> This account will be pre-verified and profile completion will be marked as done. No OTP verification needed.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="mt-4 grid gap-4 text-base text-slate-600 md:grid-cols-2">
                     <p>
                       <span className="font-medium text-slate-900">Mode:</span> In system
@@ -742,8 +804,18 @@ export default function UserRegistrationPage() {
                       {formData.phoneNumber || '—'}
                     </p>
                     <p>
+                      <span className="font-medium text-slate-900">Date of birth:</span>{' '}
+                      {formData.dateOfBirth
+                        ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                        : '—'}
+                    </p>
+                    <p>
                       <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
-                      {formData.otpChannel.toUpperCase()}
+                      {modalRole === 'ADMIN' ? 'Email (Auto)' : formData.otpChannel.toUpperCase()}
                     </p>
                     <p>
                       <span className="font-medium text-slate-900">Password:</span> ••••••••

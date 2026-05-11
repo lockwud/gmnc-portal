@@ -1,3 +1,4 @@
+import { profile } from 'console';
 import { z } from 'zod';
 
 export const roleSchema = z.enum(['admin', 'provider', 'support', 'tester', 'caregiver']);
@@ -36,10 +37,13 @@ export const registerSchema = z.object({
   phoneNumber: z.string().trim().min(1, 'Phone number is required'),
   gender: genderSchema,
   userType: userTypeSchema,
+  dateOfBirth: z.string().optional().nullable().describe('ISO date string (YYYY-MM-DD)'),
   profileImage: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   digitalAddress: z.string().optional().nullable(),
   otpChannel: otpChannelSchema,
+  verified: z.boolean().optional().default(false),
+  profileCompleted: z.boolean().optional().default(false),
 });
 
 export type SessionUser = z.infer<typeof sessionUserSchema>;
