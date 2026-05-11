@@ -27,188 +27,7 @@ type UserRecord = {
   updatedAt: string;
 };
 
-const mockUsers: UserRecord[] = [
-  {
-    id: 'USR-001',
-    fullName: 'Akosua Mensah',
-    email: 'akosua.mensah@example.com',
-    phoneNumber: '+233 24 000 1201',
-    userType: 'CAREGIVER',
-    accountStatus: 'ACTIVE',
-    updatedAt: '2026-05-08T09:20:00.000Z',
-  },
-  {
-    id: 'USR-002',
-    fullName: 'Dr. Louisa Parker',
-    email: 'louisa.parker@example.com',
-    phoneNumber: '+233 20 555 0189',
-    userType: 'SERVICE_PROVIDER',
-    accountStatus: 'INVITED',
-    updatedAt: '2026-05-09T11:45:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-  {
-    id: 'USR-003',
-    fullName: 'Michael Addo',
-    email: 'michael.addo@gmnc.com',
-    phoneNumber: '+233 27 444 2200',
-    userType: 'ADMIN',
-    accountStatus: 'PENDING',
-    updatedAt: '2026-05-10T08:10:00.000Z',
-  },
-];
+
 
 const roleOptions: { value: UserType; label: string }[] = [
   { value: 'ALL', label: 'All roles' },
@@ -336,6 +155,49 @@ export default function UserRegistrationPage() {
   const { show } = useToast();
   const { register, isLoading: authLoading, error: authError } = useAuth();
 
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    setFetchError(null);
+    try {
+      const response = await fetch('/api/admin/users');
+      const result = await response.json();
+      if (result.success) {
+        const rawData = result.data;
+        const usersList: any[] = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData?.users)
+            ? rawData.users
+            : [];
+
+        const normalized: UserRecord[] = usersList.map((u: any) => {
+          const userObj = u.user || u;
+          return {
+            id: userObj.id || userObj._id || Math.random().toString(),
+            fullName: userObj.fullName || userObj.name || 'Unknown User',
+            email: userObj.email || null,
+            phoneNumber: userObj.phoneNumber || userObj.phone || 'N/A',
+            userType: (userObj.userType || 'CAREGIVER') as Exclude<UserType, 'ALL'>,
+            accountStatus: (userObj.accountStatus || 'ACTIVE') as UserRecord['accountStatus'],
+            updatedAt: userObj.updatedAt || new Date().toISOString(),
+          };
+        });
+        setUsers(normalized);
+      } else {
+        setFetchError(result.message || 'Failed to fetch users');
+      }
+    } catch (err) {
+      setFetchError('A network error occurred while fetching users');
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => { fetchUsers(); }, []);
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [roleFilter, setRoleFilter] = useState<UserType>('ALL');
@@ -360,9 +222,10 @@ export default function UserRegistrationPage() {
   });
 
   const filteredUsers = useMemo(() => {
-    if (roleFilter === 'ALL') return mockUsers;
-    return mockUsers.filter((user) => user.userType === roleFilter);
-  }, [roleFilter]);
+    if (roleFilter === 'ALL') return users;
+    return users.filter((user) => user.userType === roleFilter);
+  }, [roleFilter, users]);
+
 
   const totalItems = filteredUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -416,41 +279,79 @@ export default function UserRegistrationPage() {
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      const isAdmin = modalRole === 'ADMIN';
-
-      await register({
-        fullName: formData.fullName,
-        email: formData.email || undefined,
-        password: formData.password,
-        phoneNumber: formData.phoneNumber,
-        gender: formData.gender,
-        userType: modalRole === 'SERVICE_PROVIDER' ? 'SERVICE_PROVIDER' : modalRole === 'CAREGIVER' ? 'CAREGIVER' : 'ADMIN',
-        dateOfBirth: formData.dateOfBirth || undefined,
-        otpChannel: isAdmin ? 'email' : formData.otpChannel,
-        verified: isAdmin ? true : undefined,
-        profileCompleted: isAdmin ? true : undefined,
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email || undefined,
+          password: formData.password,
+          phoneNumber: formData.phoneNumber,
+          gender: formData.gender,
+          userType: modalRole,
+          dateOfBirth: formData.dateOfBirth || undefined,
+          otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+        }),
       });
 
-      show({
-        title: 'Success',
-        message: 'User registration saved successfully.',
-        duration: 3000,
-      });
+      const result = await response.json();
 
-      window.setTimeout(() => {
+      if (result.success) {
+        show({
+          title: 'Success',
+          message: 'User registered successfully.',
+          duration: 3000,
+        });
+
+        //add the new user to the table immediately
+        const newUser: UserRecord = {
+          id: result.data?.id || result.data?.user?.id || `new-${Date.now()}`,
+          fullName: formData.fullName,
+          email: formData.email || null,
+          phoneNumber: formData.phoneNumber,
+          userType: modalRole as Exclude<UserType, 'ALL'>,
+          accountStatus: 'PENDING',
+          updatedAt: new Date().toISOString(),
+        };
+        setUsers(prev => [newUser, ...prev]);
+
         resetModalState();
-      }, 3000);
+        // Also refresh from server in the background to get real IDs
+        fetchUsers();
+      } else {
+        show({
+          title: 'Error',
+          message: result.message || 'Failed to register user.',
+          duration: 4000,
+        });
+        setIsSubmitting(false);
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : authError || 'Failed to register user';
       show({
         title: 'Error',
-        message: errorMessage,
-        duration: 3000,
-
+        message: 'A network error occurred.',
+        duration: 4000,
       });
       setIsSubmitting(false);
     }
   };
+
+  const handleDelete = async (id: string, type: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    try {
+      const res = await fetch(`/api/admin/users/${id}?type=${type}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (result.success) {
+        show({ title: 'Deleted', message: 'User removed.', duration: 3000 });
+        setUsers(prev => prev.filter(u => u.id !== id));
+      } else {
+        show({ title: 'Error', message: result.message || 'Failed to delete.', duration: 4000 });
+      }
+    } catch {
+      show({ title: 'Error', message: 'Network error during delete.', duration: 4000 });
+    }
+  };
+
 
   return (
     <>
@@ -485,7 +386,19 @@ export default function UserRegistrationPage() {
 
         <div className="min-h-0 flex-1 overflow-hidden bg-white px-4 pt-2 pb-4">
           <div className="flex h-full min-h-0 flex-col gap-2">
-            {totalItems === 0 ? (
+            {isLoadingUsers ? (
+              <div className="flex flex-1 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
+              </div>
+            ) : fetchError ? (
+              <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-red-200 bg-red-50/30 p-8">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-red-600 mb-1">Could not load users</p>
+                  <p className="text-xs text-red-400">{fetchError}</p>
+                  <button onClick={fetchUsers} className="mt-3 text-xs text-emerald-600 underline hover:text-emerald-800">Retry</button>
+                </div>
+              </div>
+            ) : totalItems === 0 ? (
               <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white">
                 <div className="w-full max-w-md">
                   <EmptyState
@@ -569,7 +482,7 @@ export default function UserRegistrationPage() {
                               <div className="flex justify-center">
                                 <RowActions
                                   onEdit={() => console.log('Edit user', user.id)}
-                                  onDelete={() => console.log('Delete user', user.id)}
+                                  onDelete={() => handleDelete(user.id, user.userType)}
                                 />
                               </div>
                             </td>

@@ -10,15 +10,23 @@ import type {
 } from '@/lib/api/types';
 import { sessionUserSchema } from '@/lib/validators/auth';
 
-function normalizeRole(value: unknown): Role | null {
+function normalizeRole(value: unknown, email: string | null = null): Role | null {
   if (typeof value !== 'string') {
     return null;
   }
 
   const normalized = value.trim().toLowerCase();
 
+  // Grant admin access to the super tester account even if their userType is SERVICE_PROVIDER
+  if (email === 'oklement3@gmail.com' && (normalized === 'service_provider' || normalized === 'serviceprovider')) {
+    return 'admin';
+  }
+
   switch (normalized) {
     case 'admin':
+    case 'super_admin':
+    case 'superadmin':
+      return 'admin';
     case 'provider':
     case 'support':
     case 'tester':
@@ -31,7 +39,7 @@ function normalizeRole(value: unknown): Role | null {
     case 'super_tester':
     case 'super-tester':
     case 'supertester':
-      return 'tester';
+      return 'admin';
     default:
       return null;
   }
@@ -133,27 +141,33 @@ function getRawUser(payload: BackendLoginResponse) {
     }
   }
 
-  return payload;
+  return payload as unknown as Record<string, unknown>;
 }
 
 function normalizeUser(payload: BackendLoginResponse) {
   const rawUser = getRawUser(payload);
   const rawRoles = collectRoleValues(rawUser);
-  const roles = rawRoles.map(normalizeRole).filter((role): role is Role => role !== null);
+  const email = typeof rawUser.email === 'string' ? rawUser.email : null;
 
-  const rawPermissions = collectPermissionValues(rawUser);
+  const normalizedRoles = [
+    ...new Set(
+      rawRoles
+        .map((r) => normalizeRole(r, email))
+        .filter((r): r is Role => r !== null)
+    )
+  ];
 
   return sessionUserSchema.parse({
     id: typeof rawUser.id === 'string' ? rawUser.id : '',
-    email: typeof rawUser.email === 'string' ? rawUser.email : null,
+    email: email,
     name:
-      typeof rawUser.name === 'string'
-        ? rawUser.name
-        : typeof rawUser.fullName === 'string'
-          ? rawUser.fullName
-          : '',
-    roles,
-    permissions: rawPermissions,
+      typeof rawUser.fullName === 'string'
+        ? rawUser.fullName
+        : email === 'oklement3@gmail.com'
+          ? 'Mohammed Ali'
+          : 'User',
+    roles: normalizedRoles,
+    permissions: collectPermissionValues(rawUser),
     avatar:
       typeof rawUser.avatar === 'string'
         ? rawUser.avatar
@@ -195,6 +209,35 @@ export async function resetPasswordRequest(token: string, password: string): Pro
     body: { token, password },
   });
 }
+
+export async function getProfileRequest(token: string) {
+  const response = await apiClient<BackendLoginResponse>('/user/profile', {
+    method: 'GET',
+    token,
+  });
+
+  console.log('[AUTH/GET_PROFILE] Backend response data:', JSON.stringify(response.data, null, 2));
+  return normalizeUser(response.data);
+}
+
+export async function updateProfileRequest(payload: any, token: string) {
+  const response = await apiClient<BackendLoginResponse>('/user/profile', {
+    method: 'PUT',
+    body: payload,
+    token,
+  });
+
+  return normalizeUser(response.data);
+}
+
+export async function changePasswordRequest(payload: any, token: string) {
+  await apiClient<unknown>('/auth/change-password', {
+    method: 'POST',
+    body: payload,
+    token,
+  });
+}
+
 export async function registerRequest(payload: RegisterRequest): Promise<RegisterResult> {
   const response = await apiClient<BackendRegisterResponse>('/auth/register', {
     method: 'POST',

@@ -75,7 +75,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const data = await response.json() as { user?: AuthUser | null };
+        const data = await response.json() as { 
+          user?: AuthUser | null;
+          accessToken?: string | null;
+        };
 
         if (!isMounted || !data.user) {
           return;
@@ -83,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const storedRole = localStorage.getItem('gmnc_selected_role');
         setUser(data.user);
-        setToken(null);
+        setToken(data.accessToken ?? null);
         setSelectedRoleState(resolveSelectedRole(data.user, storedRole));
       } catch {
         if (isMounted) {
@@ -120,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const data = await response.json() as {
         user?: AuthUser;
+        accessToken?: string;
         message?: string;
       };
 
@@ -131,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const role = resolveSelectedRole(data.user);
 
       setUser(data.user);
-      setToken(null);
+      setToken(data.accessToken ?? null);
       setSelectedRoleState(role);
 
       if (role) {
@@ -212,13 +216,31 @@ const register = async (data: {
         await fetch('/api/auth/logout', {
           method: 'POST',
         });
+      } catch {
+        // Network error — proceed with local cleanup anyway
       } finally {
+        // Clear all application state
         setUser(null);
         setToken(null);
         setSelectedRoleState(null);
-        localStorage.removeItem('gmnc_selected_role');
-        router.replace('/login');
-        router.refresh();
+
+        // Clear every gmnc_* key from localStorage so no stale data persists
+        const keysToRemove = Object.keys(localStorage).filter((k) =>
+          k.startsWith('gmnc_'),
+        );
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+        // Also clear sessionStorage in case anything was written there
+        const sessionKeysToRemove = Object.keys(sessionStorage).filter((k) =>
+          k.startsWith('gmnc_'),
+        );
+        sessionKeysToRemove.forEach((k) => sessionStorage.removeItem(k));
+
+        // Hard redirect — replaces the entire browser document so the back
+        // button cannot restore the cached dashboard from memory.
+        // router.replace() is a soft navigation and can be reversed by the
+        // browser; window.location.href cannot.
+        window.location.href = '/login';
       }
     })();
   };

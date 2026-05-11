@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { COLORS } from '@/lib/colors';
+import { useAuth } from '@/lib/context/AuthContext';
 
 type DashboardItem = {
   id: string;
@@ -41,6 +42,7 @@ const sections: { items: DashboardItem[] }[] = [
 ];
 
 const DashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const activeBg = (COLORS && (COLORS.activeBg ?? COLORS.primary)) || '#2563EB';
 
   return (
@@ -48,7 +50,7 @@ const DashboardPage: React.FC = () => {
       <div className="w-full max-w-6xl">
         <h1 className="mb-1 text-2xl font-semibold" style={{ color: '#2c3e50' }}>
           <span className="mr-2">Welcome</span>
-          <span style={{ color: activeBg }}>Marian Augben Nyarkou AbeiKu</span>
+          <span style={{ color: activeBg }}>{user?.name || 'User'}</span>
         </h1>
 
         <p className="mb-5 text-sm text-gray-600">
