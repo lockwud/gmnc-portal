@@ -162,7 +162,9 @@ export default function UserRegistrationPage() {
     setIsLoadingUsers(true);
     setFetchError(null);
     try {
-      const response = await fetch('/api/admin/users');
+        const response = await fetch('/api/admin/users', {
+          credentials: 'include',
+        });
       const result = await response.json();
       if (result.success) {
         const rawData = result.data;
@@ -279,20 +281,21 @@ export default function UserRegistrationPage() {
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: formData.fullName,
-          email: formData.email || undefined,
-          password: formData.password,
-          phoneNumber: formData.phoneNumber,
-          gender: formData.gender,
-          userType: modalRole,
-          dateOfBirth: formData.dateOfBirth || undefined,
-          otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
-        }),
-      });
+       const response = await fetch('/api/admin/users', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           fullName: formData.fullName,
+           email: formData.email || undefined,
+           password: formData.password,
+           phoneNumber: formData.phoneNumber,
+           gender: formData.gender,
+           userType: modalRole,
+           dateOfBirth: formData.dateOfBirth || undefined,
+           otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+         }),
+         credentials: 'include',
+       });
 
       const result = await response.json();
 
@@ -337,7 +340,7 @@ export default function UserRegistrationPage() {
   const handleDelete = async (id: string, type: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      const res = await fetch(`/api/admin/users/${id}?type=${type}`, { method: 'DELETE' });
+       const res = await fetch(`/api/admin/users/${id}?type=${type}`, { method: 'DELETE', credentials: 'include' });
       const result = await res.json();
       if (result.success) {
         show({ title: 'Deleted', message: 'User removed.', duration: 3000 });

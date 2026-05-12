@@ -3,7 +3,8 @@ import { env } from '../../../../lib/env';
 import { ACCESS_TOKEN_COOKIE } from '../../../../lib/session';
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '') ||
+                request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
   if (!token) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -115,7 +116,8 @@ export async function GET(request: NextRequest) {
   }
 }
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '') ||
+                request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
   if (!token) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });

@@ -1,32 +1,50 @@
-interface AssignRoleModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (userId: string, roleId: string) => Promise<void>;
-  roles: AppRoleRecord[];
-  selectedRole: string;
-  onChangeRole: (value: string) => void;
-  selectedScope: AssignmentScopeType;
-  onChangeScope: (value: AssignmentScopeType) => void;
-}
-
-
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import RoleFilterDropdown from '@/components/admin/roles-access/RoleFilterDropdown';
 import { AssignmentScopeType, AppRoleRecord } from '@/lib/api/types';
+import CalendarPopover from "@/components/ui/CalendarPopover"
 import { X } from 'lucide-react';
 
 
+export interface AssignRoleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (userId: string, roleId: string) => Promise<void>;
+  users: { id: string; fullName: string; email?: string; userType: string }[];
+  roles: AppRoleRecord[];
+  selectedRole: string;
+  onChangeRole: (role: string) => void;
+  selectedScope: AssignmentScopeType;
+  onChangeScope: (scope: AssignmentScopeType) => void;
+  selectedUserId: string;
+  onChangeUserId: (userId: string) => void;
+  selectedExpiryDate: Date | null;
+  onChangeExpiryDate: (date: Date | null) => void;
+}
 
 
+export default function AssignRoleModal(props: AssignRoleModalProps) {
+  const { 
+    isOpen, 
+    onClose, 
+    onSave, 
+    roles, 
+    selectedRole, 
+    onChangeRole, 
+    selectedScope, 
+    onChangeScope, 
+    selectedUserId, 
+    onChangeUserId,
+    selectedExpiryDate,
+    onChangeExpiryDate
+  } = props;
+  
+  const [expiryDate, setExpiryDate] = useState<Date | null>(selectedExpiryDate);
+  const calendarButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  export default function AssignRoleModal(props: AssignRoleModalProps) {
-    const { isOpen, onClose, onSave, roles, selectedRole, onChangeRole, selectedScope, onChangeScope } = props;
-    const [userId, setUserId] = useState('');
-    // Optionally, you can add state for other fields as needed
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="mx-auto w-full max-w-2xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-900/10">
@@ -49,12 +67,21 @@ import { X } from 'lucide-react';
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <Input
-            placeholder="User ID"
-            value={userId}
-            onChange={e => setUserId(e.target.value)}
-          />
-          <Input placeholder="User email" type="email" />
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-slate-500">User</label>
+            <RoleFilterDropdown
+              value={selectedUserId}
+              options={props.users
+                .filter(user => user.userType !== 'CAREGIVER') // Exclude caregivers
+                .map(user => ({
+                  value: user.id,
+                  label: `${user.fullName} (${user.email || 'No email'})`,
+                }))}
+              onChange={onChangeUserId}
+              ariaLabel="Select user"
+              widthClass="w-full"
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-slate-500">Role</label>
@@ -86,8 +113,39 @@ import { X } from 'lucide-react';
             />
           </div>
 
-          <Input placeholder="Scope ID (optional)" />
-          <Input placeholder="Expiry date (optional)" type="date" />
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-slate-500">Expiry date</label>
+            <div className="relative">
+              <button
+                ref={calendarButtonRef}
+                type="button"
+                onClick={() => setIsCalendarOpen(true)}
+                className="flex h-9 w-full items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-600 transition hover:border-slate-300"
+              >
+                <span className="flex-1 text-left">
+                  {expiryDate
+                    ? expiryDate.toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'Select date'}
+                </span>
+              </button>
+               <CalendarPopover
+                 anchorRef={calendarButtonRef.current}
+                 open={isCalendarOpen}
+                 selected={expiryDate ?? undefined}
+                 onSelect={(date) => setExpiryDate(date ?? null)}
+                 onApply={() => {
+                   setIsCalendarOpen(false);
+                   onChangeExpiryDate(expiryDate);
+                 }}
+                 onCancel={() => setIsCalendarOpen(false)}
+                 minWidth={120}
+               />
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
@@ -100,10 +158,10 @@ import { X } from 'lucide-react';
           </Button>
           <Button
             className="rounded-full px-4 py-2 text-xs font-medium"
-            onClick={() => onSave(userId, selectedRole)}
-            disabled={!userId || !selectedRole}
+            onClick={() => onSave(selectedUserId, selectedRole)}
+            disabled={!selectedUserId || !selectedRole}
           >
-            Save assignment
+            Save
           </Button>
         </div>
       </div>

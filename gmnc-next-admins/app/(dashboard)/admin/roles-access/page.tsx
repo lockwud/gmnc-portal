@@ -1,7 +1,9 @@
-import RolesAccessPage from "@/components/admin/roles-access/page";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+'use client';
 
-export default function AdminRolesAccessPage() {
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import RolesAccessPage from '@/components/admin/roles-access/page';
+
+export default function Page() {
   return (
     <ProtectedRoute requiredRole="admin">
       <RolesAccessPage />

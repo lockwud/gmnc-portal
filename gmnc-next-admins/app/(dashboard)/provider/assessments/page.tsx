@@ -1,4 +1,4 @@
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import  ProtectedRoute  from '@/components/auth/ProtectedRoute';
 import AssessmentHubPage from '@/components/provider/assessments/AssessmentHubPage';
 
 export default function ProviderAssessmentsRoute() {

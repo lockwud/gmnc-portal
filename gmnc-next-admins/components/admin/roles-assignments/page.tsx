@@ -1,90 +1,229 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
-import Button from '@/components/ui/Button';
-import EmptyState from '@/components/ui/EmptyState';
-import Pagination from '@/components/ui/Pagination';
-import { useToast } from '@/components/ui/Toast';
-import AssignmentTable from './AssignmentTable';
-import AssignRoleModal from './AssignRoleModal';
-import RoleFilterDropdown from '@/components/admin/roles-access/RoleFilterDropdown';
-import { Plus } from 'lucide-react';
-import type { AppRoleRecord, UserAssignmentRecord, AssignmentScopeType } from '@/lib/api/types';
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import Button from "@/components/ui/Button";
+import EmptyState from "@/components/ui/EmptyState";
+import Pagination from "@/components/ui/Pagination";
+import { useToast } from "@/components/ui/Toast";
+import AssignmentTable from "./AssignmentTable";
+import AssignRoleModal from "./AssignRoleModal";
+import RoleFilterDropdown from "@/components/admin/roles-access/RoleFilterDropdown";
+import { Plus } from "lucide-react";
 
+import type {
+  AppRoleRecord,
+  UserAssignmentRecord,
+  AssignmentScopeType,
+} from "@/lib/api/types";
 
+// =========================================
+// TYPES
+// =========================================
+type AuthUser = {
+  id: string;
+  email?: string;
+  /** The API returns `name`; components may expect `fullName` */
+  name?: string;
+  fullName?: string;
+  userType?: string;
+  roles?: string[];
+  permissions?: string[];
+};
+
+/**
+ * Read and parse the current user from localStorage.
+ * Handles both the raw API shape (name) and the normalised shape (fullName).
+ */
+function readUserFromStorage(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed?.id) return null;
+
+    const name =
+      (parsed.fullName as string | undefined) ??
+      (parsed.name as string | undefined) ??
+      "";
+
+    return {
+      ...(parsed as AuthUser),
+      name,
+      fullName: name,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readTokenFromStorage(): string {
+  try {
+    return localStorage.getItem("token") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+// =========================================
+// COMPONENT
+// =========================================
 export default function RoleAssignmentsPage() {
   const { show } = useToast();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedScope, setSelectedScope] = useState<AssignmentScopeType>('GLOBAL');
 
   const [roles, setRoles] = useState<AppRoleRecord[]>([]);
-  const [users, setUsers] = useState<{ id: string; fullName: string; email?: string; userType: string }[]>([]);
+  const [users, setUsers] = useState<
+    { id: string; fullName: string; email?: string; userType: string }[]
+  >([]);
   const [assignments, setAssignments] = useState<UserAssignmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<Record<string, unknown> | null>(null);
+  const [initialized, setInitialized] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  const getAuthHeaders = () => ({
-    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    'Content-Type': 'application/json',
-  });
-
-  // Get current user info
   const didSetUser = useRef(false);
+
+  // =========================================
+  // AUTH HEADERS — always read fresh from storage
+  // =========================================
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = readTokenFromStorage();
+    console.log('Token in getAuthHeaders:', token);
+    return {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+  };
+
+  const hasRole = (role: string) =>
+    !!currentUser?.roles?.includes(role);
+
+  // =========================================
+  // LOAD CURRENT USER
+  // Reads from localStorage, which AuthProvider now keeps in sync.
+  // =========================================
   useEffect(() => {
-    if (!didSetUser.current) {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (didSetUser.current) return;
+    didSetUser.current = true;
+
+    const user = readUserFromStorage();
+
+    if (user) {
       setCurrentUser(user);
-      didSetUser.current = true;
+      setInitialized(true);
+    } else {
+      // localStorage not populated yet — fall back to /api/auth/me
+      fetch("/api/auth/me", { cache: "no-store", credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { user?: Record<string, unknown>; accessToken?: string } | null) => {
+          if (!data?.user) return;
+
+          const name =
+            (data.user.fullName as string | undefined) ??
+            (data.user.name as string | undefined) ??
+            "";
+
+          const normalised: AuthUser = {
+            ...(data.user as AuthUser),
+            name,
+            fullName: name,
+          };
+
+          // Populate localStorage for subsequent reads
+          try {
+            localStorage.setItem("user", JSON.stringify(normalised));
+            if (data.accessToken) {
+              localStorage.setItem("token", data.accessToken);
+            }
+          } catch {
+            // ignore
+          }
+
+          setCurrentUser(normalised);
+          setInitialized(true);
+        })
+        .catch(console.error);
     }
   }, []);
 
-  // Fetch roles and users on mount
+  // =========================================
+  // FETCH ROLES + USERS
+  // =========================================
   useEffect(() => {
+    if (!currentUser?.id) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch roles
-        const rolesResponse = await fetch('/api/admin/rbac/roles', {
-          headers: getAuthHeaders(),
-        });
-        if (!rolesResponse.ok) throw new Error('Failed to fetch roles');
+
+        // ROLES
+         const rolesResponse = await fetch("/api/admin/rbac/roles", {
+           headers: getAuthHeaders(),
+           credentials: 'include',
+         });
+
+        if (!rolesResponse.ok) throw new Error("Failed to fetch roles");
+
         const rolesData = await rolesResponse.json();
-        setRoles(Array.isArray(rolesData) ? rolesData : []);
+        setRoles(Array.isArray(rolesData) ? rolesData : rolesData.data ?? []);
 
-        // Fetch users - if SERVICE_PROVIDER, only get their users
-        let usersData: User[] = [];
-        
-        if (currentUser?.userType === 'SERVICE_PROVIDER') {
-          // Get service provider's users
-          const spResponse = await fetch(`/api/service-provider/${currentUser?.id}`, {
-            headers: getAuthHeaders(),
-          });
-          if (spResponse.ok) {
-            const spData = await spResponse.json();
-            usersData = spData.users || [];
-          }
+        // USERS
+        let usersData: {
+          id: string;
+          fullName: string;
+          email?: string;
+          userType: string;
+        }[] = [];
+
+        const isAdmin = hasRole("admin");
+
+        if (!isAdmin) {
+          // Non-admin: fetch only users under this service provider
+           const spResponse = await fetch(
+             `/api/service-provider/${currentUser.id}`,
+             { headers: getAuthHeaders(), credentials: 'include' },
+           );
+
+          if (!spResponse.ok)
+            throw new Error("Failed to fetch provider users");
+
+          const spData = await spResponse.json();
+          usersData = spData.users ?? [];
         } else {
-          // Admin: get all users
-          const usersResponse = await fetch('/api/admin/users', {
-            headers: getAuthHeaders(),
-          });
-          if (usersResponse.ok) {
-            const data = await usersResponse.json();
-            usersData = data.data || data || [];
-          }
-        }
-        
-        setUsers(Array.isArray(usersData) ? usersData : []);
+          // Admin: fetch all users
+           const usersResponse = await fetch("/api/admin/users", {
+             headers: getAuthHeaders(),
+             credentials: 'include',
+           });
 
+          if (!usersResponse.ok) throw new Error("Failed to fetch users");
+
+          const data = await usersResponse.json();
+          const raw: Record<string, unknown>[] = data.data ?? data ?? [];
+
+          // Normalise fullName for each user
+          usersData = raw.map((u) => ({
+            ...(u as { id: string; email?: string; userType: string }),
+            fullName:
+              (u.fullName as string | undefined) ??
+              (u.name as string | undefined) ??
+              "",
+          }));
+        }
+
+        setUsers(Array.isArray(usersData) ? usersData : []);
       } catch (err) {
+        console.error(err);
         show({
-          title: 'Error loading assignments',
-          message: err instanceof Error ? err.message : 'Failed to load data',
-          type: 'error',
+          title: "Error loading assignments",
+          message: err instanceof Error ? err.message : "Failed to load data",
+          type: "error",
           duration: 4000,
         });
       } finally {
@@ -92,59 +231,75 @@ export default function RoleAssignmentsPage() {
       }
     };
 
-    if (currentUser?.id) {
-      fetchData();
-    }
-  }, [show, currentUser?.id, currentUser?.userType]);
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
-  // Fetch assignments when users change
-  useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        const allAssignments: UserAssignmentRecord[] = [];
+  // =========================================
+  // FETCH ASSIGNMENTS FOR ALL USERS
+  // =========================================
+useEffect(() => {
+  if (users.length === 0) return;
 
-        for (const user of users) {
-          const rolesResponse = await fetch(`/api/admin/rbac/users/${user.id}/roles`, {
-            headers: getAuthHeaders(),
+  const fetchAssignments = async () => {
+    try {
+      setLoading(true);
+      const allAssignments: UserAssignmentRecord[] = [];
+
+      for (const user of users) {
+        const rolesResponse = await fetch(
+          `/api/admin/rbac/users/${user.id}/roles`,
+          { headers: getAuthHeaders(), credentials: 'include' },
+        );
+
+        if (!rolesResponse.ok) continue;
+
+        const userRolesResponse = await rolesResponse.json();
+        const userRoles = Array.isArray(userRolesResponse) ? userRolesResponse : userRolesResponse.data ?? [];
+
+        for (const role of userRoles) {
+          allAssignments.push({
+            id: `${user.id}-${role.id}`,
+            userId: user.id,
+            userName: user.fullName,
+            email: user.email ?? "",
+            roleSlug: role.slug,
+            roleName: role.name,
+            scopeType: role.scopeType,
+            scopeId: role.scopeId,
+            grantedAt: role.createdAt,
+            expiresAt: role.expiresAt,
+            active: role.active,
           });
-
-          if (rolesResponse.ok) {
-            const userRoles = await rolesResponse.json();
-            for (const role of userRoles) {
-              allAssignments.push({
-                id: `${user.id}-${role.id}`,
-                userName: user.fullName,
-                email: user.email || '',
-                roleSlug: role.slug,
-                roleName: role.name,
-                scopeType: role.scopeType || 'GLOBAL',
-                scopeId: role.scopeId || null,
-                grantedAt: role.createdAt || new Date().toISOString(),
-                expiresAt: role.expiresAt || null,
-                active: role.active !== undefined ? role.active : true,
-              });
-            }
-          }
         }
-
-        setAssignments(allAssignments);
-      } catch (err) {
-        console.error('Failed to fetch assignments:', err);
       }
-    };
 
-    if (users.length > 0) {
-      fetchAssignments();
+      setAssignments(allAssignments);
+    } catch (err) {
+      console.error("Failed to fetch assignments:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [users]);
+  };
 
-  const filteredAssignments = useMemo(() => {
-    return assignments.filter((assignment) => {
-      const roleMatch = roleFilter === 'ALL' || assignment.roleSlug === roleFilter;
-      return roleMatch;
-    });
-  }, [roleFilter, assignments]);
+  fetchAssignments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [users]);
 
+  // =========================================
+  // FILTER
+  // =========================================
+  const filteredAssignments = useMemo(
+    () =>
+      assignments.filter(
+        (a) => roleFilter === "ALL" || a.roleSlug === roleFilter,
+      ),
+    [assignments, roleFilter],
+  );
+
+  // =========================================
+  // PAGINATION
+  // =========================================
   const totalItems = filteredAssignments.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -159,78 +314,114 @@ export default function RoleAssignmentsPage() {
     setPage(1);
   };
 
+  // =========================================
+  // REFRESH ASSIGNMENTS HELPER
+  // =========================================
+  const refreshAssignments = async () => {
+    const updated: UserAssignmentRecord[] = [];
+
+    for (const user of users) {
+       const r = await fetch(`/api/admin/rbac/users/${user.id}/roles`, {
+         headers: getAuthHeaders(),
+         credentials: 'include',
+       });
+      if (!r.ok) continue;
+
+       const userRolesResponse = await r.json();
+       const userRoles = Array.isArray(userRolesResponse) ? userRolesResponse : userRolesResponse.data ?? [];
+      for (const role of userRoles) {
+        updated.push({
+          id: `${user.id}-${role.id}`,
+          userId: user.id,
+          userName: user.fullName,
+          email: user.email ?? "",
+          roleSlug: role.slug,
+          roleName: role.name,
+          scopeType: role.scopeType,
+          scopeId: role.scopeId,
+          grantedAt: role.createdAt ?? new Date().toISOString(),
+          expiresAt: role.expiresAt,
+          active: role.active,
+        });
+      }
+    }
+
+    setAssignments(updated);
+  };
+
+  // =========================================
+  // ASSIGN ROLE
+  // =========================================
   const handleAssignRole = async (userId: string, roleId: string) => {
     try {
       show({
-        title: 'Assigning role...',
-        message: 'Please wait while we assign the role.',
-        type: 'loading',
+        title: "Assigning role...",
+        message: "Please wait while we assign the role.",
+        type: "loading",
         duration: 0,
       });
 
       const response = await fetch(`/api/admin/rbac/users/${userId}/roles`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({ roleId }),
       });
 
-      if (!response.ok) throw new Error('Failed to assign role');
+      if (!response.ok) throw new Error("Failed to assign role");
 
-      // Refresh assignments
-      const updatedAssignments: RoleAssignment[] = [];
-      for (const user of users) {
-        const rolesResponse = await fetch(`/api/admin/rbac/users/${user.id}/roles`, {
-          headers: getAuthHeaders(),
-        });
+      await refreshAssignments();
 
-        if (rolesResponse.ok) {
-          const userRoles = await rolesResponse.json();
-          for (const role of userRoles) {
-            updatedAssignments.push({
-              id: `${user.id}-${role.id}`,
-              userId: user.id,
-              roleSlug: role.slug,
-              createdAt: role.createdAt || new Date().toISOString(),
-              userName: user.fullName,
-              userEmail: user.email,
-            });
-          }
-        }
-      }
-
-      setAssignments(updatedAssignments);
       setIsAssignModalOpen(false);
 
       show({
-        title: 'Success',
-        message: 'Role assigned successfully.',
-        type: 'success',
+        title: "Success",
+        message: "Role assigned successfully.",
+        type: "success",
         duration: 3000,
       });
     } catch (err) {
+      console.error(err);
       show({
-        title: 'Error',
-        message: err instanceof Error ? err.message : 'Failed to assign role',
-        type: 'error',
+        title: "Error",
+        message:
+          err instanceof Error ? err.message : "Failed to assign role",
+        type: "error",
         duration: 4000,
       });
     }
   };
 
-  if (loading) {
+  // =========================================
+  // LOADING STATE
+  // =========================================
+  if (!initialized) {
     return (
       <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white items-center justify-center">
-        <p className="text-slate-500">Loading assignments...</p>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
       </div>
     );
   }
 
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  // =========================================
+  // UI
+  // =========================================
   return (
     <>
       <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
-            <h1 className="text-[15px] font-semibold text-slate-900">Manage Role Assignments</h1>
+            <h1 className="text-[15px] font-semibold text-slate-900">
+              Manage Role Assignments
+            </h1>
             <p className="mt-1 text-xs text-slate-500">
               Assign roles to users to manage their access and permissions.
             </p>
@@ -240,7 +431,7 @@ export default function RoleAssignmentsPage() {
             <RoleFilterDropdown
               value={roleFilter}
               options={[
-                { value: 'ALL', label: 'All roles' },
+                { value: "ALL", label: "All roles" },
                 ...roles.map((role) => ({
                   value: role.slug,
                   label: role.name,
@@ -263,6 +454,7 @@ export default function RoleAssignmentsPage() {
           </div>
         </div>
 
+        {/* Body */}
         <div className="min-h-0 flex-1 overflow-hidden bg-white px-4 pt-4 pb-4">
           <div className="flex h-full min-h-0 flex-col gap-2">
             {totalItems === 0 ? (
@@ -270,7 +462,11 @@ export default function RoleAssignmentsPage() {
                 <div className="w-full max-w-md">
                   <EmptyState
                     title="No role assignments found"
-                    description={users.length === 0 ? 'No users available to assign roles to.' : 'No assignments match the selected filters.'}
+                    description={
+                      users.length === 0
+                        ? "No users available to assign roles to."
+                        : "No assignments match the selected filters."
+                    }
                   />
                 </div>
               </div>
@@ -294,17 +490,21 @@ export default function RoleAssignmentsPage() {
         </div>
       </div>
 
-      <AssignRoleModal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        onSave={handleAssignRole}
-        users={users}
-        roles={roles}
-        selectedRole={''}
-        onChangeRole={() => {}}
-        selectedScope={'GLOBAL' as AssignmentScopeType}
-        onChangeScope={() => {}}
-      />
+       <AssignRoleModal
+         isOpen={isAssignModalOpen}
+         onClose={() => setIsAssignModalOpen(false)}
+         onSave={handleAssignRole}
+         users={users}
+         roles={roles}
+         selectedRole={selectedRole}
+         onChangeRole={setSelectedRole}
+         selectedScope={selectedScope}
+         onChangeScope={setSelectedScope}
+         selectedUserId={selectedUserId}
+         onChangeUserId={setSelectedUserId}
+         selectedExpiryDate={null}
+         onChangeExpiryDate={() => {}}
+       />
     </>
   );
 }

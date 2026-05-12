@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-
 type MenuItem = {
   label: string;
   path?: string;
@@ -230,12 +229,12 @@ type Props = {
 const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const pathname = usePathname();
 
-  // openGroups is now derived, not state
-  const [collapsedOpenGroup, setCollapsedOpenGroup] = useState<string | null>(
-    null,
-  );
+  const [collapsedOpenGroup, setCollapsedOpenGroup] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  // NEW: openGroups state for expanded/collapsed groups
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   // Only set selectedKey on initial mount
   const didSetSelectedKey = useRef(false);
@@ -246,32 +245,12 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     }
   }, [pathname]);
 
-    // Removed toggleGroup; openGroups is now derived, not state
-
   const isPathSelected = React.useCallback(
     (path?: string) => {
       return !!(path && pathname && (pathname === path || pathname.startsWith(`${path}/`)));
     },
     [pathname]
   );
-
-  // openGroups is now derived, not state
-  const openGroups: Record<string, boolean> = React.useMemo(() => {
-    const nextOpenGroups: Record<string, boolean> = {};
-    const walk = (items: MenuItem[]) => {
-      items.forEach((item) => {
-        if (item.children && item.collapsible !== false) {
-          if (itemOrChildMatchesPath(item)) {
-            nextOpenGroups[item.label] = true;
-          }
-          walk(item.children);
-        }
-      });
-    };
-    walk(topSidebarSections.flatMap((section) => section.items));
-    walk(bottomSidebarSections.flatMap((section) => section.items));
-    return nextOpenGroups;
-  }, [pathname, itemOrChildMatchesPath]);
 
   const itemOrChildMatchesPath = React.useCallback((item: MenuItem): boolean => {
     const recur = (itm: MenuItem): boolean => {
@@ -282,6 +261,21 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     return recur(item);
   }, [isPathSelected]);
 
+  // Helper: handleGroupClick
+  const handleGroupClick = (item: MenuItem) => {
+    const key = item.label;
+    setOpenGroups((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+    setSelectedKey(`group:${item.label}`);
+    if (collapsed) {
+      setCollapsedOpenGroup((p) => (p === item.label ? null : item.label));
+    }
+  };
+
+  // Helper: handleLeafClick
+  const handleLeafClick = (path: string) => setSelectedKey(path);
 
   // Helper: groupIsSelected
   const groupIsSelected = (group: MenuItem) => {
@@ -294,6 +288,12 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     return false;
   };
 
+  // Constants for styling
+  const iconSizeClass = "text-xs";
+  const itemFontClass = "text-[11px]";
+  const itemPadding = "px-2 py-1.5";
+  const itemGap = "gap-2";
+
   // Helper: renderChildrenExpanded
   const renderChildrenExpanded = (children: MenuItem[]) =>
     children.map((child) => {
@@ -301,14 +301,17 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
       const isSelected =
         selectedKey === key || isPathSelected(child.path) || itemOrChildMatchesPath(child);
       const isHovered = hoveredKey === key;
-      // bg and color now handled by className
 
       if (child.children) {
         const open = !!openGroups[child.label];
         return (
           <div key={key}>
             <button
-              // ...button props...
+              onClick={() => handleGroupClick(child)}
+              onMouseEnter={() => setHoveredKey(key)}
+              onMouseLeave={() => setHoveredKey(null)}
+              className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSelected ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+              title={child.label}
             >
               <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
               <span className="flex-1 text-left">{child.label}</span>
@@ -333,6 +336,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           onMouseEnter={() => setHoveredKey(key)}
           onMouseLeave={() => setHoveredKey(null)}
           className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSelected ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+          title={child.label}
         >
           <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
           <span className="text-left">{child.label}</span>
@@ -340,7 +344,37 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
       );
     });
 
-  // Helper: renderChildrenCollapsed (if needed, define here)
+  // Helper: renderChildrenCollapsed
+  const renderChildrenCollapsed = (children: MenuItem[]) =>
+    children.map((child) => {
+      const key = child.path ?? `group:${child.label}`;
+      if (child.children) {
+        return (
+          <div key={key} className="flex flex-col items-center">
+            <button
+              onClick={() => handleGroupClick(child)}
+              className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-slate-100"
+              title={child.label}
+              aria-label={child.label}
+            >
+              <span className="material-icons text-xs">{child.icon}</span>
+            </button>
+          </div>
+        );
+      }
+      return (
+        <Link
+          key={key}
+          href={child.path ?? "#"}
+          onClick={() => child.path && handleLeafClick(child.path)}
+          className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-slate-100"
+          title={child.label}
+          aria-label={child.label}
+        >
+          <span className="material-icons text-xs">{child.icon}</span>
+        </Link>
+      );
+    });
 
   // Place this inside Sidebar, before return
   function renderSection(
@@ -359,7 +393,6 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           {section.items.map((item) => {
             const groupKey = `group:${item.label}`;
             const groupSel = groupIsSelected(item);
-            // groupBg and groupColor now handled by className
 
             if (item.children && item.collapsible !== false) {
               const open = !!openGroups[item.label];
@@ -369,7 +402,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                     onClick={() => handleGroupClick(item)}
                     onMouseEnter={() => setHoveredKey(groupKey)}
                     onMouseLeave={() => setHoveredKey(null)}
-                    className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${groupSel ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+                    className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${groupSel ? "sidebar-selected" : hoveredKey === groupKey ? "sidebar-hovered" : ""}`}
                     title={item.label}
                   >
                     <span className={`material-icons ${iconSizeClass}`}>
@@ -402,7 +435,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
 
             const key = item.path ?? groupKey;
             const isSel = selectedKey === key || isPathSelected(item.path);
-            // bg and color now handled by className
+            const isHoveredItem = hoveredKey === key;
 
             return (
               <Link
@@ -411,7 +444,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                 onClick={() => item.path && handleLeafClick(item.path)}
                 onMouseEnter={() => setHoveredKey(key)}
                 onMouseLeave={() => setHoveredKey(null)}
-                className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSel ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+                className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSel ? "sidebar-selected" : isHoveredItem ? "sidebar-hovered" : ""}`}
                 title={item.label}
               >
                 <span className={`material-icons ${iconSizeClass}`}>
@@ -478,6 +511,6 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
       </div>
     </aside>
   );
-}
+};
 
 export default Sidebar;

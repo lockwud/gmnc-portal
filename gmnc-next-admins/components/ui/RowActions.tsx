@@ -61,6 +61,8 @@ export default function RowActions({
           <circle cx="12" cy="12" r="1.7" fill="currentColor" />
           <circle cx="12" cy="19" r="1.7" fill="currentColor" />
         </svg>
+      </button>
+
       {open && (
         <div className="absolute right-0 top-9 z-50 min-w-22 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
           {!hideEdit && (
