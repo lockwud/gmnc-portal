@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { COLORS } from "@/lib/colors";
+
 
 type MenuItem = {
   label: string;
@@ -52,14 +52,31 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         icon: "shield",
         collapsible: true,
         children: [
-          { label: "Analytics", path: "/admin/analytics", icon: "insights" },
-          { label: "Users", path: "/admin/users", icon: "groups" },
+          {
+            label: "Analytics",
+            path: "/admin/analytics",
+            icon: "insights",
+          },
+          {
+            label: "Users",
+            path: "/admin/users",
+            icon: "groups",
+          },
           {
             label: "Roles & Access",
-            path: "/admin/roles",
+            path: "/admin/roles-access",
             icon: "verified_user",
           },
-          { label: "Audit Viewer", path: "/admin/audit", icon: "history" },
+          {
+            label: "Role Assignments",
+            path: "/admin/role-assignments",
+            icon: "manage_accounts",
+          },
+          {
+            label: "Audit Viewer",
+            path: "/admin/audit",
+            icon: "history",
+          },
         ],
       },
       {
@@ -169,7 +186,11 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         icon: "support_agent",
         collapsible: true,
         children: [
-          { label: "FAQ Database", path: "/support/faqs", icon: "help_center" },
+          {
+            label: "FAQ Database",
+            path: "/support/faqs",
+            icon: "help_center",
+          },
         ],
       },
     ],
@@ -209,107 +230,95 @@ type Props = {
 const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const pathname = usePathname();
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // openGroups is now derived, not state
   const [collapsedOpenGroup, setCollapsedOpenGroup] = useState<string | null>(
     null,
   );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
+  // Only set selectedKey on initial mount
+  const didSetSelectedKey = useRef(false);
   useEffect(() => {
-    setSelectedKey(pathname ?? null);
+    if (!didSetSelectedKey.current) {
+      setSelectedKey(pathname ?? null);
+      didSetSelectedKey.current = true;
+    }
   }, [pathname]);
 
-  const toggleGroup = (groupLabel: string) =>
-    setOpenGroups((prev) => ({ ...prev, [groupLabel]: !prev[groupLabel] }));
+    // Removed toggleGroup; openGroups is now derived, not state
 
-  const handleGroupClick = (item: MenuItem) => {
-    const key = `group:${item.label}`;
-    setSelectedKey(key);
-    if (collapsed)
-      setCollapsedOpenGroup((p) => (p === item.label ? null : item.label));
-    else toggleGroup(item.label);
-  };
+  const isPathSelected = React.useCallback(
+    (path?: string) => {
+      return !!(path && pathname && (pathname === path || pathname.startsWith(`${path}/`)));
+    },
+    [pathname]
+  );
 
-  const handleLeafClick = (path: string) => setSelectedKey(path);
+  // openGroups is now derived, not state
+  const openGroups: Record<string, boolean> = React.useMemo(() => {
+    const nextOpenGroups: Record<string, boolean> = {};
+    const walk = (items: MenuItem[]) => {
+      items.forEach((item) => {
+        if (item.children && item.collapsible !== false) {
+          if (itemOrChildMatchesPath(item)) {
+            nextOpenGroups[item.label] = true;
+          }
+          walk(item.children);
+        }
+      });
+    };
+    walk(topSidebarSections.flatMap((section) => section.items));
+    walk(bottomSidebarSections.flatMap((section) => section.items));
+    return nextOpenGroups;
+  }, [pathname, itemOrChildMatchesPath]);
 
-  const sidebarWidth = collapsed ? 56 : 220;
+  const itemOrChildMatchesPath = React.useCallback((item: MenuItem): boolean => {
+    const recur = (itm: MenuItem): boolean => {
+      if (isPathSelected(itm.path)) return true;
+      if (!itm.children) return false;
+      return itm.children.some(recur);
+    };
+    return recur(item);
+  }, [isPathSelected]);
 
-  const iconSizeClass = "text-xs";
-  const itemFontClass = "text-[11px]";
-  const itemPadding = "px-2 py-1.5";
-  const itemGap = "gap-2";
-  const groupHeaderPadding = "px-2 py-1";
-  const childItemPadding = "px-3 py-1";
-  const childFont = "text-[10px]";
 
-  const SELECT_BG = "#059669";
-  const SELECT_TEXT = "#ffffff";
-  const HOVER_BG = "#D1FAE5";
-
+  // Helper: groupIsSelected
   const groupIsSelected = (group: MenuItem) => {
     const gkey = `group:${group.label}`;
     if (selectedKey === gkey) return true;
+    if (itemOrChildMatchesPath(group)) return true;
     if (group.children)
       return group.children.some((c) => selectedKey === c.path);
     if (group.path) return selectedKey === group.path;
     return false;
   };
 
+  // Helper: renderChildrenExpanded
   const renderChildrenExpanded = (children: MenuItem[]) =>
     children.map((child) => {
       const key = child.path ?? `group:${child.label}`;
-      const isSelected = selectedKey === key;
+      const isSelected =
+        selectedKey === key || isPathSelected(child.path) || itemOrChildMatchesPath(child);
       const isHovered = hoveredKey === key;
-      const bg = isSelected ? SELECT_BG : isHovered ? HOVER_BG : "transparent";
-      const color = isSelected ? SELECT_TEXT : COLORS.text;
+      // bg and color now handled by className
 
       if (child.children) {
         const open = !!openGroups[child.label];
         return (
           <div key={key}>
             <button
-              onClick={() => {
-                setSelectedKey(`group:${child.label}`);
-                toggleGroup(child.label);
-              }}
-              onMouseEnter={() => setHoveredKey(`group:${child.label}`)}
-              onMouseLeave={() => setHoveredKey(null)}
-              className={`w-full flex items-center ${itemGap} ${groupHeaderPadding} rounded-md ${itemFontClass}`}
-              style={{ background: bg, color }}
+              // ...button props...
             >
-              <span className={`material-icons ${iconSizeClass}`}>
-                {child.icon}
-              </span>
+              <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
               <span className="flex-1 text-left">{child.label}</span>
               <span className="material-icons text-[12px]" aria-hidden>
                 {open ? "expand_more" : "chevron_right"}
               </span>
             </button>
-
             {open && (
-              <div className="pl-4 mt-1 space-y-1">
-                {child.children.map((gc) => (
-                  <Link
-                    key={gc.path}
-                    href={gc.path!}
-                    onClick={() => handleLeafClick(gc.path!)}
-                    onMouseEnter={() => setHoveredKey(gc.path!)}
-                    onMouseLeave={() => setHoveredKey(null)}
-                    className={`flex items-center gap-2 ${childItemPadding} rounded-md ${childFont}`}
-                    style={{
-                      background:
-                        selectedKey === gc.path ? SELECT_BG : "transparent",
-                      color:
-                        selectedKey === gc.path ? SELECT_TEXT : COLORS.text,
-                    }}
-                  >
-                    <span className={`material-icons ${iconSizeClass}`}>
-                      {gc.icon}
-                    </span>
-                    <span>{gc.label}</span>
-                  </Link>
-                ))}
+              <div className="mt-1 space-y-1 pl-4">
+                {renderChildrenExpanded(child.children)}
               </div>
             )}
           </div>
@@ -323,192 +332,108 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           onClick={() => child.path && handleLeafClick(child.path)}
           onMouseEnter={() => setHoveredKey(key)}
           onMouseLeave={() => setHoveredKey(null)}
-          className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass}`}
-          style={{ background: bg, color }}
+          className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSelected ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
         >
-          <span className={`material-icons ${iconSizeClass}`}>
-            {child.icon}
-          </span>
+          <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
           <span className="text-left">{child.label}</span>
         </Link>
       );
     });
 
-  const renderChildrenCollapsed = (children: MenuItem[]) =>
-    children.map((child) => {
-      const key = child.path ?? `group:${child.label}`;
-      const isSelected = selectedKey === key;
-      const bg = isSelected ? SELECT_BG : "transparent";
-      const color = isSelected ? SELECT_TEXT : COLORS.text;
+  // Helper: renderChildrenCollapsed (if needed, define here)
 
-      if (child.children) {
-        return (
-          <div key={key} className="w-full">
-            <button
-              onClick={() => {
-                setSelectedKey(`group:${child.label}`);
-                setCollapsedOpenGroup((p) =>
-                  p === child.label ? null : child.label,
-                );
-              }}
-              onMouseEnter={() => setHoveredKey(`group:${child.label}`)}
-              onMouseLeave={() => setHoveredKey(null)}
-              className="w-full flex items-center justify-center p-2 rounded-md"
-              title={child.label}
-              style={{ background: bg, color }}
-            >
-              <span className={`material-icons ${iconSizeClass}`}>
-                {child.icon}
-              </span>
-            </button>
-
-            {collapsedOpenGroup === child.label && (
-              <div className="flex flex-col items-center mt-1 space-y-1">
-                {child.children.map((gc) => (
-                  <Link
-                    key={gc.path}
-                    href={gc.path!}
-                    onClick={() => handleLeafClick(gc.path!)}
-                    className="w-full flex items-center justify-center p-2 rounded-md"
-                    title={gc.label}
-                    style={{
-                      background:
-                        selectedKey === gc.path ? SELECT_BG : "transparent",
-                      color:
-                        selectedKey === gc.path ? SELECT_TEXT : COLORS.text,
-                    }}
-                  >
-                    <span className={`material-icons ${iconSizeClass}`}>
-                      {gc.icon}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      return (
-        <Link
-          key={key}
-          href={child.path ?? "#"}
-          onClick={() => child.path && handleLeafClick(child.path)}
-          onMouseEnter={() => setHoveredKey(key)}
-          onMouseLeave={() => setHoveredKey(null)}
-          className="w-full flex items-center justify-center p-2 rounded-md"
-          title={child.label}
-          style={{ background: bg, color }}
-        >
-          <span className={`material-icons ${iconSizeClass}`}>
-            {child.icon}
-          </span>
-        </Link>
-      );
-    });
-
-  const renderSection = (
+  // Place this inside Sidebar, before return
+  function renderSection(
     section: { title?: string; items: MenuItem[] },
     keyPrefix: string,
-  ) => (
-    <div key={keyPrefix}>
-      {!collapsed && section.title && (
-        <p className="mb-1 px-2 text-[10px] font-semibold uppercase text-emerald-600">
-          {section.title}
-        </p>
-      )}
+  ) {
+    return (
+      <div key={keyPrefix}>
+        {!collapsed && section.title && (
+          <p className="mb-1 px-2 text-[10px] font-semibold uppercase text-emerald-600">
+            {section.title}
+          </p>
+        )}
 
-      <div className="space-y-1">
-        {section.items.map((item) => {
-          const groupKey = `group:${item.label}`;
-          const groupSel = groupIsSelected(item);
-          const groupBg = groupSel ? SELECT_BG : "transparent";
-          const groupColor = groupSel ? SELECT_TEXT : COLORS.text;
+        <div className="space-y-1">
+          {section.items.map((item) => {
+            const groupKey = `group:${item.label}`;
+            const groupSel = groupIsSelected(item);
+            // groupBg and groupColor now handled by className
 
-          if (item.children && item.collapsible !== false) {
-            const open = !!openGroups[item.label];
-            return (
-              <div key={item.label} className="relative">
-                <button
-                  onClick={() => handleGroupClick(item)}
-                  onMouseEnter={() => setHoveredKey(groupKey)}
-                  onMouseLeave={() => setHoveredKey(null)}
-                  className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass}`}
-                  title={item.label}
-                  style={{ background: groupBg, color: groupColor }}
-                >
-                  <span className={`material-icons ${iconSizeClass}`}>
-                    {item.icon}
-                  </span>
-                  {!collapsed && (
-                    <span className="flex-1 text-left">{item.label}</span>
-                  )}
-                  {!collapsed && (
-                    <span className="material-icons text-[12px]" aria-hidden>
-                      {open ? "expand_more" : "chevron_right"}
+            if (item.children && item.collapsible !== false) {
+              const open = !!openGroups[item.label];
+              return (
+                <div key={item.label} className="relative">
+                  <button
+                    onClick={() => handleGroupClick(item)}
+                    onMouseEnter={() => setHoveredKey(groupKey)}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${groupSel ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+                    title={item.label}
+                  >
+                    <span className={`material-icons ${iconSizeClass}`}>
+                      {item.icon}
                     </span>
+                    {!collapsed && (
+                      <span className="flex-1 text-left">{item.label}</span>
+                    )}
+                    {!collapsed && (
+                      <span className="material-icons text-[12px]" aria-hidden>
+                        {open ? "expand_more" : "chevron_right"}
+                      </span>
+                    )}
+                  </button>
+
+                  {!collapsed && open && (
+                    <div className="mt-1 space-y-1 pl-4">
+                      {renderChildrenExpanded(item.children)}
+                    </div>
                   )}
-                </button>
 
-                {!collapsed && open && (
-                  <div className="mt-1 space-y-1 pl-4">
-                    {renderChildrenExpanded(item.children)}
-                  </div>
-                )}
+                  {collapsed && collapsedOpenGroup === item.label && (
+                    <div className="mt-1 flex flex-col items-center space-y-1">
+                      {renderChildrenCollapsed(item.children)}
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
-                {collapsed && collapsedOpenGroup === item.label && (
-                  <div className="mt-1 flex flex-col items-center space-y-1">
-                    {renderChildrenCollapsed(item.children)}
-                  </div>
-                )}
-              </div>
+            const key = item.path ?? groupKey;
+            const isSel = selectedKey === key || isPathSelected(item.path);
+            // bg and color now handled by className
+
+            return (
+              <Link
+                key={key}
+                href={item.path ?? "#"}
+                onClick={() => item.path && handleLeafClick(item.path)}
+                onMouseEnter={() => setHoveredKey(key)}
+                onMouseLeave={() => setHoveredKey(null)}
+                className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSel ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+                title={item.label}
+              >
+                <span className={`material-icons ${iconSizeClass}`}>
+                  {item.icon}
+                </span>
+                {!collapsed && <span className="text-left">{item.label}</span>}
+              </Link>
             );
-          }
-
-          const key = item.path ?? groupKey;
-          const isSel = selectedKey === key;
-          const bg = isSel ? SELECT_BG : "transparent";
-          const color = isSel ? SELECT_TEXT : COLORS.text;
-
-          return (
-            <Link
-              key={key}
-              href={item.path ?? "#"}
-              onClick={() => item.path && handleLeafClick(item.path)}
-              onMouseEnter={() => setHoveredKey(key)}
-              onMouseLeave={() => setHoveredKey(null)}
-              className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass}`}
-              title={item.label}
-              style={{ background: bg, color }}
-            >
-              <span className={`material-icons ${iconSizeClass}`}>
-                {item.icon}
-              </span>
-              {!collapsed && <span className="text-left">{item.label}</span>}
-            </Link>
-          );
-        })}
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <aside
-      className="flex h-screen flex-col border-r border-slate-200 bg-white"
-      style={{
-        width: sidebarWidth,
-        minWidth: sidebarWidth,
-        background: COLORS.sidebarBg,
-      }}
+      className={`flex h-screen flex-col border-r border-slate-200 bg-white sidebar-shadow sidebar-width`}
     >
       <div className="flex items-center gap-2 border-b border-slate-100 px-2 py-2">
         <Link href="/" className="flex items-center gap-2">
           <div
-            className={`relative flex-shrink-0 ${collapsed ? "h-9 w-9" : "h-12 w-12"}`}
-            style={{
-              minWidth: collapsed ? 36 : 48,
-              minHeight: collapsed ? 36 : 48,
-            }}
+            className={`relative shrink-0 ${collapsed ? "h-9 w-9 min-w-9 min-h-9" : "h-12 w-12 min-w-12 min-h-12"}`}
           >
             <Image
               src="/logo.png"
@@ -522,8 +447,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span
-                className="text-sm font-semibold text-emerald-600"
-                style={{ lineHeight: 1 }}
+                className="text-sm font-semibold text-emerald-600 leading-tight"
               >
                 GMNC
               </span>
@@ -538,10 +462,6 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
       <div className="flex flex-1 flex-col overflow-hidden">
         <nav
           className="no-scrollbar flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-1 py-2"
-          style={{
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
         >
           {topSidebarSections.map((section, idx) =>
             renderSection(section, `top-${idx}`),
@@ -551,13 +471,13 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
         <div className="border-t border-slate-100 px-1 pt-1.5 pb-1">
           <div className="space-y-2">
             {bottomSidebarSections.map((section, idx) =>
-              renderSection(section, `bottom-${idx}`),
+              renderSection(section, `bottom-${idx}`)
             )}
           </div>
         </div>
       </div>
     </aside>
   );
-};
+}
 
 export default Sidebar;

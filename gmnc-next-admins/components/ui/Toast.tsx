@@ -2,14 +2,16 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { X, AlertCircle, CheckCircle, AlertTriangle, Loader } from 'lucide-react';
+
+type ToastType = 'success' | 'error' | 'warning' | 'loading' | 'info';
 
 type ToastOptions = {
   title?: string;
   message: string;
+  type?: ToastType;
   duration?: number;
-  proceedLabel?: string;
   dismissLabel?: string;
-  onProceed?: () => void;
   onDismiss?: () => void;
 };
 
@@ -19,6 +21,39 @@ type ToastContextValue = {
 };
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
+
+const toastStyles: Record<ToastType, { bg: string; border: string; icon: React.ReactNode; text: string }> = {
+  success: {
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    icon: <CheckCircle className="w-5 h-5 text-emerald-600" />,
+    text: 'text-emerald-900',
+  },
+  error: {
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+    icon: <AlertCircle className="w-5 h-5 text-red-600" />,
+    text: 'text-red-900',
+  },
+  warning: {
+    bg: 'bg-yellow-50',
+    border: 'border-yellow-200',
+    icon: <AlertTriangle className="w-5 h-5 text-yellow-600" />,
+    text: 'text-yellow-900',
+  },
+  loading: {
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    icon: <Loader className="w-5 h-5 text-blue-600 animate-spin" />,
+    text: 'text-blue-900',
+  },
+  info: {
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    icon: <AlertCircle className="w-5 h-5 text-blue-600" />,
+    text: 'text-blue-900',
+  },
+};
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [opts, setOpts] = useState<ToastOptions | null>(null);
@@ -36,7 +71,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (o.duration && o.duration > 0) {
+    // Only auto-dismiss if duration is set and type is not 'loading'
+    if (o.duration && o.duration > 0 && o.type !== 'loading') {
       timerRef.current = window.setTimeout(() => setOpts(null), o.duration);
     }
   }, []);
@@ -51,38 +87,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
 
+  const toastType = opts?.type || 'info';
+  const style = toastStyles[toastType];
+
   const toastMarkup = opts ? (
     <div aria-live="polite" className="fixed top-6 right-6 z-50 pointer-events-none">
-      <div className="pointer-events-auto max-w-sm w-full bg-white rounded-lg shadow-lg border overflow-hidden">
-        <div className="flex items-start gap-3 p-3">
-          <div className="flex-shrink-0">
-            <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
-              <svg className="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
+      <div className={`pointer-events-auto max-w-sm w-full rounded-lg shadow-lg border ${style.bg} ${style.border} overflow-hidden`}>
+        <div className="flex items-start gap-3 p-4">
+          <div className="flex-shrink-0 mt-0.5">
+            {style.icon}
           </div>
 
           <div className="flex-1 min-w-0">
-            {opts.title && <div className="text-sm font-medium text-gray-900">{opts.title}</div>}
-            <div className="mt-0.5 text-sm text-gray-700">{opts.message}</div>
-
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => { opts.onProceed?.(); hide(); }}
-                className="px-3 py-1 rounded-full bg-blue-600 text-white text-sm shadow-sm hover:bg-blue-700 transition"
-              >
-                {opts.proceedLabel ?? 'Proceed'}
-              </button>
-
-              <button
-                onClick={() => { opts.onDismiss?.(); hide(); }}
-                className="px-3 py-1 rounded-full bg-white border text-sm text-gray-700 hover:bg-gray-50 transition"
-              >
-                {opts.dismissLabel ?? 'Dismiss'}
-              </button>
-            </div>
+            {opts.title && <div className={`text-sm font-semibold ${style.text}`}>{opts.title}</div>}
+            <div className={`mt-0.5 text-sm ${style.text} opacity-90`}>{opts.message}</div>
           </div>
+
+          <button
+            onClick={() => { opts.onDismiss?.(); hide(); }}
+            className={`flex-shrink-0 ${style.text} hover:opacity-70 transition`}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

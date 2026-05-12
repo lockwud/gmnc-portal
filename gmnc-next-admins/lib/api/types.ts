@@ -129,3 +129,63 @@ export type AssessmentSubmitResponse = {
     recommendations?: unknown;
   };
 };
+
+
+//role  access management
+export type AssignmentScopeType =
+  | 'GLOBAL'
+  | 'ORGANIZATION'
+  | 'SERVICE_PROVIDER'
+  | 'COMMUNITY';
+
+export type PermissionCategory =
+  | 'ADMIN'
+  | 'ASSESSMENTS'
+  | 'REFERRALS'
+  | 'TASKS'
+  | 'APPOINTMENTS'
+  | 'COMMUNITY'
+  | 'TELEHEALTH'
+  | 'GAMES'
+  | 'SUPPORT'
+  | 'REPORTS';
+
+export type WebRoleSlug =
+  | 'ADMIN'
+  | 'SERVICE_PROVIDER'
+  | 'COMMUNITY_MODERATOR'
+  | 'SUPPORT_AGENT'
+  | 'AUDITOR';
+
+export type AppRoleRecord = {
+  id: string;
+  slug: WebRoleSlug;
+  name: string;
+  description?: string;
+  activeUsers: number;
+  scopeType: AssignmentScopeType;
+  isSystem: boolean;
+};
+
+export type PermissionRecord = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  category: PermissionCategory;
+};
+
+export type UserAssignmentRecord = {
+  id: string;
+  userName: string;
+  email: string;
+  roleSlug: WebRoleSlug;
+  roleName: string;
+  scopeType: AssignmentScopeType;
+  scopeId?: string | null;
+  grantedAt: string;
+  expiresAt?: string | null;
+  active: boolean;
+};
+
+export type RolePermissionMap = Record<string, string[]>;
