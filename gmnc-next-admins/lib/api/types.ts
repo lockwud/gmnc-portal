@@ -177,6 +177,7 @@ export type PermissionRecord = {
 
 export type UserAssignmentRecord = {
   id: string;
+  userId: string; // <-- Add this line
   userName: string;
   email: string;
   roleSlug: WebRoleSlug;

@@ -1,8 +1,24 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Role, getDashboardRoute } from '../rbac';
+import { getDashboardRoute } from '../rbac';
 import { useRouter } from 'next/navigation';
+
+// =========================================
+// TYPES
+// =========================================
+export type Role = 'admin' | 'provider' | 'support' | 'tester' | 'caregiver' | string;
+
+export interface User {
+  id: string;
+  name?: string;
+  fullName?: string;
+  email: string;
+  roles: string[];
+  permissions: string[];
+  userType?: string;
+  avatar?: string | null;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -32,39 +48,91 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-type AuthUser = User & {
-  avatar?: string | null;
-};
+// =========================================
+// HELPERS
+// =========================================
 
-function resolveSelectedRole(nextUser: AuthUser, storedRole?: string | null) {
-  if (storedRole && nextUser.roles.includes(storedRole as Role)) {
-    return storedRole as Role;
-  }
-
-  if (nextUser.roles.includes('admin')) {
-    return 'admin';
-  }
-
-  return nextUser.roles[0] ?? null;
+/**
+ * Normalise the raw API user object so that both `name` and `fullName`
+ * are always present, matching what the rest of the app expects.
+ */
+function normaliseUser(raw: Record<string, unknown>): User {
+  const name = (raw.name as string | undefined) ?? (raw.fullName as string | undefined) ?? '';
+  return {
+    ...((raw as unknown) as User),
+    name,
+    fullName: name,
+    roles: Array.isArray(raw.roles) ? (raw.roles as string[]) : [],
+    permissions: Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [],
+  };
 }
 
+/**
+ * Persist auth data to localStorage so that child pages that read
+ * localStorage("user") / localStorage("token") always find fresh values.
+ */
+function persistAuth(user: User, token: string) {
+  try {
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', token);
+    // Also keep the gmnc-namespaced copy in case other code uses it
+    localStorage.setItem('gmnc_user', JSON.stringify(user));
+    localStorage.setItem('gmnc_token', token);
+  } catch {
+    // localStorage may be unavailable in some SSR/incognito contexts
+  }
+}
+
+/**
+ * Clear all auth-related localStorage keys on logout.
+ */
+function clearAuth() {
+  try {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    const keysToRemove = Object.keys(localStorage).filter((k) => k.startsWith('gmnc_'));
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    const sessionKeysToRemove = Object.keys(sessionStorage).filter((k) =>
+      k.startsWith('gmnc_'),
+    );
+    sessionKeysToRemove.forEach((k) => sessionStorage.removeItem(k));
+  } catch {
+    // ignore
+  }
+}
+
+function resolveSelectedRole(user: User, storedRole?: string | null): Role | null {
+  if (storedRole && user.roles.includes(storedRole)) {
+    return storedRole as Role;
+  }
+  if (user.roles.includes('admin')) return 'admin';
+  return (user.roles[0] as Role) ?? null;
+}
+
+// =========================================
+// PROVIDER
+// =========================================
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [selectedRole, setSelectedRoleState] = useState<Role | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // =========================================
+  // HYDRATE FROM /api/auth/me ON MOUNT
+  // =========================================
   useEffect(() => {
     let isMounted = true;
 
-    async function hydrateAuth() {
-      try {
-        const response = await fetch('/api/auth/me', {
-          method: 'GET',
-          cache: 'no-store',
-        });
+     async function hydrateAuth() {
+       try {
+         const response = await fetch('/api/auth/me', {
+           method: 'GET',
+           cache: 'no-store',
+           credentials: 'include',
+         });
 
         if (!response.ok) {
           if (isMounted) {
@@ -75,19 +143,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const data = await response.json() as { 
-          user?: AuthUser | null;
+        const data = await response.json() as {
+          user?: Record<string, unknown> | null;
           accessToken?: string | null;
         };
 
-        if (!isMounted || !data.user) {
-          return;
-        }
+        if (!isMounted || !data.user) return;
 
+        const normalisedUser = normaliseUser(data.user);
+        const accessToken = data.accessToken ?? '';
         const storedRole = localStorage.getItem('gmnc_selected_role');
-        setUser(data.user);
-        setToken(data.accessToken ?? null);
-        setSelectedRoleState(resolveSelectedRole(data.user, storedRole));
+
+        setUser(normalisedUser);
+        setToken(accessToken);
+        setSelectedRoleState(resolveSelectedRole(normalisedUser, storedRole));
+
+        // Keep localStorage in sync so child pages can read from it
+        persistAuth(normalisedUser, accessToken);
       } catch {
         if (isMounted) {
           setUser(null);
@@ -95,19 +167,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSelectedRoleState(null);
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     }
 
     void hydrateAuth();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
+  // =========================================
+  // LOGIN
+  // =========================================
   const login = async (identifier: string, password: string) => {
     setIsLoading(true);
     setError(null);
@@ -115,16 +185,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),
       });
 
       const data = await response.json() as {
-        user?: AuthUser;
+        user?: Record<string, unknown>;
         accessToken?: string;
         message?: string;
+        success?: boolean;
       };
 
       if (!response.ok || !data.user) {
@@ -132,15 +201,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const role = resolveSelectedRole(data.user);
+      const normalisedUser = normaliseUser(data.user);
+      const accessToken = data.accessToken ?? '';
+      const role = resolveSelectedRole(normalisedUser);
 
-      setUser(data.user);
-      setToken(data.accessToken ?? null);
+      setUser(normalisedUser);
+      setToken(accessToken);
       setSelectedRoleState(role);
+
+      // Persist to localStorage — this is the critical fix so that pages
+      // reading localStorage("user") and localStorage("token") always work.
+      persistAuth(normalisedUser, accessToken);
 
       if (role) {
         localStorage.setItem('gmnc_selected_role', role);
-        router.replace(getDashboardRoute(role));
+        router.replace(getDashboardRoute(role as Parameters<typeof getDashboardRoute>[0]));
       } else {
         localStorage.removeItem('gmnc_selected_role');
         router.replace('/dashboard');
@@ -154,109 +229,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // =========================================
+  // REGISTER
+  // =========================================
+  const register = async (data: {
+    fullName: string;
+    email?: string;
+    password: string;
+    phoneNumber: string;
+    gender: 'MALE' | 'FEMALE';
+    userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+    profileImage?: string;
+    address?: string;
+    digitalAddress?: string;
+    otpChannel: 'sms' | 'email';
+  }) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const responseData = await response.json() as { message?: string };
+
+      if (!response.ok) {
+        setError(responseData.message ?? 'Registration failed');
+        return;
+      }
+
+      setUser(null);
+      setToken(null);
+      setSelectedRoleState(null);
+      clearAuth();
+
+      router.replace('/admin/users');
+      router.refresh();
+    } catch {
+      setError('Unable to register right now');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // =========================================
+  // SET SELECTED ROLE
+  // =========================================
   const setSelectedRole = (role: Role) => {
     setSelectedRoleState(role);
     localStorage.setItem('gmnc_selected_role', role);
-    router.replace(getDashboardRoute(role));
+    router.replace(getDashboardRoute(role as Parameters<typeof getDashboardRoute>[0]));
     router.refresh();
   };
-const register = async (data: {
-  fullName: string;
-  email?: string;
-  password: string;
-  phoneNumber: string;
-  gender: 'MALE' | 'FEMALE';
-  userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
-  profileImage?: string;
-  address?: string;
-  digitalAddress?: string;
-  otpChannel: 'sms' | 'email';
-}) => {
-  setIsLoading(true);
-  setError(null);
 
-  try {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    const responseData = await response.json() as {
-      message?: string;
-      otpChannel?: 'sms' | 'email';
-    };
-
-    if (!response.ok) {
-      setError(responseData.message ?? 'Registration failed');
-      return;
-    }
-
-    // Registration succeeded, but backend does not return a logged-in user
-    setUser(null);
-    setToken(null);
-    setSelectedRoleState(null);
-    localStorage.removeItem('gmnc_selected_role');
-
-    // Send them to login or a registration success page
-    router.replace('/admin/users');
-
-    router.refresh();
-  } catch {
-    setError('Unable to register right now');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  // =========================================
+  // LOGOUT
+  // =========================================
   const logout = () => {
     void (async () => {
       try {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-        });
+        await fetch('/api/auth/logout', { method: 'POST' });
       } catch {
         // Network error — proceed with local cleanup anyway
       } finally {
-        // Clear all application state
         setUser(null);
         setToken(null);
         setSelectedRoleState(null);
-
-        // Clear every gmnc_* key from localStorage so no stale data persists
-        const keysToRemove = Object.keys(localStorage).filter((k) =>
-          k.startsWith('gmnc_'),
-        );
-        keysToRemove.forEach((k) => localStorage.removeItem(k));
-
-        // Also clear sessionStorage in case anything was written there
-        const sessionKeysToRemove = Object.keys(sessionStorage).filter((k) =>
-          k.startsWith('gmnc_'),
-        );
-        sessionKeysToRemove.forEach((k) => sessionStorage.removeItem(k));
-
-        // Hard redirect — replaces the entire browser document so the back
-        // button cannot restore the cached dashboard from memory.
-        // router.replace() is a soft navigation and can be reversed by the
-        // browser; window.location.href cannot.
+        clearAuth();
         window.location.href = '/login';
       }
     })();
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      token,
-      selectedRole,
-      setSelectedRole,
-      login,
-      register,
-      logout,
-      isLoading,
-      error
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        selectedRole,
+        setSelectedRole,
+        login,
+        register,
+        logout,
+        isLoading,
+        error,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

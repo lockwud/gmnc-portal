@@ -15,7 +15,7 @@ import { Card } from "@/components/ui/Card";
 import  Button  from "@/components/ui/Button";
 import { Filter, MoreVertical, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import  ProtectedRoute  from "@/components/auth/ProtectedRoute";
 
 const barData = [
   { name: "Mon", value: 40 },

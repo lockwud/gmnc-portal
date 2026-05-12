@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const apiBaseUrl = process.env.API_BASE_URL?.replace(/\/+$/, '');
+const apiBaseUrl = process.env.API_BASE_URL?.replace(/\/+$/, '') || '';
 
 const nextConfig: NextConfig = {
   images: {
@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     if (!apiBaseUrl) {
+      console.warn('API_BASE_URL is not set');
       return [];
     }
 
@@ -20,6 +21,14 @@ const nextConfig: NextConfig = {
       {
         source: '/assessment/:path*',
         destination: `${apiBaseUrl}/assessment/:path*`,
+      },
+      {
+        source: '/api/admin/rbac/:path*',
+        destination: `${apiBaseUrl}/admin/rbac/:path*`,
+      },
+      {
+        source: '/api/admin/users/:path*',
+        destination: `${apiBaseUrl}/admin/users/:path*`,
       },
     ];
   },

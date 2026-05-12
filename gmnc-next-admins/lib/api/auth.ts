@@ -163,9 +163,11 @@ function normalizeUser(payload: BackendLoginResponse) {
     name:
       typeof rawUser.fullName === 'string'
         ? rawUser.fullName
-        : email === 'oklement3@gmail.com'
-          ? 'Mohammed Ali'
-          : 'User',
+        : typeof rawUser.name === 'string'
+          ? rawUser.name
+          : email === 'oklement3@gmail.com'
+            ? 'Mohammed Ali'
+            : 'User',
     roles: normalizedRoles,
     permissions: collectPermissionValues(rawUser),
     avatar:

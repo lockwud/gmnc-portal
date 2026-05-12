@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Table } from "@/components/ui/Table";
 import  Button  from "@/components/ui/Button";
 import { CalendarIcon, PlusIcon, VideoIcon, ClockIcon, UserIcon, MoreHorizontalIcon } from "lucide-react";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import ProtectedRoute  from "@/components/auth/ProtectedRoute";
 import  Badge  from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { ProvidersPageContent } from "@/components/providers/ProvidersPageContent";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import  ProtectedRoute  from "@/components/auth/ProtectedRoute";
 
 function ProvidersSkeleton() {
   return (

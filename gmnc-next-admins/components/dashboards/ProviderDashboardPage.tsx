@@ -1,5 +1,5 @@
 import { ProviderDashboard } from "@/components/dashboards/ProviderDashboard";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import  ProtectedRoute  from "@/components/auth/ProtectedRoute";
 
 export default function ProviderDashboardPage() {
   return (

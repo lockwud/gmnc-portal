@@ -1,5 +1,5 @@
 import { SupportDashboard } from "@/components/dashboards/SupportDashboard";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import  ProtectedRoute  from "@/components/auth/ProtectedRoute";
 
 export default function SupportDashboardPage() {
   return (

@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import RowActions from '@/components/ui/RowActions';
 import { UserAssignmentRecord } from '@/lib/api/types';
@@ -10,10 +8,7 @@ interface AssignmentTableProps {
   assignments: UserAssignmentRecord[];
 }
 
-
-
-
-  export default function AssignmentTable({ assignments }: AssignmentTableProps) {
+export default function AssignmentTable({ assignments }: AssignmentTableProps) {
   return (
     <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 bg-white">
       <div className="h-full overflow-auto scrollbar-none">
@@ -23,7 +18,6 @@ interface AssignmentTableProps {
               <th className="px-4 py-3 text-left text-[11px] font-medium">User</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Role</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Scope</th>
-              <th className="px-4 py-3 text-left text-[11px] font-medium">Scope ID</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Granted</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Expires</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Status</th>
@@ -52,10 +46,6 @@ interface AssignmentTableProps {
 
                 <td className="border-b border-slate-100 px-4 py-3">
                   <RoleScopeBadge scope={assignment.scopeType} />
-                </td>
-
-                <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
-                  {assignment.scopeId || '—'}
                 </td>
 
                 <td className="border-b border-slate-100 px-4 py-3 whitespace-nowrap text-sm text-slate-600">
@@ -91,7 +81,7 @@ interface AssignmentTableProps {
                 </td>
               </tr>
             ))}
-          </tbody>z
+          </tbody>
         </table>
       </div>
     </div>

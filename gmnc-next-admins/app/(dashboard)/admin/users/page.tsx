@@ -1,10 +1,10 @@
-import UserPage from "@/components/admin/UsersPage";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import UserRegistrationPage from "@/components/admin/UsersPage";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export default function AdminUsersPage() {
   return (
-    <ProtectedRoute requiredRole="admin">
-      <UserPage />
-    </ProtectedRoute>
+     <ProtectedRoute requiredRole="admin">
+       <UserRegistrationPage />
+     </ProtectedRoute>
   );
 }

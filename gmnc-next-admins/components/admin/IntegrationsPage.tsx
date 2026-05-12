@@ -4,7 +4,7 @@ import React from "react";
 import { Table } from "@/components/ui/Table";
 import Button  from "@/components/ui/Button";
 import { LinkIcon, SettingsIcon, AlertCircleIcon, GlobeIcon, DatabaseIcon } from "lucide-react";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import  ProtectedRoute  from "@/components/auth/ProtectedRoute";
 import { cn } from "@/lib/utils";
 
 const MOCK_INTEGRATIONS = [

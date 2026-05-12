@@ -1,32 +1,81 @@
-export type Role = 'admin' | 'provider' | 'support' | 'tester' | 'caregiver';
+// =========================================
+// RBAC — types, helpers, and route mapping
+// =========================================
 
-export type Permission = 
-  | 'appointment.read' 
-  | 'appointment.write' 
-  | 'telehealth.start' 
+// Use a loose Role type so API string values ("admin", "provider", …)
+// satisfy it without needing a cast everywhere.
+export type Role =
+  | 'admin'
+  | 'provider'
+  | 'support'
+  | 'tester'
+  | 'caregiver'
+  | (string & Record<never, never>); // allows arbitrary strings from the API
+
+export type Permission =
+  | 'appointment.read'
+  | 'appointment.write'
+  | 'telehealth.start'
   | 'telehealth.join'
-  | 'system.manage' 
-  | 'support.read' 
+  | 'system.manage'
+  | 'support.read'
   | 'tester.all'
-  | 'caregiver.read';
+  | 'caregiver.read'
+  | (string & Record<never, never>); // allows arbitrary permissions from the API
 
+// User shape that matches the real API login/me response
 export interface User {
   id: string;
-  name: string;
+  /** Raw name field returned by the API */
+  name?: string;
+  /** Alias used by many UI components */
+  fullName?: string;
   email: string;
-  roles: Role[];
-  permissions: Permission[];
-  avatar?: string;
+  /** User type string from the API, e.g. "ADMIN", "SERVICE_PROVIDER" */
+  userType?: string;
+  /** Array of role slugs, e.g. ["admin"] */
+  roles: string[];
+  /** Array of permission codes, e.g. ["users.list", "rbac.manage"] */
+  permissions: string[];
+  avatar?: string | null;
 }
 
-export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  admin: ['appointment.read', 'appointment.write', 'system.manage', 'support.read', 'caregiver.read'],
-  provider: ['appointment.read', 'appointment.write', 'telehealth.start', 'support.read', 'caregiver.read'],
+// =========================================
+// ROLE → PERMISSION MAP (frontend defaults)
+// This is used as a fallback; real permissions come from the API.
+// =========================================
+export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
+  admin: [
+    'appointment.read',
+    'appointment.write',
+    'system.manage',
+    'support.read',
+    'caregiver.read',
+  ],
+  provider: [
+    'appointment.read',
+    'appointment.write',
+    'telehealth.start',
+    'support.read',
+    'caregiver.read',
+  ],
   support: ['appointment.read', 'support.read'],
-  tester: ['tester.all', 'appointment.read', 'appointment.write', 'system.manage', 'support.read', 'caregiver.read', 'telehealth.start', 'telehealth.join'],
+  tester: [
+    'tester.all',
+    'appointment.read',
+    'appointment.write',
+    'system.manage',
+    'support.read',
+    'caregiver.read',
+    'telehealth.start',
+    'telehealth.join',
+  ],
   caregiver: ['appointment.read', 'telehealth.join', 'caregiver.read'],
 };
 
+// =========================================
+// ROUTE HELPER
+// =========================================
 export function getDashboardRoute(role: Role): string {
   switch (role) {
     case 'admin':
@@ -44,6 +93,13 @@ export function getDashboardRoute(role: Role): string {
   }
 }
 
+// =========================================
+// PERMISSION GUARD
+// =========================================
 export function hasPermission(user: User, permission: Permission): boolean {
   return user.permissions.includes(permission);
+}
+
+export function hasRole(user: User, role: Role): boolean {
+  return user.roles.includes(role);
 }

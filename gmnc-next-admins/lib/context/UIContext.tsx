@@ -29,13 +29,9 @@ function UIProviderContent({ children }: { children: React.ReactNode }) {
         title: titleByVariant[variant],
         message,
         duration: 4000,
-        proceedLabel: "Close",
-        dismissLabel: "Dismiss",
-        onProceed: hide,
-        onDismiss: hide,
       });
     },
-    [hide, show],
+    [show],
   );
 
   const value = React.useMemo(

@@ -1,223 +1,265 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState, useEffect } from 'react';
-import { useToast } from '@/components/ui/Toast';
-import RolesSidebar from '@/components/admin/roles-access/RolesSidebar';
-import RolePermissionsPanel from '@/components/admin/roles-access/RolePermissionsPanel';
-import RoleCreateModal from '@/components/admin/roles-access/RoleCreateModal';
-import { AssignmentScopeType, PermissionRecord, PermissionCategory } from '@/lib/api/types';
-import type { AppRoleRecord, WebRoleSlug } from '@/lib/api/types';
+import React, { useMemo, useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
+import RolesSidebar from "@/components/admin/roles-access/RolesSidebar";
+import RolePermissionsPanel from "@/components/admin/roles-access/RolePermissionsPanel";
+import RoleCreateModal from "@/components/admin/roles-access/RoleCreateModal";
+import {
+  AssignmentScopeType,
+  PermissionRecord,
+  PermissionCategory,
+} from "@/lib/api/types";
+import type { AppRoleRecord } from "@/lib/api/types";
 
+// =========================================
+// TYPES
+// =========================================
+type AuthUser = {
+  id: string;
+  roles?: string[];
+  permissions?: string[];
+};
+
+/**
+ * Read and parse the current user from localStorage.
+ * AuthProvider writes here after login / hydration.
+ */
+function readUserFromStorage(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed?.id) return null;
+    return parsed as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+function readTokenFromStorage(): string {
+  try {
+    return localStorage.getItem("token") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+// =========================================
+// COMPONENT
+// =========================================
 export default function RolesAccessPage() {
   const { show } = useToast();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [roleScopeFilter, setRoleScopeFilter] = useState<AssignmentScopeType | 'ALL'>('ALL');
-  const [selectedRoleSlug, setSelectedRoleSlug] = useState<string>('');
+  const [roleScopeFilter, setRoleScopeFilter] = useState<
+    AssignmentScopeType | "ALL"
+  >("ALL");
+  const [selectedRoleSlug, setSelectedRoleSlug] = useState<string>("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const [roles, setRoles] = useState<AppRoleRecord[]>([]);
   const [permissions, setPermissions] = useState<PermissionRecord[]>([]);
-  const [permissionState, setPermissionState] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [bootstrapped, setBootstrapped] = useState(false);
+  const [permissionState, setPermissionState] = useState<
+    Record<string, string[]>
+  >({});
 
-  const getAuthHeaders = () => ({
-    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    'Content-Type': 'application/json',
+  const [loading, setLoading] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  // =========================================
+  // AUTH HEADERS — always read fresh from storage
+  // =========================================
+  const getAuthHeaders = (): Record<string, string> => ({
+    Authorization: `Bearer ${readTokenFromStorage()}`,
+    "Content-Type": "application/json",
   });
 
-  // Bootstrap admin on mount
+  // =========================================
+  // LOAD CURRENT USER
+  // Reads from localStorage which AuthProvider keeps in sync.
+  // Falls back to /api/auth/me if localStorage is empty.
+  // =========================================
   useEffect(() => {
+    const user = readUserFromStorage();
+
+    if (user) {
+      setCurrentUser(user);
+      setInitialized(true);
+    } else {
+      // localStorage not yet populated — fetch from /api/auth/me
+      fetch("/api/auth/me", { cache: "no-store", credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then(
+          (
+            data: {
+              user?: Record<string, unknown>;
+              accessToken?: string;
+            } | null,
+          ) => {
+            if (!data?.user) return;
+
+            const normalised = data.user as AuthUser;
+
+            try {
+              localStorage.setItem("user", JSON.stringify(normalised));
+              if (data.accessToken) {
+                localStorage.setItem("token", data.accessToken);
+              }
+            } catch {
+              // ignore
+            }
+
+            setCurrentUser(normalised);
+            setInitialized(true);
+          },
+        )
+        .catch(console.error);
+    }
+  }, []);
+
+  // =========================================
+  // BOOTSTRAP RBAC
+  // =========================================
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
     const bootstrapAdmin = async () => {
       try {
-        const userJson = localStorage.getItem('user');
-        if (!userJson) {
-          setBootstrapped(false);
-          return;
-        }
+     const response = await fetch("/api/admin/rbac/bootstrap", {
+       method: "POST",
+       headers: getAuthHeaders(),
+       credentials: 'include',
+       body: JSON.stringify({ userId: currentUser.id }),
+     });
 
-        const user = JSON.parse(userJson);
-        if (!user?.id) {
-          setBootstrapped(false);
-          return;
-        }
-
-        const response = await fetch('/api/admin/rbac/bootstrap', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ userId: user.id }),
-        });
-
-        if (response.ok) {
-          console.log('✓ Admin bootstrapped successfully');
-          setBootstrapped(true);
-        } else {
-          console.warn('Bootstrap returned non-OK status:', response.status);
-          setBootstrapped(false);
-        }
+        setBootstrapped(response.ok);
       } catch (err) {
-        console.error('Bootstrap failed:', err);
+        console.error("Bootstrap failed:", err);
         setBootstrapped(false);
+        show({
+          title: "Bootstrap failed",
+          message: "Failed to initialize RBAC system.",
+          type: "error",
+          duration: 4000,
+        });
       }
     };
 
     bootstrapAdmin();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
-  // Fetch roles on mount (after bootstrap)
+  // =========================================
+  // FETCH ROLES + PERMISSIONS
+  // =========================================
   useEffect(() => {
-    if (!bootstrapped) return;
+    if (bootstrapped === null) return;
 
-    const fetchRoles = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/admin/rbac/roles', {
+        setLoading(true);
+
+        // ROLES
+        const rolesResponse = await fetch("/api/admin/rbac/roles", {
           headers: getAuthHeaders(),
+          credentials: 'include',
         });
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch roles: ${response.status}`);
+        if (!rolesResponse.ok) throw new Error("Failed to fetch roles");
+
+        const rolesData = await rolesResponse.json();
+        const rolesArray: AppRoleRecord[] = Array.isArray(rolesData)
+          ? rolesData
+          : rolesData.data ?? [];
+
+        setRoles(rolesArray);
+
+        if (rolesArray.length > 0) {
+          setSelectedRoleSlug(rolesArray[0].slug);
         }
 
-        const data = await response.json();
+        // PERMISSIONS
+        const permissionsResponse = await fetch("/api/admin/rbac/permissions", {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
 
-        // Handle both array and object responses
-        let rolesArray: Partial<AppRoleRecord>[] = [];
+        if (!permissionsResponse.ok)
+          throw new Error("Failed to fetch permissions");
 
-        if (Array.isArray(data)) {
-          rolesArray = data;
-        } else if (data.data && Array.isArray(data.data)) {
-          rolesArray = data.data;
-        } else if (data.roles && Array.isArray(data.roles)) {
-          rolesArray = data.roles;
-        }
+        const permissionsData = await permissionsResponse.json();
+        const permissionsArray: PermissionRecord[] = Array.isArray(
+          permissionsData,
+        )
+          ? permissionsData
+          : permissionsData.data ?? [];
 
-        const rolesWithMetadata: AppRoleRecord[] = rolesArray.map((role) => ({
-          id: role.id || '',
-          name: role.name || 'Unnamed',
-          slug: (role.slug || 'ADMIN') as WebRoleSlug,
-          description: role.description || '',
-          scopeType: (role.scopeType || 'GLOBAL') as AssignmentScopeType,
-          // createdAt: role.createdAt || new Date().toISOString(),
-          activeUsers: role.activeUsers || 0,
-          isSystem: role.isSystem || false,
-        }));
-
-        setRoles(rolesWithMetadata);
-
-        if (rolesWithMetadata.length > 0) {
-          setSelectedRoleSlug(rolesWithMetadata[0].slug);
-        }
-
-        setLoading(false);
+        setPermissions(permissionsArray);
       } catch (err) {
-        console.error('Fetch roles error:', err);
+        console.error(err);
         show({
-          title: 'Failed to fetch roles',
-          message: 'Could not load roles from the system.',
-          type: 'error',
+          title: "Error",
+          message:
+            err instanceof Error ? err.message : "Failed to load RBAC data",
+          type: "error",
           duration: 4000,
         });
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchRoles();
-  }, [bootstrapped, show]);
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrapped]);
 
-  // Fetch permissions on mount (after bootstrap)
+  // =========================================
+  // FETCH PERMISSIONS FOR SELECTED ROLE
+  // =========================================
   useEffect(() => {
-    if (!bootstrapped) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const response = await fetch('/api/admin/rbac/permissions', {
-          headers: getAuthHeaders(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch permissions: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Handle both array and object responses
-        let permissionsArray: Partial<PermissionRecord>[] = [];
-
-        if (Array.isArray(data)) {
-          permissionsArray = data;
-        } else if (data.data && Array.isArray(data.data)) {
-          permissionsArray = data.data;
-        } else if (data.permissions && Array.isArray(data.permissions)) {
-          permissionsArray = data.permissions;
-        }
-
-        const permissionsFormatted: PermissionRecord[] = permissionsArray.map((perm) => ({
-          id: perm.id || '',
-          code: perm.code || '',
-          name: perm.name || perm.code || 'Unnamed',
-          description: perm.description || '',
-          category: (perm.category as PermissionCategory) || 'ADMIN',
-        }));
-
-        setPermissions(permissionsFormatted);
-      } catch (err) {
-        console.error('Fetch permissions error:', err);
-        show({
-          title: 'Failed to fetch permissions',
-          message: 'Could not load permissions from the system.',
-          type: 'error',
-          duration: 4000,
-        });
-      }
-    };
-
-    fetchPermissions();
-  }, [bootstrapped, show]);
-
-  // Fetch permissions for selected role
-  useEffect(() => {
-    if (!selectedRoleSlug || roles.length === 0 || !bootstrapped) return;
+    if (!selectedRoleSlug || roles.length === 0) return;
 
     const fetchRolePermissions = async () => {
       try {
-        const roleId = roles.find((r) => r.slug === selectedRoleSlug)?.id;
-        if (!roleId) return;
+        const role = roles.find((r) => r.slug === selectedRoleSlug);
+        if (!role) return;
 
-        const response = await fetch(`/api/admin/rbac/roles/${roleId}`, {
-          headers: getAuthHeaders(),
-        });
+         const response = await fetch(`/api/admin/rbac/roles/${role.id}`, {
+           headers: getAuthHeaders(),
+           credentials: 'include',
+         });
 
-        if (!response.ok) throw new Error('Failed to fetch role details');
+        if (!response.ok) throw new Error("Failed to fetch role permissions");
 
         const roleData = await response.json();
-
-        // Handle both direct array and nested data structure
-        let perms: PermissionRecord[] = [];
-
-        if (Array.isArray(roleData.permissions)) {
-          perms = roleData.permissions;
-        } else if (roleData.data && Array.isArray(roleData.data.permissions)) {
-          perms = roleData.data.permissions;
-        }
-
-        const permCodes = perms.map((p) => p.code).filter(Boolean);
+        const perms: PermissionRecord[] = Array.isArray(roleData.permissions)
+          ? roleData.permissions
+          : roleData.data?.permissions ?? [];
 
         setPermissionState((prev) => ({
           ...prev,
-          [selectedRoleSlug]: permCodes,
+          [selectedRoleSlug]: perms
+            .map((p) => p.code)
+            .filter(Boolean) as string[],
         }));
       } catch (err) {
-        console.error('Fetch role permissions error:', err);
+        console.error(err);
       }
     };
 
     fetchRolePermissions();
-  }, [selectedRoleSlug, roles, bootstrapped]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRoleSlug, roles]);
 
+  // =========================================
+  // FILTERED ROLES + PAGINATION
+  // =========================================
   const filteredRoles = useMemo(() => {
-    if (roleScopeFilter === 'ALL') return roles;
+    if (roleScopeFilter === "ALL") return roles;
     return roles.filter((role) => role.scopeType === roleScopeFilter);
   }, [roleScopeFilter, roles]);
 
@@ -230,16 +272,23 @@ export default function RolesAccessPage() {
     return filteredRoles.slice(start, start + pageSize);
   }, [filteredRoles, currentPage, pageSize]);
 
-  const selectedRole = roles.find((role) => role.slug === selectedRoleSlug) ?? roles[0];
-  const selectedPermissions = selectedRole ? permissionState[selectedRole.slug] ?? [] : [];
+  const selectedRole =
+    roles.find((role) => role.slug === selectedRoleSlug) ?? roles[0];
+
+  const selectedPermissions = selectedRole
+    ? (permissionState[selectedRole.slug] ?? [])
+    : [];
 
   const groupedPermissions = useMemo(() => {
-    return permissions.reduce<Record<PermissionCategory, PermissionRecord[]>>((acc, permission) => {
-      const category = permission.category || 'ADMIN';
-      if (!acc[category]) acc[category] = [];
-      acc[category].push(permission);
-      return acc;
-    }, {} as Record<PermissionCategory, PermissionRecord[]>);
+    return permissions.reduce<Record<PermissionCategory, PermissionRecord[]>>(
+      (acc, permission) => {
+        const category = permission.category ?? ("ADMIN" as PermissionCategory);
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(permission);
+        return acc;
+      },
+      {} as Record<PermissionCategory, PermissionRecord[]>,
+    );
   }, [permissions]);
 
   const handlePageSizeChange = (size: number) => {
@@ -247,7 +296,13 @@ export default function RolesAccessPage() {
     setPage(1);
   };
 
-  const handlePermissionToggle = (permissionCode: string, nextChecked: boolean) => {
+  // =========================================
+  // TOGGLE PERMISSION
+  // =========================================
+  const handlePermissionToggle = (
+    permissionCode: string,
+    nextChecked: boolean,
+  ) => {
     if (!selectedRole) return;
 
     setPermissionState((prev) => {
@@ -255,166 +310,117 @@ export default function RolesAccessPage() {
       const next = nextChecked
         ? Array.from(new Set([...current, permissionCode]))
         : current.filter((code) => code !== permissionCode);
-
-      return {
-        ...prev,
-        [selectedRole.slug]: next,
-      };
+      return { ...prev, [selectedRole.slug]: next };
     });
   };
 
+  // =========================================
+  // SAVE PERMISSIONS
+  // =========================================
   const handleSaveChanges = async () => {
     try {
       if (!selectedRole) return;
-
-      show({
-        title: 'Saving permissions...',
-        message: 'Please wait while we update the permissions.',
-        type: 'loading',
-        duration: 0,
-      });
 
       const permissionIds = permissions
         .filter((p) => selectedPermissions.includes(p.code))
         .map((p) => p.id);
 
-      const response = await fetch(`/api/admin/rbac/roles/${selectedRole.id}/permissions`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ permissionIds }),
-      });
+      const response = await fetch(
+        `/api/admin/rbac/roles/${selectedRole.id}/permissions`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify({ permissionIds }),
+        },
+      );
 
-      if (!response.ok) throw new Error('Failed to update permissions');
+      if (!response.ok) throw new Error("Failed to update permissions");
 
       show({
-        title: 'Success',
-        message: `${selectedRole.name} permissions updated successfully.`,
-        type: 'success',
+        title: "Success",
+        message: "Permissions updated successfully",
+        type: "success",
         duration: 3000,
       });
     } catch (err) {
+      console.error(err);
       show({
-        title: 'Failed to update permissions',
-        message: err instanceof Error ? err.message : 'An error occurred while saving.',
-        type: 'error',
+        title: "Error",
+        message:
+          err instanceof Error ? err.message : "Failed to update permissions",
+        type: "error",
         duration: 4000,
       });
     }
   };
 
-  const handleCreateRole = async (roleData: { name: string; description?: string; scopeType: AssignmentScopeType }) => {
-    try {
-      show({
-        title: 'Creating role...',
-        message: 'Please wait while we create the role.',
-        type: 'loading',
-        duration: 0,
-      });
-
-      // Generate slug from name
-      const slug = roleData.name
-        .toLowerCase()
-        .replace(/\s+/g, '_')
-        .replace(/[^a-z0-9_]/g, '');
-
-      const response = await fetch('/api/admin/rbac/roles', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          name: roleData.name,
-          slug,
-          description: roleData.description,
-          scopeType: roleData.scopeType,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to create role');
-      }
-
-      const newRole = await response.json();
-
-      const newRoleWithMetadata: AppRoleRecord = {
-        id: newRole.id || '',
-        name: newRole.name || '',
-        slug: (newRole.slug || slug || 'ADMIN') as WebRoleSlug,
-        description: newRole.description || '',
-        scopeType: (newRole.scopeType || 'GLOBAL') as AssignmentScopeType,
-        // createdAt: newRole.createdAt || new Date().toISOString(),
-        activeUsers: 0,
-        isSystem: false,
-      };
-
-      setRoles([...roles, newRoleWithMetadata]);
-      setSelectedRoleSlug(newRoleWithMetadata.slug);
-
-      show({
-        title: 'Success',
-        message: 'Role created successfully.',
-        type: 'success',
-        duration: 3000,
-      });
-    } catch (err) {
-      show({
-        title: 'Failed to create role',
-        message: err instanceof Error ? err.message : 'An error occurred while creating the role.',
-        type: 'error',
-        duration: 4000,
-      });
-    }
-  };
-
+  // =========================================
+  // RESET PERMISSIONS
+  // =========================================
   const handleReset = async () => {
-    if (!selectedRole) return;
-
     try {
+      if (!selectedRole) return;
+
       const response = await fetch(`/api/admin/rbac/roles/${selectedRole.id}`, {
         headers: getAuthHeaders(),
+        credentials: 'include',
       });
 
-      if (!response.ok) throw new Error('Failed to fetch role details');
+      if (!response.ok) throw new Error("Failed to fetch role");
 
       const roleData = await response.json();
-
-      // Handle both direct array and nested data structure
-      let perms: PermissionRecord[] = [];
-
-      if (Array.isArray(roleData.permissions)) {
-        perms = roleData.permissions;
-      } else if (roleData.data && Array.isArray(roleData.data.permissions)) {
-        perms = roleData.data.permissions;
-      }
+      const perms: PermissionRecord[] = Array.isArray(roleData.permissions)
+        ? roleData.permissions
+        : roleData.data?.permissions ?? [];
 
       setPermissionState((prev) => ({
         ...prev,
-        [selectedRole.slug]: perms.map((p) => p.code).filter(Boolean),
+        [selectedRole.slug]: perms
+          .map((p) => p.code)
+          .filter(Boolean) as string[],
       }));
 
       show({
-        title: 'Success',
-        message: 'Permissions reset to original state.',
-        type: 'success',
-        duration: 2000,
-      });
-    } catch {
-      show({
-        title: 'Failed to reset permissions',
-        message: 'Could not reset to original permissions.',
-        type: 'error',
+        title: "Success",
+        message: "Permissions reset to default",
+        type: "success",
         duration: 3000,
+      });
+    } catch (err) {
+      console.error(err);
+      show({
+        title: "Error",
+        message:
+          err instanceof Error ? err.message : "Failed to reset permissions",
+        type: "error",
+        duration: 4000,
       });
     }
   };
 
-  if (loading) {
+  // =========================================
+  // LOADING STATE
+  // =========================================
+  if (!initialized) {
     return (
-      <div className="flex h-[calc(100vh-76px)] min-h-0 items-center justify-center bg-white">
-        <p className="text-slate-500">Loading roles and permissions...</p>
+      <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
       </div>
     );
   }
 
+  if (loading || bootstrapped === null) {
+    return (
+      <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  // =========================================
+  // UI
+  // =========================================
   return (
     <>
       <div className="flex h-[calc(100vh-76px)] min-h-0 overflow-hidden bg-white">
@@ -444,6 +450,7 @@ export default function RolesAccessPage() {
             onTogglePermission={handlePermissionToggle}
             onReset={handleReset}
             onSave={handleSaveChanges}
+            isLoading={loading}
           />
         )}
       </div>
@@ -451,7 +458,7 @@ export default function RolesAccessPage() {
       <RoleCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSave={handleCreateRole}
+        onSave={async () => {}}
       />
     </>
   );
