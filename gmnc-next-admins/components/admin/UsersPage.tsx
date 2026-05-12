@@ -27,16 +27,14 @@ type UserRecord = {
   updatedAt: string;
 };
 
-
-
 const roleOptions: { value: UserType; label: string }[] = [
-  { value: 'ALL', label: 'All roles' },
+  { value: 'ALL', label: 'All user types' },
   { value: 'CAREGIVER', label: 'Caregiver' },
   { value: 'SERVICE_PROVIDER', label: 'Service provider' },
   { value: 'ADMIN', label: 'Admin' },
 ];
 
-function formatRole(role: Exclude<UserType, 'ALL'>) {
+function formatUserType(role: Exclude<UserType, 'ALL'>) {
   switch (role) {
     case 'CAREGIVER':
       return 'Caregiver';
@@ -136,10 +134,11 @@ function SmallDropdown<T extends string>({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${active
-                  ? 'bg-slate-100 text-slate-900'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                  active
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
               >
                 {option.label}
               </button>
@@ -153,7 +152,7 @@ function SmallDropdown<T extends string>({
 
 export default function UserRegistrationPage() {
   const { show } = useToast();
-  const { register, isLoading: authLoading, error: authError } = useAuth();
+  const { isLoading: authLoading } = useAuth();
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
@@ -196,7 +195,9 @@ export default function UserRegistrationPage() {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -225,7 +226,6 @@ export default function UserRegistrationPage() {
     if (roleFilter === 'ALL') return users;
     return users.filter((user) => user.userType === roleFilter);
   }, [roleFilter, users]);
-
 
   const totalItems = filteredUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -303,7 +303,6 @@ export default function UserRegistrationPage() {
           duration: 3000,
         });
 
-        //add the new user to the table immediately
         const newUser: UserRecord = {
           id: result.data?.id || result.data?.user?.id || `new-${Date.now()}`,
           fullName: formData.fullName,
@@ -313,10 +312,9 @@ export default function UserRegistrationPage() {
           accountStatus: 'PENDING',
           updatedAt: new Date().toISOString(),
         };
-        setUsers(prev => [newUser, ...prev]);
+        setUsers((prev) => [newUser, ...prev]);
 
         resetModalState();
-        // Also refresh from server in the background to get real IDs
         fetchUsers();
       } else {
         show({
@@ -343,7 +341,7 @@ export default function UserRegistrationPage() {
       const result = await res.json();
       if (result.success) {
         show({ title: 'Deleted', message: 'User removed.', duration: 3000 });
-        setUsers(prev => prev.filter(u => u.id !== id));
+        setUsers((prev) => prev.filter((u) => u.id !== id));
       } else {
         show({ title: 'Error', message: result.message || 'Failed to delete.', duration: 4000 });
       }
@@ -351,7 +349,6 @@ export default function UserRegistrationPage() {
       show({ title: 'Error', message: 'Network error during delete.', duration: 4000 });
     }
   };
-
 
   return (
     <>
@@ -369,7 +366,7 @@ export default function UserRegistrationPage() {
                 setRoleFilter(value);
                 setPage(1);
               }}
-              ariaLabel="Filter users by role"
+              ariaLabel="Filter users by user type"
             />
 
             <Button
@@ -393,9 +390,14 @@ export default function UserRegistrationPage() {
             ) : fetchError ? (
               <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-red-200 bg-red-50/30 p-8">
                 <div className="text-center">
-                  <p className="text-sm font-medium text-red-600 mb-1">Could not load users</p>
+                  <p className="mb-1 text-sm font-medium text-red-600">Could not load users</p>
                   <p className="text-xs text-red-400">{fetchError}</p>
-                  <button onClick={fetchUsers} className="mt-3 text-xs text-emerald-600 underline hover:text-emerald-800">Retry</button>
+                  <button
+                    onClick={fetchUsers}
+                    className="mt-3 text-xs text-emerald-600 underline hover:text-emerald-800"
+                  >
+                    Retry
+                  </button>
                 </div>
               </div>
             ) : totalItems === 0 ? (
@@ -403,7 +405,7 @@ export default function UserRegistrationPage() {
                 <div className="w-full max-w-md">
                   <EmptyState
                     title="No registrations found"
-                    description="There are no users in this role yet. Create a registration to add someone."
+                    description="There are no users in this user type yet. Create a registration to add someone."
                   />
                 </div>
               </div>
@@ -415,7 +417,7 @@ export default function UserRegistrationPage() {
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-emerald-600 text-white">
                           <th className="px-4 py-3 text-left text-[11px] font-medium">User</th>
-                          <th className="px-4 py-3 text-left text-[11px] font-medium">Role</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-medium">User Type</th>
                           <th className="px-4 py-3 text-left text-[11px] font-medium">Email</th>
                           <th className="px-4 py-3 text-left text-[11px] font-medium">Phone</th>
                           <th className="px-4 py-3 text-left text-[11px] font-medium">Status</th>
@@ -428,8 +430,9 @@ export default function UserRegistrationPage() {
                         {paginatedUsers.map((user, index) => (
                           <tr
                             key={user.id}
-                            className={`transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                              } hover:bg-emerald-50`}
+                            className={`transition ${
+                              index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                            } hover:bg-emerald-50`}
                           >
                             <td className="border-b border-slate-100 px-4 py-3">
                               <div className="flex items-center gap-3">
@@ -450,14 +453,14 @@ export default function UserRegistrationPage() {
                             </td>
 
                             <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-700">
-                              {formatRole(user.userType)}
+                              {formatUserType(user.userType)}
                             </td>
 
                             <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
-                              {user.email || '��'}
+                              {user.email || '—'}
                             </td>
 
-                            <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                            <td className="border-b border-slate-100 px-4 py-3 whitespace-nowrap text-sm text-slate-600">
                               {user.phoneNumber}
                             </td>
 
@@ -471,7 +474,7 @@ export default function UserRegistrationPage() {
                               </span>
                             </td>
 
-                            <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                            <td className="border-b border-slate-100 px-4 py-3 whitespace-nowrap text-sm text-slate-600">
                               {formatDate(user.updatedAt)}
                             </td>
 
@@ -539,8 +542,18 @@ export default function UserRegistrationPage() {
                   </div>
                 </div>
 
+                <Input
+                  placeholder="Full name"
+                  icon={<User size={16} />}
+                  value={formData.fullName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, fullName: e.target.value }))
+                  }
+                  containerClassName="md:col-span-2"
+                />
+
                 <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-700">User role</label>
+                  <label className="text-sm font-medium text-slate-700">User type</label>
                   <SmallDropdown
                     value={modalRole}
                     options={roleOptions.filter(
@@ -548,7 +561,7 @@ export default function UserRegistrationPage() {
                         option.value !== 'ALL'
                     )}
                     onChange={setModalRole}
-                    ariaLabel="Select registration role"
+                    ariaLabel="Select user type"
                     widthClass="w-full"
                   />
                 </div>
@@ -568,16 +581,6 @@ export default function UserRegistrationPage() {
                     widthClass="w-full"
                   />
                 </div>
-
-                <Input
-                  placeholder="Full name"
-                  icon={<User size={16} />}
-                  value={formData.fullName}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, fullName: e.target.value }))
-                  }
-                  containerClassName="md:col-span-2"
-                />
 
                 <Input
                   placeholder="Email address"
@@ -610,10 +613,10 @@ export default function UserRegistrationPage() {
                     <span className="flex-1 text-left">
                       {selectedDate
                         ? selectedDate.toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
                         : 'Select date'}
                     </span>
                   </button>
@@ -688,7 +691,9 @@ export default function UserRegistrationPage() {
                   {modalRole === 'ADMIN' && (
                     <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
                       <p className="text-sm text-emerald-700">
-                        <span className="font-medium">Admin Account:</span> This account will be pre-verified and profile completion will be marked as done. No OTP verification needed.
+                        <span className="font-medium">Admin Account:</span> This account will be
+                        pre-verified and profile completion will be marked as done. No OTP
+                        verification needed.
                       </p>
                     </div>
                   )}
@@ -698,7 +703,8 @@ export default function UserRegistrationPage() {
                       <span className="font-medium text-slate-900">Mode:</span> In system
                     </p>
                     <p>
-                      <span className="font-medium text-slate-900">Role:</span> {formatRole(modalRole)}
+                      <span className="font-medium text-slate-900">User type:</span>{' '}
+                      {formatUserType(modalRole)}
                     </p>
                     <p>
                       <span className="font-medium text-slate-900">Full name:</span>{' '}
@@ -720,15 +726,17 @@ export default function UserRegistrationPage() {
                       <span className="font-medium text-slate-900">Date of birth:</span>{' '}
                       {formData.dateOfBirth
                         ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
                         : '—'}
                     </p>
                     <p>
                       <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
-                      {modalRole === 'ADMIN' ? 'Email (Auto)' : formData.otpChannel.toUpperCase()}
+                      {modalRole === 'ADMIN'
+                        ? 'Email (Auto)'
+                        : formData.otpChannel.toUpperCase()}
                     </p>
                     <p>
                       <span className="font-medium text-slate-900">Password:</span> ••••••••

@@ -1,0 +1,56 @@
+.sidebar-btn {
+  /* Add any button-specific styles here if needed */
+}.sidebar-btn {
+  /* Move any remaining button-specific inline styles here if needed */
+}/* Sidebar custom classes for stateful styling */
+.sidebar-selected {
+  background: #e5e7eb !important; /* Example: Tailwind gray-200 */
+  color: #1f2937 !important;      /* Example: Tailwind gray-800 */
+}
+.sidebar-hovered {
+  background: #f3f4f6 !important; /* Example: Tailwind gray-100 */
+  color: #374151 !important;      /* Example: Tailwind gray-700 */
+}
+.sidebar-shadow {
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+}
+.sidebar-width {
+  width: 220px;
+  min-width: 220px;
+}
+.min-w-9 { min-width: 36px; }
+.min-h-9 { min-height: 36px; }
+.min-w-12 { min-width: 48px; }
+.min-h-12 { min-height: 48px; }
+.leading-tight { line-height: 1; }/* Sidebar custom classes for stateful styling */
+.sidebar-selected {
+  background: #e5e7eb !important; /* Example: Tailwind gray-200 */
+  color: #1f2937 !important;      /* Example: Tailwind gray-800 */
+}
+.sidebar-hovered {
+  background: #f3f4f6 !important; /* Example: Tailwind gray-100 */
+  color: #374151 !important;      /* Example: Tailwind gray-700 */
+}
+.sidebar-shadow {
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+}
+.sidebar-width {
+  width: 220px;
+  min-width: 220px;
+}
+.min-w-9 { min-width: 36px; }
+.min-h-9 { min-height: 36px; }
+.min-w-12 { min-width: 48px; }
+.min-h-12 { min-height: 48px; }
+.leading-tight { line-height: 1; }/* Sidebar custom classes for stateful styling */
+.sidebar-selected {
+  background: #e5e7eb !important; /* Example: Tailwind gray-200 */
+  color: #1f2937 !important;      /* Example: Tailwind gray-800 */
+}
+.sidebar-hovered {
+  background: #f3f4f6 !important; /* Example: Tailwind gray-100 */
+  color: #374151 !important;      /* Example: Tailwind gray-700 */
+}
+.sidebar-shadow {
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+}
