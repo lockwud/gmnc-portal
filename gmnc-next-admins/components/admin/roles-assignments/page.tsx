@@ -263,11 +263,11 @@ useEffect(() => {
             userId: user.id,
             userName: user.fullName,
             email: user.email ?? "",
-            roleSlug: role.slug,
-            roleName: role.name,
+            roleSlug: role.role.slug,
+            roleName: role.role.name,
             scopeType: role.scopeType,
             scopeId: role.scopeId,
-            grantedAt: role.createdAt,
+            grantedAt: role.grantedAt,
             expiresAt: role.expiresAt,
             active: role.active,
           });
@@ -329,21 +329,21 @@ useEffect(() => {
 
        const userRolesResponse = await r.json();
        const userRoles = Array.isArray(userRolesResponse) ? userRolesResponse : userRolesResponse.data ?? [];
-      for (const role of userRoles) {
-        updated.push({
-          id: `${user.id}-${role.id}`,
-          userId: user.id,
-          userName: user.fullName,
-          email: user.email ?? "",
-          roleSlug: role.slug,
-          roleName: role.name,
-          scopeType: role.scopeType,
-          scopeId: role.scopeId,
-          grantedAt: role.createdAt ?? new Date().toISOString(),
-          expiresAt: role.expiresAt,
-          active: role.active,
-        });
-      }
+         for (const role of userRoles) {
+           updated.push({
+             id: `${user.id}-${role.id}`,
+             userId: user.id,
+             userName: user.fullName,
+             email: user.email ?? "",
+             roleSlug: role.role.slug,
+             roleName: role.role.name,
+             scopeType: role.scopeType,
+             scopeId: role.scopeId,
+             grantedAt: role.grantedAt ?? new Date().toISOString(),
+             expiresAt: role.expiresAt,
+             active: role.active,
+           });
+         }
     }
 
     setAssignments(updated);
@@ -352,7 +352,7 @@ useEffect(() => {
   // =========================================
   // ASSIGN ROLE
   // =========================================
-  const handleAssignRole = async (userId: string, roleId: string) => {
+  const handleAssignRole = async (userId: string, roleId: string, scopeType: AssignmentScopeType) => {
     try {
       show({
         title: "Assigning role...",
@@ -364,7 +364,11 @@ useEffect(() => {
       const response = await fetch(`/api/admin/rbac/users/${userId}/roles`, {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ roleId }),
+      body: JSON.stringify({
+          roleId,
+          scopeType: scopeType,
+          scopeId: "",
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to assign role");

@@ -19,7 +19,6 @@ export default function AssignmentTable({ assignments }: AssignmentTableProps) {
               <th className="px-4 py-3 text-left text-[11px] font-medium">Role</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Scope</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Granted</th>
-              <th className="px-4 py-3 text-left text-[11px] font-medium">Expires</th>
               <th className="px-4 py-3 text-left text-[11px] font-medium">Status</th>
               <th className="px-4 py-3 text-center text-[11px] font-medium">Action</th>
             </tr>
@@ -50,10 +49,6 @@ export default function AssignmentTable({ assignments }: AssignmentTableProps) {
 
                 <td className="border-b border-slate-100 px-4 py-3 whitespace-nowrap text-sm text-slate-600">
                   {formatDate(assignment.grantedAt)}
-                </td>
-
-                <td className="border-b border-slate-100 px-4 py-3 whitespace-nowrap text-sm text-slate-600">
-                  {formatDate(assignment.expiresAt)}
                 </td>
 
                 <td className="border-b border-slate-100 px-4 py-3">
