@@ -16,7 +16,7 @@ export async function PATCH(
   try {
     const body = await request.json();
     const type = body.userType;
-    
+
     let backendUrl = `${env.API_BASE_URL}/admin/users/${id}`; // Fallback
     let method = 'PATCH';
 
@@ -75,7 +75,7 @@ export async function DELETE(
 
   try {
     let backendUrl = `${env.API_BASE_URL}/admin/users/${id}`;
-    
+
     if (type === 'SERVICE_PROVIDER') {
       backendUrl = `${env.API_BASE_URL}/service-provider/${id}`;
     } else if (type === 'CAREGIVER') {
