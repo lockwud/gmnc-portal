@@ -79,8 +79,8 @@ export default function CalendarPopover({
 
   const selectedValue = selected
     ? new Date(selected.getTime() - selected.getTimezoneOffset() * 60000)
-        .toISOString()
-        .slice(0, 10)
+      .toISOString()
+      .slice(0, 10)
     : '';
 
   function Header() {

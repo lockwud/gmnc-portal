@@ -25,6 +25,9 @@ type UserRecord = {
   userType: Exclude<UserType, 'ALL'>;
   accountStatus: 'ACTIVE' | 'PENDING' | 'INVITED';
   updatedAt: string;
+  gender?: Gender;
+  dateOfBirth?: string;
+  otpChannel?: OtpChannel;
 };
 
 const roleOptions: { value: UserType; label: string }[] = [
@@ -184,6 +187,9 @@ export default function UserRegistrationPage() {
             userType: (userObj.userType || 'CAREGIVER') as Exclude<UserType, 'ALL'>,
             accountStatus: (userObj.accountStatus || 'ACTIVE') as UserRecord['accountStatus'],
             updatedAt: userObj.updatedAt || new Date().toISOString(),
+            gender: (userObj.gender?.toUpperCase() as Gender) || 'MALE',
+            dateOfBirth: userObj.dateOfBirth || '',
+            otpChannel: (userObj.otpChannel?.toLowerCase() as OtpChannel) || 'sms',
           };
         });
         setUsers(normalized);
@@ -205,6 +211,8 @@ export default function UserRegistrationPage() {
   const [pageSize, setPageSize] = useState(10);
   const [roleFilter, setRoleFilter] = useState<UserType>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   const [step, setStep] = useState<RegistrationStep>(1);
   const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('CAREGIVER');
@@ -260,6 +268,33 @@ export default function UserRegistrationPage() {
       otpChannel: 'sms',
       dateOfBirth: '',
     });
+    setIsEditMode(false);
+    setEditingUserId(null);
+  };
+
+  const handleEdit = (user: UserRecord) => {
+    setIsEditMode(true);
+    setEditingUserId(user.id);
+    setModalRole(user.userType);
+    setFormData({
+      fullName: user.fullName,
+      email: user.email || '',
+      phoneNumber: user.phoneNumber,
+      password: '', // Password not pre-filled
+      gender: user.gender || 'MALE',
+      otpChannel: user.otpChannel || 'sms',
+      dateOfBirth: user.dateOfBirth || '',
+    });
+
+    const parsedDate = user.dateOfBirth ? new Date(user.dateOfBirth) : null;
+    if (parsedDate && !isNaN(parsedDate.getTime())) {
+      setSelectedDate(parsedDate);
+    } else {
+      setSelectedDate(undefined);
+    }
+
+    setIsCreateModalOpen(true);
+    setStep(1);
   };
 
   const handleCloseModal = () => {
@@ -268,12 +303,14 @@ export default function UserRegistrationPage() {
 
   const handleProceed = () => {
     if (step < 3) {
+      setIsCalendarOpen(false);
       setStep((prev) => (prev + 1) as RegistrationStep);
     }
   };
 
   const handleBack = () => {
     if (step > 1) {
+      setIsCalendarOpen(false);
       setStep((prev) => (prev - 1) as RegistrationStep);
     }
   };
@@ -281,48 +318,78 @@ export default function UserRegistrationPage() {
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-       const response = await fetch('/api/admin/users', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({
-           fullName: formData.fullName,
-           email: formData.email || undefined,
-           password: formData.password,
-           phoneNumber: formData.phoneNumber,
-           gender: formData.gender,
-           userType: modalRole,
-           dateOfBirth: formData.dateOfBirth || undefined,
-           otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
-         }),
-         credentials: 'include',
-       });
+      const url = isEditMode ? `/api/admin/users/${editingUserId}` : '/api/admin/users';
+      const method = isEditMode ? 'PATCH' : 'POST';
+
+      const payload: any = {
+        fullName: formData.fullName,
+        email: formData.email || undefined,
+        phoneNumber: formData.phoneNumber,
+        gender: formData.gender,
+        userType: modalRole,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+      };
+
+      if (formData.password) {
+        payload.password = formData.password;
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      });
 
       const result = await response.json();
 
       if (result.success) {
         show({
           title: 'Success',
-          message: 'User registered successfully.',
+          message: isEditMode ? 'User updated successfully.' : 'User registered successfully.',
           duration: 3000,
         });
 
-        const newUser: UserRecord = {
-          id: result.data?.id || result.data?.user?.id || `new-${Date.now()}`,
-          fullName: formData.fullName,
-          email: formData.email || null,
-          phoneNumber: formData.phoneNumber,
-          userType: modalRole as Exclude<UserType, 'ALL'>,
-          accountStatus: 'PENDING',
-          updatedAt: new Date().toISOString(),
-        };
-        setUsers((prev) => [newUser, ...prev]);
+        if (isEditMode) {
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === editingUserId
+                ? {
+                    ...u,
+                    fullName: formData.fullName,
+                    email: formData.email || null,
+                    phoneNumber: formData.phoneNumber,
+                    gender: formData.gender,
+                    dateOfBirth: formData.dateOfBirth,
+                    otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : u
+            )
+          );
+        } else {
+          const newUser: UserRecord = {
+            id: result.data?.id || result.data?.user?.id || `new-${Date.now()}`,
+            fullName: formData.fullName,
+            email: formData.email || null,
+            phoneNumber: formData.phoneNumber,
+            userType: modalRole as Exclude<UserType, 'ALL'>,
+            accountStatus: 'PENDING',
+            updatedAt: new Date().toISOString(),
+            gender: formData.gender,
+            dateOfBirth: formData.dateOfBirth,
+            otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+          };
+          setUsers((prev) => [newUser, ...prev]);
+        }
 
         resetModalState();
         fetchUsers();
       } else {
         show({
           title: 'Error',
-          message: result.message || 'Failed to register user.',
+          message: result.message || (isEditMode ? 'Failed to update user.' : 'Failed to register user.'),
           duration: 4000,
         });
         setIsSubmitting(false);
@@ -487,7 +554,7 @@ export default function UserRegistrationPage() {
                             >
                               <div className="flex justify-center">
                                 <RowActions
-                                  onEdit={() => console.log('Edit user', user.id)}
+                                  onEdit={() => handleEdit(user)}
                                   onDelete={() => handleDelete(user.id, user.userType)}
                                 />
                               </div>
@@ -519,7 +586,9 @@ export default function UserRegistrationPage() {
         <div className="mx-auto flex min-h-[620px] w-full max-w-3xl flex-col rounded-[28px] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Registration</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {isEditMode ? 'Edit User' : 'Registration'}
+              </h2>
               <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>
             </div>
 
@@ -557,16 +626,22 @@ export default function UserRegistrationPage() {
 
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-slate-700">User type</label>
-                  <SmallDropdown
-                    value={modalRole}
-                    options={roleOptions.filter(
-                      (option): option is { value: Exclude<UserType, 'ALL'>; label: string } =>
-                        option.value !== 'ALL'
-                    )}
-                    onChange={setModalRole}
-                    ariaLabel="Select user type"
-                    widthClass="w-full"
-                  />
+                  {isEditMode ? (
+                    <div className="flex h-10 w-full items-center rounded-full border border-slate-100 bg-slate-50 px-4 text-sm text-slate-500 cursor-not-allowed">
+                      {formatUserType(modalRole)}
+                    </div>
+                  ) : (
+                    <SmallDropdown
+                      value={modalRole}
+                      options={roleOptions.filter(
+                        (option): option is { value: Exclude<UserType, 'ALL'>; label: string } =>
+                          option.value !== 'ALL'
+                      )}
+                      onChange={setModalRole}
+                      ariaLabel="Select user type"
+                      widthClass="w-full"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -777,7 +852,15 @@ export default function UserRegistrationPage() {
               <Button
                 className="rounded-full px-4 py-2 text-xs font-medium"
                 onClick={handleProceed}
-                disabled={isSubmitting}
+                disabled={
+                  isSubmitting ||
+                  (step === 1 &&
+                    (!formData.fullName ||
+                      !formData.email ||
+                      !formData.phoneNumber ||
+                      !formData.dateOfBirth)) ||
+                  (step === 2 && !isEditMode && !formData.password)
+                }
               >
                 Proceed
               </Button>
@@ -785,7 +868,13 @@ export default function UserRegistrationPage() {
               <Button
                 className="rounded-full px-4 py-2 text-xs font-medium"
                 onClick={handleSave}
-                disabled={isSubmitting || authLoading}
+                disabled={
+                  isSubmitting ||
+                  authLoading ||
+                  !formData.fullName ||
+                  !formData.email ||
+                  !formData.phoneNumber
+                }
               >
                 {isSubmitting ? 'Saving...' : 'Save'}
               </Button>

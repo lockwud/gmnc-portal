@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Pagination from '@/components/ui/Pagination';
 import RowActions from '@/components/ui/RowActions';
@@ -20,47 +21,9 @@ type PatientRow = {
   slug: string;
 };
 
-const mockPatients: PatientRow[] = [
-  {
-    slug: 'kwame-mensah',
-    fullName: 'Kwame Mensah',
-    gender: 'MALE',
-    dateOfBirth: '2018-05-10',
-    caregiver: {
-      name: 'Akosua Mensah',
-    },
-    latestAssessmentStatus: 'COMPLETED',
-    nextAppointmentDate: '2026-05-20T09:00:00.000Z',
-    openTasksCount: 2,
-    latestReferralStatus: 'PENDING',
-  },
-  {
-    slug: 'ama-serwaa',
-    fullName: 'Ama Serwaa',
-    gender: 'FEMALE',
-    dateOfBirth: '2017-11-21',
-    caregiver: {
-      name: 'Yaa Serwaa',
-    },
-    latestAssessmentStatus: 'DRAFT',
-    nextAppointmentDate: null,
-    openTasksCount: 1,
-    latestReferralStatus: 'ACCEPTED',
-  },
-  {
-    slug: 'kofi-owusu',
-    fullName: 'Kofi Owusu',
-    gender: 'MALE',
-    dateOfBirth: '2016-02-03',
-    caregiver: {
-      name: 'Adwoa Owusu',
-    },
-    latestAssessmentStatus: 'REVIEWED',
-    nextAppointmentDate: '2026-05-18T14:30:00.000Z',
-    openTasksCount: 4,
-    latestReferralStatus: 'COMPLETED',
-  },
-];
+// Keep mock data as fallback or for initial dev if needed, 
+// but we will primarily use the fetched data now.
+const mockPatients: PatientRow[] = [];
 
 function calculateAge(dateOfBirth: string) {
   const dob = new Date(dateOfBirth);
@@ -116,14 +79,56 @@ function getTaskBadgeClass(count: number) {
 
 export default function CpPatientsPage() {
   const router = useRouter();
+  const [patients, setPatients] = useState<PatientRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
 
+  const fetchPatients = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch('/api/patients');
+      const result = await response.json();
+
+      if (result.success && Array.isArray(result.data)) {
+        const mapped = result.data.map((p: any) => {
+          const userObj = p.user || p;
+          return {
+            slug: userObj.slug || userObj.id || userObj._id || '',
+            fullName: userObj.fullName || userObj.name || 'Unknown Patient',
+            gender: (userObj.gender?.toUpperCase() === 'MALE' ? 'MALE' : 'FEMALE') as 'MALE' | 'FEMALE',
+            dateOfBirth: userObj.dateOfBirth || new Date().toISOString(),
+            caregiver: {
+              name: p.caregiver?.fullName || p.caregiver?.name || userObj.caregiver?.fullName || userObj.caregiver?.name || '—',
+            },
+            latestAssessmentStatus: p.latestAssessmentStatus || userObj.latestAssessmentStatus || null,
+            nextAppointmentDate: p.nextAppointmentDate || userObj.nextAppointmentDate || null,
+            openTasksCount: p.openTasksCount || userObj.openTasksCount || 0,
+            latestReferralStatus: p.latestReferralStatus || userObj.latestReferralStatus || null,
+          };
+        });
+        setPatients(mapped);
+      } else {
+        setError(result.message || 'Failed to load patients');
+      }
+    } catch (err) {
+      setError('An error occurred while fetching patients');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
   const filteredPatients = useMemo(() => {
-    if (genderFilter === 'ALL') return mockPatients;
-    return mockPatients.filter((patient) => patient.gender === genderFilter);
-  }, [genderFilter]);
+    if (genderFilter === 'ALL') return patients;
+    return patients.filter((patient) => patient.gender === genderFilter);
+  }, [patients, genderFilter]);
 
   const totalItems = filteredPatients.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -198,7 +203,28 @@ export default function CpPatientsPage() {
 
       <div className="min-h-0 flex-1 overflow-hidden bg-white px-4 pt-2 pb-4">
         <div className="flex h-full min-h-0 flex-col gap-2">
-          {totalItems === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-1 items-center justify-center border border-dashed border-slate-200 bg-slate-50/30">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                <p className="text-sm font-medium text-slate-500">Loading patients...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex flex-1 items-center justify-center border border-dashed border-rose-200 bg-rose-50/30">
+              <div className="flex flex-col items-center gap-3 px-6 text-center">
+                <AlertCircle className="h-8 w-8 text-rose-500" />
+                <h4 className="text-sm font-bold text-slate-900">Unable to load data</h4>
+                <p className="max-w-xs text-xs font-medium text-slate-500">{error}</p>
+                <button
+                  onClick={() => fetchPatients()}
+                  className="mt-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
+                >
+                  Retry Now
+                </button>
+              </div>
+            </div>
+          ) : totalItems === 0 ? (
             <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white">
               <div className="w-full max-w-md">
                 <EmptyState
