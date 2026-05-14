@@ -11,7 +11,7 @@ import { X } from 'lucide-react';
 export interface AssignRoleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (userId: string, roleId: string) => Promise<void>;
+  onSave: (userId: string, roleId: string, scopeType: AssignmentScopeType) => Promise<void>;
   users: { id: string; fullName: string; email?: string; userType: string }[];
   roles: AppRoleRecord[];
   selectedRole: string;
@@ -158,7 +158,10 @@ export default function AssignRoleModal(props: AssignRoleModalProps) {
           </Button>
           <Button
             className="rounded-full px-4 py-2 text-xs font-medium"
-            onClick={() => onSave(selectedUserId, selectedRole)}
+            onClick={() => {
+              const role = props.roles.find(r => r.slug === selectedRole);
+              onSave(selectedUserId, role?.id ?? '', selectedScope);
+            }}
             disabled={!selectedUserId || !selectedRole}
           >
             Save
