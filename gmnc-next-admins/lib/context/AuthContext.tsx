@@ -64,6 +64,7 @@ function normaliseUser(raw: Record<string, unknown>): User {
     fullName: name,
     roles: Array.isArray(raw.roles) ? (raw.roles as string[]) : [],
     permissions: Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [],
+    userType: raw.userType as string | undefined,
   };
 }
 

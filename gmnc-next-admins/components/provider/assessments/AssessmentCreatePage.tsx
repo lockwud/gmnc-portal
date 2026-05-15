@@ -22,28 +22,29 @@ import {
 } from './AssessmentSkeletons';
 import { draftStorageKey } from '@/utils/assessment';
 import Pagination from '@/components/ui/Pagination';
+import { useAuth } from '@/lib/context/AuthContext';
 
 export default function AssessmentCreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
-  const patientId = searchParams.get('patientId') || '';
-
+  // --- State hooks (missing in original code) ---
   const [tools, setTools] = useState<AssessmentToolItem[]>([]);
-  const [loadingTools, setLoadingTools] = useState(true);
+  const [selectedTool, setSelectedTool] = useState<AssessmentToolItem | null>(null);
+  const [loadingTools, setLoadingTools] = useState(false);
   const [toolsError, setToolsError] = useState<string | null>(null);
   const [toolPage, setToolPage] = useState(1);
-  const toolPageSize = 4;
-
-  const [selectedTool, setSelectedTool] = useState<AssessmentToolItem | null>(null);
+  const toolPageSize = 8;
 
   const [formSchema, setFormSchema] = useState<AssessmentToolFormResponse | null>(null);
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [schemaError, setSchemaError] = useState<string | null>(null);
-
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const patientId = searchParams.get('patientId') || '';
 
   useEffect(() => {
     let active = true;
@@ -55,13 +56,21 @@ export default function AssessmentCreatePage() {
         const data = await getAssessmentTools();
         if (!active) return;
 
-        const availableTools = (data.tools || []).filter((t) => t.canCurrentUserUse);
+        // Admin users can see all tools; otherwise rely on canCurrentUserUse flag from API
+        const isAdmin = user?.userType === 'ADMIN' || user?.roles?.some(role => role.toUpperCase() === 'ADMIN');
+
+        const availableTools = (data.tools || []).filter((tool) => {
+          if (isAdmin) {
+            return true;
+          }
+          return tool.canCurrentUserUse;
+        });
+
         setTools(availableTools);
         setSelectedTool((current) => {
           if (current && availableTools.some((tool) => tool.toolCode === current.toolCode)) {
             return current;
           }
-
           return availableTools[0] ?? null;
         });
 
@@ -82,7 +91,7 @@ export default function AssessmentCreatePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user?.roles]);
 
   useEffect(() => {
     let active = true;
