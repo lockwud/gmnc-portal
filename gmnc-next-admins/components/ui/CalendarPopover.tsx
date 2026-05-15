@@ -42,8 +42,13 @@ export default function CalendarPopover({
       setVisibleMonth(selected);
       const y = selected.getFullYear();
       setYearPageStart(y - centerOffset);
+    } else if (open) {
+      // If no date is selected and calendar is opened, show today
+      const today = new Date();
+      setVisibleMonth(today);
+      setYearPageStart(today.getFullYear() - centerOffset);
     }
-  }, [selected, centerOffset]);
+  }, [selected, centerOffset, open]);
 
   useEffect(() => {
     if (!open || !anchorRef) return;
