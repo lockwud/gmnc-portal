@@ -39,7 +39,11 @@ function readUserFromStorage(): AuthUser | null {
 
 function readTokenFromStorage(): string {
   try {
-    return localStorage.getItem("token") ?? "";
+    const token = localStorage.getItem("token") ?? "";
+    if (token) return token;
+    // Fallback: read from cookie if localStorage is empty
+    const match = document.cookie.match(/(?:^|; )gmnc_access_token=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "";
   } catch {
     return "";
   }
