@@ -494,21 +494,23 @@ useEffect(() => {
         </div>
       </div>
 
-       <AssignRoleModal
-         isOpen={isAssignModalOpen}
-         onClose={() => setIsAssignModalOpen(false)}
-         onSave={handleAssignRole}
-         users={users}
-         roles={roles}
-         selectedRole={selectedRole}
-         onChangeRole={setSelectedRole}
-         selectedScope={selectedScope}
-         onChangeScope={setSelectedScope}
-         selectedUserId={selectedUserId}
-         onChangeUserId={setSelectedUserId}
-         selectedExpiryDate={null}
-         onChangeExpiryDate={() => {}}
-       />
+      <AssignRoleModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onSave={handleAssignRole}
+        users={users.filter(
+          (user) => !assignments.some((a) => a.userId === user.id)
+        )}
+        roles={roles}
+        selectedRole={selectedRole}
+        onChangeRole={setSelectedRole}
+        selectedScope={selectedScope}
+        onChangeScope={setSelectedScope}
+        selectedUserId={selectedUserId}
+        onChangeUserId={setSelectedUserId}
+        selectedExpiryDate={null}
+        onChangeExpiryDate={() => {}}
+      />
     </>
   );
 }
