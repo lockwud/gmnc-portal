@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
       {
         source: '/api/admin/rbac/:path*',
         destination: `${apiBaseUrl}/admin/rbac/:path*`,
-      },
+      },  
       {
         source: '/api/admin/users/:path*',
         destination: `${apiBaseUrl}/admin/users/:path*`,

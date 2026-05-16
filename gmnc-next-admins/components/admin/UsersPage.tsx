@@ -10,7 +10,7 @@ import Pagination from '@/components/ui/Pagination';
 import RowActions from '@/components/ui/RowActions';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
-import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar, Trash2 } from 'lucide-react';
 
 type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
 type RegistrationStep = 1 | 2 | 3;
@@ -28,6 +28,10 @@ type UserRecord = {
   gender?: Gender;
   dateOfBirth?: string;
   otpChannel?: OtpChannel;
+  address?: string;
+  digitalAddress?: string;
+  profileImage?: string;
+  verified?: boolean;
 };
 
 const roleOptions: { value: UserType; label: string }[] = [
@@ -155,7 +159,7 @@ function SmallDropdown<T extends string>({
 
 export default function UserRegistrationPage() {
   const { show } = useToast();
-  const { isLoading: authLoading } = useAuth();
+  const { token, isLoading: authLoading } = useAuth();
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
@@ -166,6 +170,7 @@ export default function UserRegistrationPage() {
     setFetchError(null);
     try {
         const response = await fetch('/api/admin/users', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include',
         });
       const result = await response.json();
@@ -190,6 +195,10 @@ export default function UserRegistrationPage() {
             gender: (userObj.gender?.toUpperCase() as Gender) || 'MALE',
             dateOfBirth: userObj.dateOfBirth || '',
             otpChannel: (userObj.otpChannel?.toLowerCase() as OtpChannel) || 'sms',
+            address: userObj.address || '',
+            digitalAddress: userObj.digitalAddress || '',
+            profileImage: userObj.profileImage || '',
+            verified: userObj.verified || false,
           };
         });
         setUsers(normalized);
@@ -213,6 +222,8 @@ export default function UserRegistrationPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; type: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [step, setStep] = useState<RegistrationStep>(1);
   const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('CAREGIVER');
@@ -230,6 +241,10 @@ export default function UserRegistrationPage() {
     gender: 'MALE' as Gender,
     otpChannel: 'sms' as OtpChannel,
     dateOfBirth: '',
+    address: '',
+    digitalAddress: '',
+    profileImage: '',
+    verified: false,
   });
 
   const filteredUsers = useMemo(() => {
@@ -267,6 +282,10 @@ export default function UserRegistrationPage() {
       gender: 'MALE',
       otpChannel: 'sms',
       dateOfBirth: '',
+      address: '',
+      digitalAddress: '',
+      profileImage: '',
+      verified: false,
     });
     setIsEditMode(false);
     setEditingUserId(null);
@@ -284,6 +303,10 @@ export default function UserRegistrationPage() {
       gender: user.gender || 'MALE',
       otpChannel: user.otpChannel || 'sms',
       dateOfBirth: user.dateOfBirth || '',
+      address: user.address || '',
+      digitalAddress: user.digitalAddress || '',
+      profileImage: user.profileImage || '',
+      verified: user.verified || false,
     });
 
     const parsedDate = user.dateOfBirth ? new Date(user.dateOfBirth) : null;
@@ -316,6 +339,11 @@ export default function UserRegistrationPage() {
   };
 
   const handleSave = async () => {
+    if (isEditMode && !editingUserId) {
+      show({ title: 'Error', message: 'No user ID found for editing.', duration: 4000 });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const url = isEditMode ? `/api/admin/users/${editingUserId}` : '/api/admin/users';
@@ -329,20 +357,34 @@ export default function UserRegistrationPage() {
         userType: modalRole,
         dateOfBirth: formData.dateOfBirth || undefined,
         otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+        address: formData.address || undefined,
+        digitalAddress: formData.digitalAddress || undefined,
+        profileImage: formData.profileImage || undefined,
+        verified: formData.verified,
       };
 
-      if (formData.password) {
+      if (!isEditMode && formData.password) {
         payload.password = formData.password;
       }
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(payload),
         credentials: 'include',
       });
 
-      const result = await response.json();
+      let result;
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(`Server returned non-JSON response (${response.status})`);
+      }
 
       if (result.success) {
         show({
@@ -363,6 +405,10 @@ export default function UserRegistrationPage() {
                     gender: formData.gender,
                     dateOfBirth: formData.dateOfBirth,
                     otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+                    address: formData.address,
+                    digitalAddress: formData.digitalAddress,
+                    profileImage: formData.profileImage,
+                    verified: formData.verified,
                     updatedAt: new Date().toISOString(),
                   }
                 : u
@@ -380,6 +426,10 @@ export default function UserRegistrationPage() {
             gender: formData.gender,
             dateOfBirth: formData.dateOfBirth,
             otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+            address: formData.address,
+            digitalAddress: formData.digitalAddress,
+            profileImage: formData.profileImage,
+            verified: formData.verified,
           };
           setUsers((prev) => [newUser, ...prev]);
         }
@@ -394,29 +444,58 @@ export default function UserRegistrationPage() {
         });
         setIsSubmitting(false);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Save error:', error);
       show({
         title: 'Error',
-        message: 'A network error occurred.',
+        message: error.message || 'A network error occurred.',
         duration: 4000,
       });
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string, type: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDeleteClick = (id: string, type: string) => {
+    if (!id || id.includes('.') || id.length < 5) {
+      show({ title: 'Error', message: 'Cannot delete: invalid user ID.', duration: 4000 });
+      return;
+    }
+    setUserToDelete({ id, type });
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    
+    setIsDeleting(true);
+    const { id, type } = userToDelete;
+
     try {
-       const res = await fetch(`/api/admin/users/${id}?type=${type}`, { method: 'DELETE', credentials: 'include' });
-      const result = await res.json();
-      if (result.success) {
-        show({ title: 'Deleted', message: 'User removed.', duration: 3000 });
-        setUsers((prev) => prev.filter((u) => u.id !== id));
+      const res = await fetch(`/api/admin/users/${id}?type=${type}`, { 
+        method: 'DELETE', 
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include' 
+      });
+      
+      let result;
+      const contentType = res.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        result = await res.json();
       } else {
-        show({ title: 'Error', message: result.message || 'Failed to delete.', duration: 4000 });
+        throw new Error(`Server error (${res.status})`);
       }
-    } catch {
-      show({ title: 'Error', message: 'Network error during delete.', duration: 4000 });
+
+      if (result.success) {
+        show({ title: 'Deleted', message: 'User removed successfully.', duration: 3000 });
+        setUsers((prev) => prev.filter((u) => u.id !== id));
+        setUserToDelete(null);
+      } else {
+        show({ title: 'Error', message: result.message || 'Failed to delete user.', duration: 4000 });
+      }
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      show({ title: 'Error', message: error.message || 'Network error during delete.', duration: 4000 });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -555,7 +634,7 @@ export default function UserRegistrationPage() {
                               <div className="flex justify-center">
                                 <RowActions
                                   onEdit={() => handleEdit(user)}
-                                  onDelete={() => handleDelete(user.id, user.userType)}
+                                  onDelete={() => handleDeleteClick(user.id, user.userType)}
                                 />
                               </div>
                             </td>
@@ -583,13 +662,13 @@ export default function UserRegistrationPage() {
       </div>
 
       <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal}>
-        <div className="mx-auto flex min-h-[620px] w-full max-w-3xl flex-col rounded-[28px] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
+        <div className="mx-auto flex w-full max-w-3xl flex-col rounded border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10 max-h-[90vh] overflow-y-auto">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">
                 {isEditMode ? 'Edit User' : 'Registration'}
               </h2>
-              <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>
+              {!isEditMode && <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>}
             </div>
 
             <button
@@ -603,18 +682,10 @@ export default function UserRegistrationPage() {
           </div>
 
           <div className="flex-1">
-            {step === 1 && (
+            {isEditMode ? (
               <div className="mt-8 grid gap-6 md:grid-cols-2">
-                <div className="space-y-3 md:col-span-2">
-                  <label className="text-sm font-medium text-slate-700">Registration mode</label>
-                  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
-                    <div className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm">
-                      In system
-                    </div>
-                  </div>
-                </div>
-
                 <Input
+                  label="Full name"
                   placeholder="Full name"
                   icon={<User size={16} />}
                   value={formData.fullName}
@@ -626,22 +697,9 @@ export default function UserRegistrationPage() {
 
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-slate-700">User type</label>
-                  {isEditMode ? (
-                    <div className="flex h-10 w-full items-center rounded-full border border-slate-100 bg-slate-50 px-4 text-sm text-slate-500 cursor-not-allowed">
-                      {formatUserType(modalRole)}
-                    </div>
-                  ) : (
-                    <SmallDropdown
-                      value={modalRole}
-                      options={roleOptions.filter(
-                        (option): option is { value: Exclude<UserType, 'ALL'>; label: string } =>
-                          option.value !== 'ALL'
-                      )}
-                      onChange={setModalRole}
-                      ariaLabel="Select user type"
-                      widthClass="w-full"
-                    />
-                  )}
+                  <div className="flex h-10 w-full items-center rounded-full border border-slate-100 bg-slate-50 px-4 text-sm text-slate-500 cursor-not-allowed">
+                    {formatUserType(modalRole)}
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -661,6 +719,7 @@ export default function UserRegistrationPage() {
                 </div>
 
                 <Input
+                  label="Email address"
                   placeholder="Email address"
                   icon={<Mail size={16} />}
                   type="email"
@@ -671,6 +730,7 @@ export default function UserRegistrationPage() {
                 />
 
                 <Input
+                  label="Phone number"
                   placeholder="Phone number"
                   icon={<Phone size={16} />}
                   value={formData.phoneNumber}
@@ -736,149 +796,391 @@ export default function UserRegistrationPage() {
                   )}
                 </div>
               </div>
-            )}
-
-            {step === 2 && (
-              <div className="mt-8 grid gap-6">
-                <div className="relative max-w-xl">
-                  <Input
-                    placeholder="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, password: e.target.value }))
-                    }
-                  />
-                  <button
-                    type="button"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="mt-8 space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
-                  <p className="text-base font-semibold text-slate-900">Review information</p>
-
-                  {modalRole === 'ADMIN' && (
-                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                      <p className="text-sm text-emerald-700">
-                        <span className="font-medium">Admin Account:</span> This account will be
-                        pre-verified and profile completion will be marked as done. No OTP
-                        verification needed.
-                      </p>
+            ) : (
+              <>
+                {step === 1 && (
+                  <div className="mt-8 grid gap-6 md:grid-cols-2">
+                    <div className="space-y-3 md:col-span-2">
+                      <label className="text-sm font-medium text-slate-700">Registration mode</label>
+                      <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                        <div className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm">
+                          In system
+                        </div>
+                      </div>
                     </div>
-                  )}
 
-                  <div className="mt-4 grid gap-4 text-base text-slate-600 md:grid-cols-2">
-                    <p>
-                      <span className="font-medium text-slate-900">Mode:</span> In system
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">User type:</span>{' '}
-                      {formatUserType(modalRole)}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">Full name:</span>{' '}
-                      {formData.fullName || '—'}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">Gender:</span>{' '}
-                      {formData.gender}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">Email:</span>{' '}
-                      {formData.email || '—'}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">Phone:</span>{' '}
-                      {formData.phoneNumber || '—'}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">Date of birth:</span>{' '}
-                      {formData.dateOfBirth
-                        ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                        : '—'}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
-                      {modalRole === 'ADMIN'
-                        ? 'Email (Auto)'
-                        : formData.otpChannel.toUpperCase()}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-900">Password:</span> ••••••••
-                    </p>
+                    <Input
+                      placeholder="Full name"
+                      icon={<User size={16} />}
+                      value={formData.fullName}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, fullName: e.target.value }))
+                      }
+                      containerClassName="md:col-span-2"
+                    />
+
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium text-slate-700">User type</label>
+                      <SmallDropdown
+                        value={modalRole}
+                        options={roleOptions.filter(
+                          (option): option is { value: Exclude<UserType, 'ALL'>; label: string } =>
+                            option.value !== 'ALL'
+                        )}
+                        onChange={setModalRole}
+                        ariaLabel="Select user type"
+                        widthClass="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium text-slate-700">Gender</label>
+                      <SmallDropdown
+                        value={formData.gender}
+                        options={[
+                          { value: 'MALE' as Gender, label: 'Male' },
+                          { value: 'FEMALE' as Gender, label: 'Female' },
+                        ]}
+                        onChange={(value) =>
+                          setFormData((prev) => ({ ...prev, gender: value }))
+                        }
+                        ariaLabel="Select gender"
+                        widthClass="w-full"
+                      />
+                    </div>
+
+                    <Input
+                      placeholder="Email address"
+                      icon={<Mail size={16} />}
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                    />
+
+                    <Input
+                      placeholder="Phone number"
+                      icon={<Phone size={16} />}
+                      value={formData.phoneNumber}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))
+                      }
+                    />
+
+                    <Input
+                      placeholder="Address"
+                      value={formData.address}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, address: e.target.value }))
+                      }
+                    />
+
+                    <Input
+                      placeholder="Digital Address (Ghana Post GPS)"
+                      value={formData.digitalAddress}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, digitalAddress: e.target.value }))
+                      }
+                    />
+
+                    <div className="md:col-span-2">
+                      <Input
+                        placeholder="Profile Image URL"
+                        value={formData.profileImage}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, profileImage: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-3 md:col-span-2">
+                      <label className="text-sm font-medium text-slate-700">Date of birth</label>
+                      <button
+                        ref={calendarButtonRef}
+                        type="button"
+                        onClick={() => setIsCalendarOpen(true)}
+                        className="flex h-10 w-full items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-600 transition hover:border-slate-300"
+                      >
+                        <Calendar size={16} className="text-slate-400" />
+                        <span className="flex-1 text-left">
+                          {selectedDate
+                            ? selectedDate.toLocaleDateString(undefined, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : 'Select date'}
+                        </span>
+                      </button>
+                      <CalendarPopover
+                        anchorRef={calendarButtonRef.current}
+                        open={isCalendarOpen}
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        onApply={() => {
+                          if (selectedDate) {
+                            const dateStr = selectedDate.toISOString().split('T')[0];
+                            setFormData((prev) => ({ ...prev, dateOfBirth: dateStr }));
+                          }
+                          setIsCalendarOpen(false);
+                        }}
+                        onCancel={() => setIsCalendarOpen(false)}
+                      />
+                    </div>
+
+                    <div className="space-y-3 md:col-span-2">
+                      <label className="text-sm font-medium text-slate-700">OTP Channel</label>
+                      {modalRole === 'ADMIN' ? (
+                        <div className="flex h-10 w-full items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
+                          Email (Auto-configured for Admin)
+                        </div>
+                      ) : (
+                        <SmallDropdown
+                          value={formData.otpChannel}
+                          options={[
+                            { value: 'sms' as OtpChannel, label: 'SMS' },
+                            { value: 'email' as OtpChannel, label: 'Email' },
+                          ]}
+                          onChange={(value) =>
+                            setFormData((prev) => ({ ...prev, otpChannel: value }))
+                          }
+                          ariaLabel="Select OTP channel"
+                          widthClass="w-full"
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
+                )}
+
+                {step === 2 && (
+                  <div className="mt-8 grid gap-6">
+                    <div className="relative max-w-xl">
+                      <Input
+                        placeholder="Password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.password}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, password: e.target.value }))
+                        }
+                      />
+                      <button
+                        type="button"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {step === 3 && (
+                  <div className="mt-8 space-y-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
+                      <p className="text-base font-semibold text-slate-900">Review information</p>
+
+                      {modalRole === 'ADMIN' && (
+                        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                          <p className="text-sm text-emerald-700">
+                            <span className="font-medium">Admin Account:</span> This account will be
+                            pre-verified and profile completion will be marked as done. No OTP
+                            verification needed.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-4 grid gap-4 text-base text-slate-600 md:grid-cols-2">
+                        <p>
+                          <span className="font-medium text-slate-900">Mode:</span> In system
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">User type:</span>{' '}
+                          {formatUserType(modalRole)}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Full name:</span>{' '}
+                          {formData.fullName || '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Gender:</span>{' '}
+                          {formData.gender}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Email:</span>{' '}
+                          {formData.email || '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Phone:</span>{' '}
+                          {formData.phoneNumber || '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Date of birth:</span>{' '}
+                          {formData.dateOfBirth
+                            ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Address:</span>{' '}
+                          {formData.address || '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Digital Address:</span>{' '}
+                          {formData.digitalAddress || '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Verified:</span>{' '}
+                          {formData.verified ? 'Yes' : 'No'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
+                          {modalRole === 'ADMIN'
+                            ? 'Email (Auto)'
+                            : formData.otpChannel.toUpperCase()}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-900">Password:</span> ••••••••
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
           <div className="mt-10 flex items-center justify-end gap-3 pt-6">
-            {step > 1 && (
-              <Button
-                variant="secondary"
-                className="rounded-full px-4 py-2 text-xs font-medium"
-                onClick={handleBack}
-                disabled={isSubmitting}
-              >
-                Back
-              </Button>
-            )}
-
-            {step === 1 && (
-              <Button
-                variant="secondary"
-                className="rounded-full px-4 py-2 text-xs font-medium"
-                onClick={handleCloseModal}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-            )}
-
-            {step < 3 ? (
-              <Button
-                className="rounded-full px-4 py-2 text-xs font-medium"
-                onClick={handleProceed}
-                disabled={
-                  isSubmitting ||
-                  (step === 1 &&
-                    (!formData.fullName ||
-                      !formData.email ||
-                      !formData.phoneNumber ||
-                      !formData.dateOfBirth)) ||
-                  (step === 2 && !isEditMode && !formData.password)
-                }
-              >
-                Proceed
-              </Button>
+            {isEditMode ? (
+              <>
+                <Button
+                  variant="secondary"
+                  className="rounded-full px-6 py-2.5 text-sm font-medium"
+                  onClick={handleCloseModal}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="rounded-full px-8 py-2.5 text-sm font-medium"
+                  onClick={handleSave}
+                  disabled={
+                    isSubmitting ||
+                    authLoading ||
+                    !formData.fullName ||
+                    !formData.email ||
+                    !formData.phoneNumber
+                  }
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </>
             ) : (
-              <Button
-                className="rounded-full px-4 py-2 text-xs font-medium"
-                onClick={handleSave}
-                disabled={
-                  isSubmitting ||
-                  authLoading ||
-                  !formData.fullName ||
-                  !formData.email ||
-                  !formData.phoneNumber
-                }
-              >
-                {isSubmitting ? 'Saving...' : 'Save'}
-              </Button>
+              <>
+                {step > 1 && (
+                  <Button
+                    variant="secondary"
+                    className="rounded-full px-4 py-2 text-xs font-medium"
+                    onClick={handleBack}
+                    disabled={isSubmitting}
+                  >
+                    Back
+                  </Button>
+                )}
+
+                {step === 1 && (
+                  <Button
+                    variant="secondary"
+                    className="rounded-full px-4 py-2 text-xs font-medium"
+                    onClick={handleCloseModal}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                )}
+
+                {step < 3 ? (
+                  <Button
+                    className="rounded-full px-4 py-2 text-xs font-medium"
+                    onClick={handleProceed}
+                    disabled={
+                      isSubmitting ||
+                      (step === 1 &&
+                        (!formData.fullName ||
+                          !formData.email ||
+                          !formData.phoneNumber ||
+                          !formData.dateOfBirth)) ||
+                      (step === 2 && !isEditMode && !formData.password)
+                    }
+                  >
+                    Proceed
+                  </Button>
+                ) : (
+                  <Button
+                    className="rounded-full px-4 py-2 text-xs font-medium"
+                    onClick={handleSave}
+                    disabled={
+                      isSubmitting ||
+                      authLoading ||
+                      !formData.fullName ||
+                      !formData.email ||
+                      !formData.phoneNumber
+                    }
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save'}
+                  </Button>
+                )}
+              </>
             )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={!!userToDelete} onClose={() => !isDeleting && setUserToDelete(null)}>
+        <div className="mx-auto flex w-full max-w-md flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="flex items-start justify-between">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <Trash2 size={24} strokeWidth={1.5} />
+            </div>
+            <button
+              type="button"
+              onClick={() => !isDeleting && setUserToDelete(null)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              disabled={isDeleting}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold text-slate-900">Delete User</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Are you sure you want to delete this {userToDelete ? formatUserType(userToDelete.type as any).toLowerCase() : 'user'}? 
+              This action cannot be undone and will permanently remove their data from the system.
+            </p>
+          </div>
+
+          <div className="mt-6 flex items-center justify-end gap-3">
+            <Button
+              variant="secondary"
+              className="rounded-full px-5 py-2 text-sm font-medium"
+              onClick={() => setUserToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="rounded-full bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700 ring-red-100"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete User'}
+            </Button>
           </div>
         </div>
       </Modal>
