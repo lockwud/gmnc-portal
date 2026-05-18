@@ -24,9 +24,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar collapsed={sidebarCollapsed} />
-      <div className="flex flex-1 flex-col transition-all">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all">
         <TopBar onToggleSidebar={() => setSidebarCollapsed((s) => !s)} />
-        <main className="flex min-h-0 flex-1 overflow-hidden p-6">
+        <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden p-6">
           <DashboardRouteTransition>{children}</DashboardRouteTransition>
         </main>
       </div>
