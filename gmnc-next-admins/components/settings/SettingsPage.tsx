@@ -208,7 +208,7 @@ const SystemSettings: React.FC = () => {
           </p>
         </header>
 
-        <main className="space-y-8">
+        <main className="space-y-8 max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-none">
           {sections.map((section) => (
             <section
               key={section.id}

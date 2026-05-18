@@ -1052,31 +1052,33 @@ export default function AppointmentAdminPage() {
         </div>
       ) : (
         // Calendar View
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-bold mb-2">Select Date</label>
-              <input
-                type="date"
-                value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
-                onChange={e => setSelectedDate(e.target.value ? new Date(e.target.value) : null)}
-                className="border border-slate-200 rounded-lg px-4 py-2 text-sm focus:border-emerald-500 focus:ring-emerald-500"
-              />
-            </div>
-            <div>
-              <span className="text-xs text-slate-500">{selectedDate ? `Appointments for ${selectedDate.toLocaleDateString()}` : 'Select a date to view appointments'}</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredAppointments.length === 0 ? (
-              <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-400">
-                No appointments found
+        <div className="flex-1 overflow-y-auto scrollbar-none">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-bold mb-2">Select Date</label>
+                <input
+                  type="date"
+                  value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
+                  onChange={e => setSelectedDate(e.target.value ? new Date(e.target.value) : null)}
+                  className="border border-slate-200 rounded-lg px-4 py-2 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+                />
               </div>
-            ) : (
-              filteredAppointments.map((appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} />
-              ))
-            )}
+              <div>
+                <span className="text-xs text-slate-500">{selectedDate ? `Appointments for ${selectedDate.toLocaleDateString()}` : 'Select a date to view appointments'}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredAppointments.length === 0 ? (
+                <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-400">
+                  No appointments found
+                </div>
+              ) : (
+                filteredAppointments.map((appointment) => (
+                  <AppointmentCard key={appointment.id} appointment={appointment} />
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
