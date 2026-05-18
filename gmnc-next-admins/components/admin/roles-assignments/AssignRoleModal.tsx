@@ -80,6 +80,7 @@ export default function AssignRoleModal(props: AssignRoleModalProps) {
               onChange={onChangeUserId}
               ariaLabel="Select user"
               widthClass="w-full"
+              pageSize={5}
             />
           </div>
 
@@ -94,22 +95,22 @@ export default function AssignRoleModal(props: AssignRoleModalProps) {
               onChange={onChangeRole}
               ariaLabel="Select role"
               widthClass="w-full"
+              pageSize={5}
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-slate-500">Scope type</label>
             <RoleFilterDropdown
-              value={selectedScope}
-              options={[
-                { value: 'GLOBAL', label: 'Global' },
-                { value: 'ORGANIZATION', label: 'Organization' },
-                { value: 'SERVICE_PROVIDER', label: 'Service provider' },
-                { value: 'COMMUNITY', label: 'Community' },
-              ]}
-              onChange={(value) => onChangeScope(value as AssignmentScopeType)}
-              ariaLabel="Select scope type"
+              value={selectedRole}
+              options={roles.map((role) => ({
+                value: role.slug,
+                label: role.name,
+              }))}
+              onChange={onChangeRole}
+              ariaLabel="Select role"
               widthClass="w-full"
+              pageSize={5}
             />
           </div>
 

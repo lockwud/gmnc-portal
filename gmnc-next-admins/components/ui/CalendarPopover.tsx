@@ -42,8 +42,13 @@ export default function CalendarPopover({
       setVisibleMonth(selected);
       const y = selected.getFullYear();
       setYearPageStart(y - centerOffset);
+    } else if (open) {
+      // If no date is selected and calendar is opened, show today
+      const today = new Date();
+      setVisibleMonth(today);
+      setYearPageStart(today.getFullYear() - centerOffset);
     }
-  }, [selected, centerOffset]);
+  }, [selected, centerOffset, open]);
 
   useEffect(() => {
     if (!open || !anchorRef) return;
@@ -72,8 +77,9 @@ export default function CalendarPopover({
   const months = Array.from({ length: 12 }).map((_, i) =>
     new Date(0, i).toLocaleString(undefined, { month: 'short' })
   );
+  // Use selected date's month if available, otherwise visibleMonth
   const currentYear = visibleMonth.getFullYear();
-  const monthIndex = visibleMonth.getMonth();
+  const monthIndex = selected ? selected.getMonth() : visibleMonth.getMonth();
 
   const years = Array.from({ length: yearRange }).map((_, i) => yearPageStart + i);
 
@@ -84,25 +90,37 @@ export default function CalendarPopover({
     : '';
 
   function Header() {
+
     function setMonth(m: number) {
-      setVisibleMonth(new Date(currentYear, m, 1));
+      // If a date is selected, preserve the day, otherwise use 1
+      const day = selected ? selected.getDate() : 1;
+      const newDate = new Date(currentYear, m, day);
+      setVisibleMonth(newDate);
+      onSelect(newDate);
     }
 
     function setYear(y: number) {
-      setVisibleMonth(new Date(y, monthIndex, 1));
+      const newDate = new Date(y, monthIndex, 1);
+      setVisibleMonth(newDate);
       setYearPageStart(y - centerOffset);
+      onSelect(newDate);
     }
+
 
     const prevYear = () => {
       const y = currentYear - 1;
-      setVisibleMonth(new Date(y, monthIndex, 1));
+      const newDate = new Date(y, monthIndex, 1);
+      setVisibleMonth(newDate);
       setYearPageStart(y - centerOffset);
+      onSelect(newDate);
     };
 
     const nextYear = () => {
       const y = currentYear + 1;
-      setVisibleMonth(new Date(y, monthIndex, 1));
+      const newDate = new Date(y, monthIndex, 1);
+      setVisibleMonth(newDate);
       setYearPageStart(y - centerOffset);
+      onSelect(newDate);
     };
 
     return (
