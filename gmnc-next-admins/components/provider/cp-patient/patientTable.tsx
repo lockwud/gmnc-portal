@@ -162,11 +162,10 @@ export default function CpPatientsPage() {
               setGenderFilter('ALL');
               setPage(1);
             }}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-              genderFilter === 'ALL'
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${genderFilter === 'ALL'
                 ? 'bg-emerald-600 text-white'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             All
           </button>
@@ -176,11 +175,10 @@ export default function CpPatientsPage() {
               setGenderFilter('MALE');
               setPage(1);
             }}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-              genderFilter === 'MALE'
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${genderFilter === 'MALE'
                 ? 'bg-emerald-600 text-white'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             Male
           </button>
@@ -190,11 +188,10 @@ export default function CpPatientsPage() {
               setGenderFilter('FEMALE');
               setPage(1);
             }}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-              genderFilter === 'FEMALE'
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${genderFilter === 'FEMALE'
                 ? 'bg-emerald-600 text-white'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             Female
           </button>
@@ -256,9 +253,8 @@ export default function CpPatientsPage() {
                         <tr
                           key={patient.slug}
                           onClick={() => handleRowClick(patient.slug)}
-                          className={`cursor-pointer transition ${
-                            index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                          } hover:bg-emerald-50`}
+                          className={`cursor-pointer transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                            } hover:bg-emerald-50`}
                         >
                           <td className="border-b border-slate-100 px-4 py-3">
                             <div className="flex items-center gap-3">

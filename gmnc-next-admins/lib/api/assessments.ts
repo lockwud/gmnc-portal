@@ -106,3 +106,48 @@ export async function submitAssessment(payload: AssessmentSubmitPayload) {
 
   return res.data;
 }
+
+export async function getAssessmentReport(assessmentId: string) {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: any;
+  }>(`/api/assessment/${assessmentId}/report`);
+  return res.data;
+}
+
+export async function getReferralRecommendations(assessmentId: string) {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: any;
+  }>(`/api/assessment/${assessmentId}/referral-recommendations`);
+  return res.data;
+}
+
+export async function getIncomingReferrals() {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: any[];
+  }>(`/api/assessment/referrals/incoming`);
+  return res.data;
+}
+
+export async function getOutgoingReferrals() {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: any[];
+  }>(`/api/assessment/referrals/outgoing`);
+  return res.data;
+}
+
+export async function getPatientAssignedTasks(patientId: string) {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: any[];
+  }>(`/api/cp-patient/${patientId}/assigned-tasks`);
+  return res.data;
+}

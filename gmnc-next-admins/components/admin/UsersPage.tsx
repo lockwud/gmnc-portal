@@ -141,11 +141,10 @@ function SmallDropdown<T extends string>({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                  active
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${active
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -169,10 +168,10 @@ export default function UserRegistrationPage() {
     setIsLoadingUsers(true);
     setFetchError(null);
     try {
-        const response = await fetch('/api/admin/users', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          credentials: 'include',
-        });
+      const response = await fetch('/api/admin/users', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
       const result = await response.json();
       if (result.success) {
         const rawData = result.data;
@@ -357,19 +356,15 @@ export default function UserRegistrationPage() {
         userType: modalRole,
         dateOfBirth: formData.dateOfBirth || undefined,
         otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
-        address: formData.address || undefined,
-        digitalAddress: formData.digitalAddress || undefined,
-        profileImage: formData.profileImage || undefined,
-        verified: formData.verified,
       };
 
-      if (!isEditMode && formData.password) {
+      if (formData.password) {
         payload.password = formData.password;
       }
 
       const response = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
@@ -398,19 +393,15 @@ export default function UserRegistrationPage() {
             prev.map((u) =>
               u.id === editingUserId
                 ? {
-                    ...u,
-                    fullName: formData.fullName,
-                    email: formData.email || null,
-                    phoneNumber: formData.phoneNumber,
-                    gender: formData.gender,
-                    dateOfBirth: formData.dateOfBirth,
-                    otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
-                    address: formData.address,
-                    digitalAddress: formData.digitalAddress,
-                    profileImage: formData.profileImage,
-                    verified: formData.verified,
-                    updatedAt: new Date().toISOString(),
-                  }
+                  ...u,
+                  fullName: formData.fullName,
+                  email: formData.email || null,
+                  phoneNumber: formData.phoneNumber,
+                  gender: formData.gender,
+                  dateOfBirth: formData.dateOfBirth,
+                  otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+                  updatedAt: new Date().toISOString(),
+                }
                 : u
             )
           );
@@ -426,10 +417,6 @@ export default function UserRegistrationPage() {
             gender: formData.gender,
             dateOfBirth: formData.dateOfBirth,
             otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
-            address: formData.address,
-            digitalAddress: formData.digitalAddress,
-            profileImage: formData.profileImage,
-            verified: formData.verified,
           };
           setUsers((prev) => [newUser, ...prev]);
         }
@@ -444,11 +431,10 @@ export default function UserRegistrationPage() {
         });
         setIsSubmitting(false);
       }
-    } catch (error: any) {
-      console.error('Save error:', error);
+    } catch (error) {
       show({
         title: 'Error',
-        message: error.message || 'A network error occurred.',
+        message: 'A network error occurred.',
         duration: 4000,
       });
       setIsSubmitting(false);
@@ -465,17 +451,17 @@ export default function UserRegistrationPage() {
 
   const confirmDelete = async () => {
     if (!userToDelete) return;
-    
+
     setIsDeleting(true);
     const { id, type } = userToDelete;
 
     try {
-      const res = await fetch(`/api/admin/users/${id}?type=${type}`, { 
-        method: 'DELETE', 
+      const res = await fetch(`/api/admin/users/${id}?type=${type}`, {
+        method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: 'include' 
+        credentials: 'include'
       });
-      
+
       let result;
       const contentType = res.headers.get('content-type');
       if (contentType?.includes('application/json')) {
@@ -579,9 +565,8 @@ export default function UserRegistrationPage() {
                         {paginatedUsers.map((user, index) => (
                           <tr
                             key={user.id}
-                            className={`transition ${
-                              index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                            } hover:bg-emerald-50`}
+                            className={`transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                              } hover:bg-emerald-50`}
                           >
                             <td className="border-b border-slate-100 px-4 py-3">
                               <div className="flex items-center gap-3">
@@ -662,13 +647,15 @@ export default function UserRegistrationPage() {
       </div>
 
       <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal}>
-        <div className="mx-auto flex w-full max-w-3xl flex-col rounded border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10 max-h-[90vh] overflow-y-auto">
+        <div className="mx-auto w-full max-w-3xl rounded border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">
-                {isEditMode ? 'Edit User' : 'Registration'}
+                {isEditMode ? 'Edit User' : 'Add User'}
               </h2>
-              {!isEditMode && <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>}
+              {!isEditMode && (
+                <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>
+              )}
             </div>
 
             <button
@@ -682,10 +669,18 @@ export default function UserRegistrationPage() {
           </div>
 
           <div className="flex-1">
-            {isEditMode ? (
+            {step === 1 && (
               <div className="mt-8 grid gap-6 md:grid-cols-2">
+                <div className="space-y-3 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-700">Registration mode</label>
+                  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                    <div className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm">
+                      In system
+                    </div>
+                  </div>
+                </div>
+
                 <Input
-                  label="Full name"
                   placeholder="Full name"
                   icon={<User size={16} />}
                   value={formData.fullName}
@@ -697,9 +692,22 @@ export default function UserRegistrationPage() {
 
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-slate-700">User type</label>
-                  <div className="flex h-10 w-full items-center rounded-full border border-slate-100 bg-slate-50 px-4 text-sm text-slate-500 cursor-not-allowed">
-                    {formatUserType(modalRole)}
-                  </div>
+                  {isEditMode ? (
+                    <div className="flex h-10 w-full items-center rounded-full border border-slate-100 bg-slate-50 px-4 text-sm text-slate-500 cursor-not-allowed">
+                      {formatUserType(modalRole)}
+                    </div>
+                  ) : (
+                    <SmallDropdown
+                      value={modalRole}
+                      options={roleOptions.filter(
+                        (option): option is { value: Exclude<UserType, 'ALL'>; label: string } =>
+                          option.value !== 'ALL'
+                      )}
+                      onChange={setModalRole}
+                      ariaLabel="Select user type"
+                      widthClass="w-full"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -719,7 +727,6 @@ export default function UserRegistrationPage() {
                 </div>
 
                 <Input
-                  label="Email address"
                   placeholder="Email address"
                   icon={<Mail size={16} />}
                   type="email"
@@ -730,7 +737,6 @@ export default function UserRegistrationPage() {
                 />
 
                 <Input
-                  label="Phone number"
                   placeholder="Phone number"
                   icon={<Phone size={16} />}
                   value={formData.phoneNumber}
@@ -751,10 +757,10 @@ export default function UserRegistrationPage() {
                     <span className="flex-1 text-left">
                       {selectedDate
                         ? selectedDate.toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
                         : 'Select date'}
                     </span>
                   </button>
@@ -796,342 +802,156 @@ export default function UserRegistrationPage() {
                   )}
                 </div>
               </div>
-            ) : (
-              <>
-                {step === 1 && (
-                  <div className="mt-8 grid gap-6 md:grid-cols-2">
-                    <div className="space-y-3 md:col-span-2">
-                      <label className="text-sm font-medium text-slate-700">Registration mode</label>
-                      <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
-                        <div className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm">
-                          In system
-                        </div>
-                      </div>
+            )}
+
+            {step === 2 && (
+              <div className="mt-8 grid gap-6">
+                <div className="relative max-w-xl">
+                  <Input
+                    placeholder="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, password: e.target.value }))
+                    }
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="mt-8 space-y-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
+                  <p className="text-base font-semibold text-slate-900">Review information</p>
+
+                  {modalRole === 'ADMIN' && (
+                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                      <p className="text-sm text-emerald-700">
+                        <span className="font-medium">Admin Account:</span> This account will be
+                        pre-verified and profile completion will be marked as done. No OTP
+                        verification needed.
+                      </p>
                     </div>
+                  )}
 
-                    <Input
-                      placeholder="Full name"
-                      icon={<User size={16} />}
-                      value={formData.fullName}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, fullName: e.target.value }))
-                      }
-                      containerClassName="md:col-span-2"
-                    />
-
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-slate-700">User type</label>
-                      <SmallDropdown
-                        value={modalRole}
-                        options={roleOptions.filter(
-                          (option): option is { value: Exclude<UserType, 'ALL'>; label: string } =>
-                            option.value !== 'ALL'
-                        )}
-                        onChange={setModalRole}
-                        ariaLabel="Select user type"
-                        widthClass="w-full"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-slate-700">Gender</label>
-                      <SmallDropdown
-                        value={formData.gender}
-                        options={[
-                          { value: 'MALE' as Gender, label: 'Male' },
-                          { value: 'FEMALE' as Gender, label: 'Female' },
-                        ]}
-                        onChange={(value) =>
-                          setFormData((prev) => ({ ...prev, gender: value }))
-                        }
-                        ariaLabel="Select gender"
-                        widthClass="w-full"
-                      />
-                    </div>
-
-                    <Input
-                      placeholder="Email address"
-                      icon={<Mail size={16} />}
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, email: e.target.value }))
-                      }
-                    />
-
-                    <Input
-                      placeholder="Phone number"
-                      icon={<Phone size={16} />}
-                      value={formData.phoneNumber}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))
-                      }
-                    />
-
-                    <Input
-                      placeholder="Address"
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, address: e.target.value }))
-                      }
-                    />
-
-                    <Input
-                      placeholder="Digital Address (Ghana Post GPS)"
-                      value={formData.digitalAddress}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, digitalAddress: e.target.value }))
-                      }
-                    />
-
-                    <div className="md:col-span-2">
-                      <Input
-                        placeholder="Profile Image URL"
-                        value={formData.profileImage}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, profileImage: e.target.value }))
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-3 md:col-span-2">
-                      <label className="text-sm font-medium text-slate-700">Date of birth</label>
-                      <button
-                        ref={calendarButtonRef}
-                        type="button"
-                        onClick={() => setIsCalendarOpen(true)}
-                        className="flex h-10 w-full items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-600 transition hover:border-slate-300"
-                      >
-                        <Calendar size={16} className="text-slate-400" />
-                        <span className="flex-1 text-left">
-                          {selectedDate
-                            ? selectedDate.toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                            : 'Select date'}
-                        </span>
-                      </button>
-                      <CalendarPopover
-                        anchorRef={calendarButtonRef.current}
-                        open={isCalendarOpen}
-                        selected={selectedDate}
-                        onSelect={setSelectedDate}
-                        onApply={() => {
-                          if (selectedDate) {
-                            const dateStr = selectedDate.toISOString().split('T')[0];
-                            setFormData((prev) => ({ ...prev, dateOfBirth: dateStr }));
-                          }
-                          setIsCalendarOpen(false);
-                        }}
-                        onCancel={() => setIsCalendarOpen(false)}
-                      />
-                    </div>
-
-                    <div className="space-y-3 md:col-span-2">
-                      <label className="text-sm font-medium text-slate-700">OTP Channel</label>
-                      {modalRole === 'ADMIN' ? (
-                        <div className="flex h-10 w-full items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
-                          Email (Auto-configured for Admin)
-                        </div>
-                      ) : (
-                        <SmallDropdown
-                          value={formData.otpChannel}
-                          options={[
-                            { value: 'sms' as OtpChannel, label: 'SMS' },
-                            { value: 'email' as OtpChannel, label: 'Email' },
-                          ]}
-                          onChange={(value) =>
-                            setFormData((prev) => ({ ...prev, otpChannel: value }))
-                          }
-                          ariaLabel="Select OTP channel"
-                          widthClass="w-full"
-                        />
-                      )}
-                    </div>
+                  <div className="mt-4 grid gap-4 text-base text-slate-600 md:grid-cols-2">
+                    <p>
+                      <span className="font-medium text-slate-900">Mode:</span> In system
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">User type:</span>{' '}
+                      {formatUserType(modalRole)}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Full name:</span>{' '}
+                      {formData.fullName || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Gender:</span>{' '}
+                      {formData.gender}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Email:</span>{' '}
+                      {formData.email || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Phone:</span>{' '}
+                      {formData.phoneNumber || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Date of birth:</span>{' '}
+                      {formData.dateOfBirth
+                        ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                        : '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
+                      {modalRole === 'ADMIN'
+                        ? 'Email (Auto)'
+                        : formData.otpChannel.toUpperCase()}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-900">Password:</span> ••••••••
+                    </p>
                   </div>
-                )}
-
-                {step === 2 && (
-                  <div className="mt-8 grid gap-6">
-                    <div className="relative max-w-xl">
-                      <Input
-                        placeholder="Password"
-                        type={showPassword ? 'text' : 'password'}
-                        value={formData.password}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, password: e.target.value }))
-                        }
-                      />
-                      <button
-                        type="button"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div className="mt-8 space-y-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
-                      <p className="text-base font-semibold text-slate-900">Review information</p>
-
-                      {modalRole === 'ADMIN' && (
-                        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                          <p className="text-sm text-emerald-700">
-                            <span className="font-medium">Admin Account:</span> This account will be
-                            pre-verified and profile completion will be marked as done. No OTP
-                            verification needed.
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="mt-4 grid gap-4 text-base text-slate-600 md:grid-cols-2">
-                        <p>
-                          <span className="font-medium text-slate-900">Mode:</span> In system
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">User type:</span>{' '}
-                          {formatUserType(modalRole)}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Full name:</span>{' '}
-                          {formData.fullName || '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Gender:</span>{' '}
-                          {formData.gender}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Email:</span>{' '}
-                          {formData.email || '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Phone:</span>{' '}
-                          {formData.phoneNumber || '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Date of birth:</span>{' '}
-                          {formData.dateOfBirth
-                            ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                            : '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Address:</span>{' '}
-                          {formData.address || '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Digital Address:</span>{' '}
-                          {formData.digitalAddress || '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Verified:</span>{' '}
-                          {formData.verified ? 'Yes' : 'No'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
-                          {modalRole === 'ADMIN'
-                            ? 'Email (Auto)'
-                            : formData.otpChannel.toUpperCase()}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-900">Password:</span> ••••••••
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
+                </div>
+              </div>
             )}
           </div>
 
           <div className="mt-10 flex items-center justify-end gap-3 pt-6">
+            {step > 1 && (
+              <Button
+                variant="secondary"
+                className="rounded-full px-4 py-2 text-xs font-medium"
+                onClick={handleBack}
+                disabled={isSubmitting}
+              >
+                Back
+              </Button>
+            )}
+
+            {step === 1 && (
+              <Button
+                variant="secondary"
+                className="rounded-full px-4 py-2 text-xs font-medium"
+                onClick={handleCloseModal}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+            )}
+
             {isEditMode ? (
-              <>
-                <Button
-                  variant="secondary"
-                  className="rounded-full px-6 py-2.5 text-sm font-medium"
-                  onClick={handleCloseModal}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="rounded-full px-8 py-2.5 text-sm font-medium"
-                  onClick={handleSave}
-                  disabled={
-                    isSubmitting ||
-                    authLoading ||
-                    !formData.fullName ||
-                    !formData.email ||
-                    !formData.phoneNumber
-                  }
-                >
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </>
+              <Button
+                className="rounded-full px-8 py-2.5 text-sm font-medium"
+                onClick={handleSave}
+                disabled={
+                  isSubmitting ||
+                  authLoading ||
+                  !formData.fullName ||
+                  !formData.email ||
+                  !formData.phoneNumber
+                }
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             ) : (
               <>
-                {step > 1 && (
+                {step < 3 && (
                   <Button
-                    variant="secondary"
-                    className="rounded-full px-4 py-2 text-xs font-medium"
-                    onClick={handleBack}
-                    disabled={isSubmitting}
-                  >
-                    Back
-                  </Button>
-                )}
-
-                {step === 1 && (
-                  <Button
-                    variant="secondary"
-                    className="rounded-full px-4 py-2 text-xs font-medium"
-                    onClick={handleCloseModal}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                )}
-
-                {step < 3 ? (
-                  <Button
-                    className="rounded-full px-4 py-2 text-xs font-medium"
+                    className="rounded-full px-8 py-2.5 text-sm font-medium"
                     onClick={handleProceed}
                     disabled={
-                      isSubmitting ||
-                      (step === 1 &&
-                        (!formData.fullName ||
-                          !formData.email ||
-                          !formData.phoneNumber ||
-                          !formData.dateOfBirth)) ||
-                      (step === 2 && !isEditMode && !formData.password)
-                    }
-                  >
-                    Proceed
-                  </Button>
-                ) : (
-                  <Button
-                    className="rounded-full px-4 py-2 text-xs font-medium"
-                    onClick={handleSave}
-                    disabled={
-                      isSubmitting ||
                       authLoading ||
                       !formData.fullName ||
                       !formData.email ||
-                      !formData.phoneNumber
+                      !formData.phoneNumber ||
+                      (step === 2 && !formData.password)
                     }
                   >
-                    {isSubmitting ? 'Saving...' : 'Save'}
+                    Next
+                  </Button>
+                )}
+                {step === 3 && (
+                  <Button
+                    className="rounded-full px-8 py-2.5 text-sm font-medium"
+                    onClick={handleSave}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Saving...' : 'Create User'}
                   </Button>
                 )}
               </>
@@ -1156,11 +976,11 @@ export default function UserRegistrationPage() {
               <X size={16} />
             </button>
           </div>
-          
+
           <div className="mt-4">
             <h3 className="text-lg font-semibold text-slate-900">Delete User</h3>
             <p className="mt-2 text-sm text-slate-500">
-              Are you sure you want to delete this {userToDelete ? formatUserType(userToDelete.type as any).toLowerCase() : 'user'}? 
+              Are you sure you want to delete this {userToDelete ? formatUserType(userToDelete.type as any).toLowerCase() : 'user'}?
               This action cannot be undone and will permanently remove their data from the system.
             </p>
           </div>
