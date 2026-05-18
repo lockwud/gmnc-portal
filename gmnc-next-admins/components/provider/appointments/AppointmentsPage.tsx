@@ -11,230 +11,10 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import type { Appointment } from './types';
+import { getAppointments, createAppointment } from '@/lib/api/appointments';
 
-// Dummy data
-const DUMMY_APPOINTMENTS = [
-  {
-    id: '1',
-    patientId: 'p1',
-    providerId: 'sp1',
-    appointmentDate: new Date(2026, 4, 17, 9, 0),
-    reasonText: 'Regular checkup',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p1', fullName: 'Robert Wilson' },
-    provider: {
-      id: 'sp1',
-      profession: 'GENERAL_PAEDIATRICIAN',
-      facilityName: 'Heart Health Clinic',
-      facilityAddress: '123 Medical St, NY',
-      user: {
-        id: 'u1',
-        fullName: 'Dr. Sarah Johnson',
-        phoneNumber: '+1-555-0101',
-        email: 'sarah.johnson@clinic.com',
-      },
-    },
-  },
-  {
-    id: '2',
-    patientId: 'p2',
-    providerId: 'sp2',
-    appointmentDate: new Date(2026, 4, 17, 10, 30),
-    reasonText: 'Follow-up consultation',
-    reasonAudio: null,
-    status: 'PENDING',
-    patient: { id: 'p2', fullName: 'Jane Smith' },
-    provider: {
-      id: 'sp2',
-      profession: 'DEVELOPMENTAL_PAEDIATRICIAN',
-      facilityName: 'City Medical Center',
-      facilityAddress: '456 Health Ave, NY',
-      user: {
-        id: 'u2',
-        fullName: 'Dr. Michael Brown',
-        phoneNumber: '+1-555-0102',
-        email: 'michael.brown@clinic.com',
-      },
-    },
-  },
-  {
-    id: '3',
-    patientId: 'p3',
-    providerId: 'sp3',
-    appointmentDate: new Date(2026, 4, 18, 14, 0),
-    reasonText: 'Physical therapy session',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p3', fullName: 'John Doe' },
-    provider: {
-      id: 'sp3',
-      profession: 'PAEDIATRIC_NEUROLOGIST',
-      facilityName: 'Wellness Center',
-      facilityAddress: '789 Recovery Ln, NY',
-      user: {
-        id: 'u3',
-        fullName: 'Dr. Emily Davis',
-        phoneNumber: '+1-555-0103',
-        email: 'emily.davis@wellness.com',
-      },
-    },
-  },
-  {
-    id: '4',
-    patientId: 'p4',
-    providerId: 'sp1',
-    appointmentDate: new Date(2026, 4, 19, 11, 0),
-    reasonText: 'ECG test',
-    reasonAudio: null,
-    status: 'RESCHEDULED',
-    patient: { id: 'p4', fullName: 'Maria Garcia' },
-    provider: {
-      id: 'sp1',
-      profession: 'GENERAL_PAEDIATRICIAN',
-      facilityName: 'Heart Health Clinic',
-      facilityAddress: '123 Medical St, NY',
-      user: {
-        id: 'u1',
-        fullName: 'Dr. Sarah Johnson',
-        phoneNumber: '+1-555-0101',
-        email: 'sarah.johnson@clinic.com',
-      },
-    },
-  },
-  {
-    id: '5',
-    patientId: 'p5',
-    providerId: 'sp2',
-    appointmentDate: new Date(2026, 4, 20, 15, 30),
-    reasonText: 'Blood work',
-    reasonAudio: null,
-    status: 'PENDING',
-    patient: { id: 'p5', fullName: 'David Lee' },
-    provider: {
-      id: 'sp2',
-      profession: 'DEVELOPMENTAL_PAEDIATRICIAN',
-      facilityName: 'City Medical Center',
-      facilityAddress: '456 Health Ave, NY',
-      user: {
-        id: 'u2',
-        fullName: 'Dr. Michael Brown',
-        phoneNumber: '+1-555-0102',
-        email: 'michael.brown@clinic.com',
-      },
-    },
-  },
-  {
-    id: '6',
-    patientId: 'p1',
-    providerId: 'sp3',
-    appointmentDate: new Date(2026, 4, 21, 9, 30),
-    reasonText: 'Orthopedic consultation',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p1', fullName: 'Robert Wilson' },
-    provider: {
-      id: 'sp3',
-      profession: 'REHABILITATION_PAEDIATRICIAN',
-      facilityName: 'Bone & Joint Center',
-      facilityAddress: '321 Surgical Way, NY',
-      user: {
-        id: 'u4',
-        fullName: 'Dr. James Wilson',
-        phoneNumber: '+1-555-0104',
-        email: 'james.wilson@orthopedic.com',
-      },
-    },
-  },
-  {
-    id: '7',
-    patientId: 'p6',
-    providerId: 'sp4',
-    appointmentDate: new Date(2026, 4, 22, 13, 0),
-    reasonText: 'Dental cleaning',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p6', fullName: 'Lisa Anderson' },
-    provider: {
-      id: 'sp4',
-      profession: 'SPEECH_THERAPIST',
-      facilityName: 'Smile Dental',
-      facilityAddress: '654 Tooth St, NY',
-      user: {
-        id: 'u5',
-        fullName: 'Dr. Patricia Moore',
-        phoneNumber: '+1-555-0105',
-        email: 'patricia.moore@dental.com',
-      },
-    },
-  },
-  {
-    id: '8',
-    patientId: 'p2',
-    providerId: 'sp3',
-    appointmentDate: new Date(2026, 4, 23, 10, 0),
-    reasonText: 'Rehab session',
-    reasonAudio: null,
-    status: 'PENDING',
-    patient: { id: 'p2', fullName: 'Jane Smith' },
-    provider: {
-      id: 'sp3',
-      profession: 'OCCUPATIONAL_THERAPIST',
-      facilityName: 'Wellness Center',
-      facilityAddress: '789 Recovery Ln, NY',
-      user: {
-        id: 'u3',
-        fullName: 'Dr. Emily Davis',
-        phoneNumber: '+1-555-0103',
-        email: 'emily.davis@wellness.com',
-      },
-    },
-  },
-  {
-    id: '9',
-    patientId: 'p3',
-    providerId: 'sp1',
-    appointmentDate: new Date(2026, 4, 24, 16, 0),
-    reasonText: 'Heart rate monitoring',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p3', fullName: 'John Doe' },
-    provider: {
-      id: 'sp1',
-      profession: 'CLINICAL_PSYCHOLOGIST',
-      facilityName: 'Heart Health Clinic',
-      facilityAddress: '123 Medical St, NY',
-      user: {
-        id: 'u1',
-        fullName: 'Dr. Sarah Johnson',
-        phoneNumber: '+1-555-0101',
-        email: 'sarah.johnson@clinic.com',
-      },
-    },
-  },
-  {
-    id: '10',
-    patientId: 'p4',
-    providerId: 'sp2',
-    appointmentDate: new Date(2026, 4, 25, 11, 30),
-    reasonText: 'General checkup',
-    reasonAudio: null,
-    status: 'RESCHEDULED',
-    patient: { id: 'p4', fullName: 'Maria Garcia' },
-    provider: {
-      id: 'sp2',
-      profession: 'DIETITIAN',
-      facilityName: 'City Medical Center',
-      facilityAddress: '456 Health Ave, NY',
-      user: {
-        id: 'u2',
-        fullName: 'Dr. Michael Brown',
-        phoneNumber: '+1-555-0102',
-        email: 'michael.brown@clinic.com',
-      },
-    },
-  },
-] satisfies Appointment[];
+
+
 
 const PROVIDER_COLUMNS = [
   'GENERAL_PAEDIATRICIAN',
@@ -549,6 +329,46 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patients, setPatients] = useState<{ id: string; fullName: string }[]>([]);
+  const [providers, setProviders] = useState<{ id: string; fullName: string; profession: string; facilityName: string }[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadMetadata = async () => {
+      try {
+        // Load Patients list from our unified patients route
+        const patientsRes = await fetch('/api/patients');
+        const patientsJson = await patientsRes.json();
+        if (patientsJson.success && Array.isArray(patientsJson.data)) {
+          const mapped = patientsJson.data.map((p: any) => ({
+            id: p.id || p.slug || p._id || '',
+            fullName: p.fullName || 'Unknown Patient',
+          }));
+          setPatients(mapped);
+        }
+
+        // Load available providers using the appointment endpoint
+        const providersRes = await fetch('/api/appointment/available-providers');
+        const providersJson = await providersRes.json();
+        // The endpoint may return data wrapped in success/data or directly
+        const rawProviders = providersJson.data || providersJson;
+        if (Array.isArray(rawProviders)) {
+          const mapped = rawProviders.map((p: any) => ({
+            id: p.id || p.providerId || p.slug || p._id || '',
+            fullName: p.fullName || p.providerName || 'Unknown Provider',
+            profession: p.profession || p.specialty || 'GENERAL_PAEDIATRICIAN',
+            facilityName: p.facilityName || 'Clinic',
+          }));
+          setProviders(mapped);
+        }
+      } catch (err) {
+        console.error('[API/APPOINTMENT] Error loading metadata for modal:', err);
+      }
+    };
+
+    loadMetadata();
+  }, [isOpen]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -580,9 +400,20 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
 
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Appointment created:', formData);
+      const payload = {
+        patientId: formData.patientId,
+        providerId: formData.providerId,
+        appointmentDate: new Date(`${formData.appointmentDate}T${formData.appointmentTime}`).toISOString(),
+        reasonText: formData.reasonText,
+      };
+      await createAppointment(payload);
+      setFormData({
+        patientId: '',
+        providerId: '',
+        appointmentDate: '',
+        appointmentTime: '',
+        reasonText: '',
+      });
       onSuccess();
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -613,54 +444,12 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
     onClose();
   };
 
-  const DUMMY_PATIENTS = [
-    { id: 'p1', fullName: 'Robert Wilson' },
-    { id: 'p2', fullName: 'Jane Smith' },
-    { id: 'p3', fullName: 'John Doe' },
-    { id: 'p4', fullName: 'Maria Garcia' },
-    { id: 'p5', fullName: 'David Lee' },
-    { id: 'p6', fullName: 'Lisa Anderson' },
-  ];
-
-  const DUMMY_PROVIDERS = [
-    {
-      id: 'sp1',
-      fullName: 'Dr. Sarah Johnson',
-      profession: 'GENERAL_PAEDIATRICIAN',
-      facilityName: 'Heart Health Clinic',
-    },
-    {
-      id: 'sp2',
-      fullName: 'Dr. Michael Brown',
-      profession: 'DEVELOPMENTAL_PAEDIATRICIAN',
-      facilityName: 'City Medical Center',
-    },
-    {
-      id: 'sp3',
-      fullName: 'Dr. Emily Davis',
-      profession: 'PAEDIATRIC_NEUROLOGIST',
-      facilityName: 'Wellness Center',
-    },
-    {
-      id: 'sp4',
-      fullName: 'Dr. James Wilson',
-      profession: 'REHABILITATION_PAEDIATRICIAN',
-      facilityName: 'Bone & Joint Center',
-    },
-    {
-      id: 'sp5',
-      fullName: 'Dr. Patricia Moore',
-      profession: 'SPEECH_THERAPIST',
-      facilityName: 'Smile Dental',
-    },
-  ];
-
-  const patientOptions = DUMMY_PATIENTS.map((patient) => ({
+  const patientOptions = patients.map((patient) => ({
     value: patient.id,
     label: patient.fullName,
   }));
 
-  const providerOptions = DUMMY_PROVIDERS.map((provider) => ({
+  const providerOptions = providers.map((provider) => ({
     value: provider.id,
     label: `${provider.fullName} - ${getProfessionLabel(provider.profession)}`,
   }));
@@ -835,9 +624,31 @@ export default function AppointmentAdminPage() {
   const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAppointments = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getAppointments();
+      setAppointments(data);
+    } catch (err: any) {
+      console.error('[API/APPOINTMENT] Error fetching appointments:', err);
+      setError(err.message || 'Failed to load appointments');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
   // Filter appointments based on selected status
   const filteredAppointments = useMemo(() => {
-    return DUMMY_APPOINTMENTS.filter(appointment => {
+    return appointments.filter(appointment => {
       // Status filter
       if (filters.status !== 'all' && appointment.status !== filters.status) {
         return false;
@@ -853,7 +664,7 @@ export default function AppointmentAdminPage() {
       }
       return true;
     });
-  }, [filters, viewMode, selectedDate]);
+  }, [appointments, filters, viewMode, selectedDate]);
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
@@ -869,7 +680,7 @@ export default function AppointmentAdminPage() {
 
   const handleSuccess = () => {
     setIsModalOpen(false);
-    // In a real app, you would refetch data here
+    fetchAppointments();
   };
 
   const handleBoardWheel = (event: React.WheelEvent<HTMLDivElement>) => {
@@ -1002,8 +813,29 @@ export default function AppointmentAdminPage() {
         </div>
       </div>
 
+      {/* Loading / Error states */}
+      {isLoading && (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+        </div>
+      )}
+      {!isLoading && error && (
+        <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-red-200 bg-red-50/30 p-8">
+          <div className="text-center">
+            <p className="mb-1 text-sm font-medium text-red-600">Could not load appointments</p>
+            <p className="text-xs text-red-400">{error}</p>
+            <button
+              onClick={fetchAppointments}
+              className="mt-3 text-xs text-emerald-600 underline hover:text-emerald-800"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Kanban or Calendar View */}
-      {viewMode === 'kanban' ? (
+      {!isLoading && !error && viewMode === 'kanban' ? (
         <div
           onWheel={handleBoardWheel}
           className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-auto overflow-y-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

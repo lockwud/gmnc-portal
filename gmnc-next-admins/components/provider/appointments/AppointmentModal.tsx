@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Calendar, Clock, User, FileText } from 'lucide-react';
+import { createAppointment } from '@/lib/api/appointments';
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -9,47 +10,17 @@ interface AppointmentModalProps {
   onSuccess: () => void;
 }
 
-const DUMMY_PATIENTS = [
-  { id: 'p1', fullName: 'Robert Wilson' },
-  { id: 'p2', fullName: 'Jane Smith' },
-  { id: 'p3', fullName: 'John Doe' },
-  { id: 'p4', fullName: 'Maria Garcia' },
-  { id: 'p5', fullName: 'David Lee' },
-  { id: 'p6', fullName: 'Lisa Anderson' },
-];
+interface PatientOption {
+  id: string;
+  fullName: string;
+}
 
-const DUMMY_PROVIDERS = [
-  {
-    id: 'sp1',
-    fullName: 'Dr. Sarah Johnson',
-    profession: 'Cardiologist',
-    facilityName: 'Heart Health Clinic',
-  },
-  {
-    id: 'sp2',
-    fullName: 'Dr. Michael Brown',
-    profession: 'General Practitioner',
-    facilityName: 'City Medical Center',
-  },
-  {
-    id: 'sp3',
-    fullName: 'Dr. Emily Davis',
-    profession: 'Physical Therapist',
-    facilityName: 'Wellness Center',
-  },
-  {
-    id: 'sp4',
-    fullName: 'Dr. James Wilson',
-    profession: 'Orthopedic Surgeon',
-    facilityName: 'Bone & Joint Center',
-  },
-  {
-    id: 'sp5',
-    fullName: 'Dr. Patricia Moore',
-    profession: 'Dentist',
-    facilityName: 'Smile Dental',
-  },
-];
+interface ProviderOption {
+  id: string;
+  fullName: string;
+  profession: string;
+  facilityName: string;
+}
 
 export default function AppointmentModal({
   isOpen,
@@ -65,6 +36,46 @@ export default function AppointmentModal({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patients, setPatients] = useState<PatientOption[]>([]);
+  const [providers, setProviders] = useState<ProviderOption[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadMetadata = async () => {
+      try {
+        const patientsRes = await fetch('/api/patients');
+        const patientsJson = await patientsRes.json();
+        if (patientsJson.success && Array.isArray(patientsJson.data)) {
+          setPatients(
+            patientsJson.data.map((p: any) => ({
+              id: p.id || p._id || '',
+              fullName: p.fullName || 'Unknown Patient',
+            }))
+          );
+        }
+
+        const providersRes = await fetch('/api/appointment/available-providers');
+        const providersJson = await providersRes.json();
+        const rawProviders = providersJson.data || providersJson;
+        if (Array.isArray(rawProviders)) {
+          setProviders(
+            rawProviders.map((p: any) => ({
+              id: p.id || p.providerId || p._id || '',
+              fullName: p.fullName || p.providerName || 'Unknown Provider',
+              profession: p.profession || p.specialty || '',
+              facilityName: p.facilityName || 'Clinic',
+            }))
+          );
+        }
+      } catch (err) {
+        console.error('[AppointmentModal] Error loading metadata:', err);
+      }
+    };
+
+    loadMetadata();
+  }, [isOpen]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -86,22 +97,36 @@ export default function AppointmentModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    console.log('Appointment created:', formData);
-    setFormData({
-      patientId: '',
-      providerId: '',
-      appointmentDate: '',
-      appointmentTime: '',
-      reasonText: '',
-    });
-    onSuccess();
+    setIsSubmitting(true);
+    try {
+      await createAppointment({
+        patientId: formData.patientId,
+        providerId: formData.providerId,
+        appointmentDate: new Date(
+          `${formData.appointmentDate}T${formData.appointmentTime}`
+        ).toISOString(),
+        reasonText: formData.reasonText,
+      });
+      setFormData({
+        patientId: '',
+        providerId: '',
+        appointmentDate: '',
+        appointmentTime: '',
+        reasonText: '',
+      });
+      onSuccess();
+    } catch (error) {
+      console.error('[AppointmentModal] Error creating appointment:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (
@@ -114,7 +139,6 @@ export default function AppointmentModal({
       ...prev,
       [name]: value,
     }));
-    // Clear error for this field when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
@@ -125,12 +149,8 @@ export default function AppointmentModal({
 
   if (!isOpen) return null;
 
-  const selectedPatient = DUMMY_PATIENTS.find(
-    (p) => p.id === formData.patientId
-  );
-  const selectedProvider = DUMMY_PROVIDERS.find(
-    (p) => p.id === formData.providerId
-  );
+  const selectedPatient = patients.find((p) => p.id === formData.patientId);
+  const selectedProvider = providers.find((p) => p.id === formData.providerId);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -163,7 +183,7 @@ export default function AppointmentModal({
               }`}
             >
               <option value="">Select a patient</option>
-              {DUMMY_PATIENTS.map((patient) => (
+              {patients.map((patient) => (
                 <option key={patient.id} value={patient.id}>
                   {patient.fullName}
                 </option>
@@ -189,9 +209,10 @@ export default function AppointmentModal({
               }`}
             >
               <option value="">Select a provider</option>
-              {DUMMY_PROVIDERS.map((provider) => (
+              {providers.map((provider) => (
                 <option key={provider.id} value={provider.id}>
-                  {provider.fullName} - {provider.profession}
+                  {provider.fullName}
+                  {provider.profession ? ` – ${provider.profession}` : ''}
                 </option>
               ))}
             </select>
@@ -203,7 +224,9 @@ export default function AppointmentModal({
           {/* Provider Details (Read-only) */}
           {selectedProvider && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-2">Provider Details</h4>
+              <h4 className="font-semibold text-gray-900 mb-2">
+                Provider Details
+              </h4>
               <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
                 <div>
                   <p className="font-medium">Facility:</p>
@@ -230,9 +253,7 @@ export default function AppointmentModal({
                 value={formData.appointmentDate}
                 onChange={handleChange}
                 className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.appointmentDate
-                    ? 'border-red-500'
-                    : 'border-gray-300'
+                  errors.appointmentDate ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
               {errors.appointmentDate && (
@@ -253,9 +274,7 @@ export default function AppointmentModal({
                 value={formData.appointmentTime}
                 onChange={handleChange}
                 className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.appointmentTime
-                    ? 'border-red-500'
-                    : 'border-gray-300'
+                  errors.appointmentTime ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
               {errors.appointmentTime && (
@@ -330,9 +349,10 @@ export default function AppointmentModal({
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-60"
             >
-              Create Appointment
+              {isSubmitting ? 'Creating...' : 'Create Appointment'}
             </button>
           </div>
         </form>

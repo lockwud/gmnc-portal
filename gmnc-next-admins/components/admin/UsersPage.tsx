@@ -10,7 +10,7 @@ import Pagination from '@/components/ui/Pagination';
 import RowActions from '@/components/ui/RowActions';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
-import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar, Trash2 } from 'lucide-react';
 
 type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
 type RegistrationStep = 1 | 2 | 3;
@@ -28,6 +28,10 @@ type UserRecord = {
   gender?: Gender;
   dateOfBirth?: string;
   otpChannel?: OtpChannel;
+  address?: string;
+  digitalAddress?: string;
+  profileImage?: string;
+  verified?: boolean;
 };
 
 const roleOptions: { value: UserType; label: string }[] = [
@@ -137,11 +141,10 @@ function SmallDropdown<T extends string>({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                  active
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${active
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -155,7 +158,7 @@ function SmallDropdown<T extends string>({
 
 export default function UserRegistrationPage() {
   const { show } = useToast();
-  const { isLoading: authLoading } = useAuth();
+  const { token, isLoading: authLoading } = useAuth();
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
@@ -165,9 +168,10 @@ export default function UserRegistrationPage() {
     setIsLoadingUsers(true);
     setFetchError(null);
     try {
-        const response = await fetch('/api/admin/users', {
-          credentials: 'include',
-        });
+      const response = await fetch('/api/admin/users', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
       const result = await response.json();
       if (result.success) {
         const rawData = result.data;
@@ -190,6 +194,10 @@ export default function UserRegistrationPage() {
             gender: (userObj.gender?.toUpperCase() as Gender) || 'MALE',
             dateOfBirth: userObj.dateOfBirth || '',
             otpChannel: (userObj.otpChannel?.toLowerCase() as OtpChannel) || 'sms',
+            address: userObj.address || '',
+            digitalAddress: userObj.digitalAddress || '',
+            profileImage: userObj.profileImage || '',
+            verified: userObj.verified || false,
           };
         });
         setUsers(normalized);
@@ -213,6 +221,8 @@ export default function UserRegistrationPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; type: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [step, setStep] = useState<RegistrationStep>(1);
   const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('CAREGIVER');
@@ -230,6 +240,10 @@ export default function UserRegistrationPage() {
     gender: 'MALE' as Gender,
     otpChannel: 'sms' as OtpChannel,
     dateOfBirth: '',
+    address: '',
+    digitalAddress: '',
+    profileImage: '',
+    verified: false,
   });
 
   const filteredUsers = useMemo(() => {
@@ -267,6 +281,10 @@ export default function UserRegistrationPage() {
       gender: 'MALE',
       otpChannel: 'sms',
       dateOfBirth: '',
+      address: '',
+      digitalAddress: '',
+      profileImage: '',
+      verified: false,
     });
     setIsEditMode(false);
     setEditingUserId(null);
@@ -284,6 +302,10 @@ export default function UserRegistrationPage() {
       gender: user.gender || 'MALE',
       otpChannel: user.otpChannel || 'sms',
       dateOfBirth: user.dateOfBirth || '',
+      address: user.address || '',
+      digitalAddress: user.digitalAddress || '',
+      profileImage: user.profileImage || '',
+      verified: user.verified || false,
     });
 
     const parsedDate = user.dateOfBirth ? new Date(user.dateOfBirth) : null;
@@ -316,6 +338,11 @@ export default function UserRegistrationPage() {
   };
 
   const handleSave = async () => {
+    if (isEditMode && !editingUserId) {
+      show({ title: 'Error', message: 'No user ID found for editing.', duration: 4000 });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const url = isEditMode ? `/api/admin/users/${editingUserId}` : '/api/admin/users';
@@ -337,12 +364,22 @@ export default function UserRegistrationPage() {
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(payload),
         credentials: 'include',
       });
 
-      const result = await response.json();
+      let result;
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(`Server returned non-JSON response (${response.status})`);
+      }
 
       if (result.success) {
         show({
@@ -356,15 +393,15 @@ export default function UserRegistrationPage() {
             prev.map((u) =>
               u.id === editingUserId
                 ? {
-                    ...u,
-                    fullName: formData.fullName,
-                    email: formData.email || null,
-                    phoneNumber: formData.phoneNumber,
-                    gender: formData.gender,
-                    dateOfBirth: formData.dateOfBirth,
-                    otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
-                    updatedAt: new Date().toISOString(),
-                  }
+                  ...u,
+                  fullName: formData.fullName,
+                  email: formData.email || null,
+                  phoneNumber: formData.phoneNumber,
+                  gender: formData.gender,
+                  dateOfBirth: formData.dateOfBirth,
+                  otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+                  updatedAt: new Date().toISOString(),
+                }
                 : u
             )
           );
@@ -404,19 +441,47 @@ export default function UserRegistrationPage() {
     }
   };
 
-  const handleDelete = async (id: string, type: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDeleteClick = (id: string, type: string) => {
+    if (!id || id.includes('.') || id.length < 5) {
+      show({ title: 'Error', message: 'Cannot delete: invalid user ID.', duration: 4000 });
+      return;
+    }
+    setUserToDelete({ id, type });
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+
+    setIsDeleting(true);
+    const { id, type } = userToDelete;
+
     try {
-       const res = await fetch(`/api/admin/users/${id}?type=${type}`, { method: 'DELETE', credentials: 'include' });
-      const result = await res.json();
-      if (result.success) {
-        show({ title: 'Deleted', message: 'User removed.', duration: 3000 });
-        setUsers((prev) => prev.filter((u) => u.id !== id));
+      const res = await fetch(`/api/admin/users/${id}?type=${type}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include'
+      });
+
+      let result;
+      const contentType = res.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        result = await res.json();
       } else {
-        show({ title: 'Error', message: result.message || 'Failed to delete.', duration: 4000 });
+        throw new Error(`Server error (${res.status})`);
       }
-    } catch {
-      show({ title: 'Error', message: 'Network error during delete.', duration: 4000 });
+
+      if (result.success) {
+        show({ title: 'Deleted', message: 'User removed successfully.', duration: 3000 });
+        setUsers((prev) => prev.filter((u) => u.id !== id));
+        setUserToDelete(null);
+      } else {
+        show({ title: 'Error', message: result.message || 'Failed to delete user.', duration: 4000 });
+      }
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      show({ title: 'Error', message: error.message || 'Network error during delete.', duration: 4000 });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -500,9 +565,8 @@ export default function UserRegistrationPage() {
                         {paginatedUsers.map((user, index) => (
                           <tr
                             key={user.id}
-                            className={`transition ${
-                              index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                            } hover:bg-emerald-50`}
+                            className={`transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                              } hover:bg-emerald-50`}
                           >
                             <td className="border-b border-slate-100 px-4 py-3">
                               <div className="flex items-center gap-3">
@@ -555,7 +619,7 @@ export default function UserRegistrationPage() {
                               <div className="flex justify-center">
                                 <RowActions
                                   onEdit={() => handleEdit(user)}
-                                  onDelete={() => handleDelete(user.id, user.userType)}
+                                  onDelete={() => handleDeleteClick(user.id, user.userType)}
                                 />
                               </div>
                             </td>
@@ -583,13 +647,15 @@ export default function UserRegistrationPage() {
       </div>
 
       <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal}>
-        <div className="mx-auto flex min-h-[620px] w-full max-w-3xl flex-col rounded-[28px] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
+        <div className="mx-auto w-full max-w-3xl rounded border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">
-                {isEditMode ? 'Edit User' : 'Registration'}
+                {isEditMode ? 'Edit User' : 'Add User'}
               </h2>
-              <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>
+              {!isEditMode && (
+                <p className="mt-1 text-base text-slate-500">Step {step} of 3</p>
+              )}
             </div>
 
             <button
@@ -691,10 +757,10 @@ export default function UserRegistrationPage() {
                     <span className="flex-1 text-left">
                       {selectedDate
                         ? selectedDate.toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
                         : 'Select date'}
                     </span>
                   </button>
@@ -804,10 +870,10 @@ export default function UserRegistrationPage() {
                       <span className="font-medium text-slate-900">Date of birth:</span>{' '}
                       {formData.dateOfBirth
                         ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
                         : '—'}
                     </p>
                     <p>
@@ -848,25 +914,9 @@ export default function UserRegistrationPage() {
               </Button>
             )}
 
-            {step < 3 ? (
+            {isEditMode ? (
               <Button
-                className="rounded-full px-4 py-2 text-xs font-medium"
-                onClick={handleProceed}
-                disabled={
-                  isSubmitting ||
-                  (step === 1 &&
-                    (!formData.fullName ||
-                      !formData.email ||
-                      !formData.phoneNumber ||
-                      !formData.dateOfBirth)) ||
-                  (step === 2 && !isEditMode && !formData.password)
-                }
-              >
-                Proceed
-              </Button>
-            ) : (
-              <Button
-                className="rounded-full px-4 py-2 text-xs font-medium"
+                className="rounded-full px-8 py-2.5 text-sm font-medium"
                 onClick={handleSave}
                 disabled={
                   isSubmitting ||
@@ -876,9 +926,81 @@ export default function UserRegistrationPage() {
                   !formData.phoneNumber
                 }
               >
-                {isSubmitting ? 'Saving...' : 'Save'}
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
+            ) : (
+              <>
+                {step < 3 && (
+                  <Button
+                    className="rounded-full px-8 py-2.5 text-sm font-medium"
+                    onClick={handleProceed}
+                    disabled={
+                      authLoading ||
+                      !formData.fullName ||
+                      !formData.email ||
+                      !formData.phoneNumber ||
+                      (step === 2 && !formData.password)
+                    }
+                  >
+                    Next
+                  </Button>
+                )}
+                {step === 3 && (
+                  <Button
+                    className="rounded-full px-8 py-2.5 text-sm font-medium"
+                    onClick={handleSave}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Saving...' : 'Create User'}
+                  </Button>
+                )}
+              </>
             )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={!!userToDelete} onClose={() => !isDeleting && setUserToDelete(null)}>
+        <div className="mx-auto flex w-full max-w-md flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="flex items-start justify-between">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <Trash2 size={24} strokeWidth={1.5} />
+            </div>
+            <button
+              type="button"
+              onClick={() => !isDeleting && setUserToDelete(null)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              disabled={isDeleting}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold text-slate-900">Delete User</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Are you sure you want to delete this {userToDelete ? formatUserType(userToDelete.type as any).toLowerCase() : 'user'}?
+              This action cannot be undone and will permanently remove their data from the system.
+            </p>
+          </div>
+
+          <div className="mt-6 flex items-center justify-end gap-3">
+            <Button
+              variant="secondary"
+              className="rounded-full px-5 py-2 text-sm font-medium"
+              onClick={() => setUserToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="rounded-full bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700 ring-red-100"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete User'}
+            </Button>
           </div>
         </div>
       </Modal>

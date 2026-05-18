@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '../../../lib/env';
 import { ACCESS_TOKEN_COOKIE } from '../../../lib/session';
+import fs from 'fs';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -17,114 +20,78 @@ export async function GET(request: NextRequest) {
   const getItems = (obj: any): any[] => {
     if (Array.isArray(obj)) return obj;
     if (!obj) return [];
+    
+    // Check top-level or data-level arrays
     const data = obj.data || obj;
     if (Array.isArray(data)) return data;
-    const keys = ['users', 'items', 'patients', 'data'];
+    
+    // Check common nested keys
+    const keys = ['users', 'items', 'careGivers', 'serviceProviders', 'patients', 'data'];
     for (const key of keys) {
       if (Array.isArray(obj[key])) return obj[key];
+      if (obj.data && Array.isArray(obj.data[key])) return obj.data[key];
     }
+    
     return [];
   };
 
-  const fetchWithRetry = async (url: string) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
+  const safeFetch = async (urlPath: string) => {
     try {
-      let response = await fetch(url, {
+      console.log(`[API/PATIENTS] Fetching: ${urlPath}`);
+      const res = await fetch(`${env.API_BASE_URL}${urlPath}`, {
         method: 'GET',
         headers: authHeader,
-        signal: controller.signal,
         cache: 'no-store',
       });
-
-      clearTimeout(timeoutId);
-
-      // If we get a 403 Forbidden, try to bootstrap RBAC and retry once
-      if (response.status === 403) {
-        console.log(`[API/PATIENTS] 403 on ${url} — attempting auto-bootstrap...`);
-        try {
-          const bootstrapRes = await fetch(`${env.API_BASE_URL}/admin/bootstrap`, {
-            method: 'POST',
-            headers: authHeader,
-          });
-          
-          if (bootstrapRes.ok) {
-            response = await fetch(url, {
-              method: 'GET',
-              headers: authHeader,
-              cache: 'no-store',
-            });
-          }
-        } catch (bootstrapErr) {
-          console.error('[API/PATIENTS] Auto-bootstrap failed:', bootstrapErr);
-        }
+      if (!res.ok) {
+        console.warn(`[API/PATIENTS] ${urlPath} -> ${res.status}`);
+        const text = await res.text().catch(() => '');
+        console.warn(`[API/PATIENTS] ${urlPath} error text:`, text);
+        return [];
       }
-
-      return response;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
+      const json = await res.json().catch(() => null);
+      console.log(`[API/PATIENTS] ${urlPath} success, raw JSON:`, JSON.stringify(json).slice(0, 300));
+      return getItems(json);
+    } catch (err) {
+      console.error(`[API/PATIENTS] Failed to fetch ${urlPath}:`, err);
+      return [];
     }
   };
 
   try {
-    const backendUrl = `${env.API_BASE_URL}/cp-patient`;
-    let response = await fetchWithRetry(backendUrl);
+    const [directPatients, usersAll, adminUsers] = await Promise.all([
+      safeFetch('/cp-patient'),
+      safeFetch('/users'),
+      safeFetch('/admin/users'),
+    ]);
 
-    // If direct /cp-patient still fails with 403 for an admin, try fallback to admin user list
-    if (response.status === 403) {
-      console.log('[API/PATIENTS] /cp-patient forbidden. Trying fallback to admin user list...');
-      const [adminUsers, adminUserSingular] = await Promise.all([
-        fetch(`${env.API_BASE_URL}/admin/users`, { headers: authHeader, cache: 'no-store' }),
-        fetch(`${env.API_BASE_URL}/admin/user`, { headers: authHeader, cache: 'no-store' })
-      ]);
-
-      const processRes = async (res: Response) => {
-        if (!res.ok) return [];
-        const json = await res.json().catch(() => null);
-        return getItems(json);
-      };
-
-      const allUsers = [
-        ...(await processRes(adminUsers)),
-        ...(await processRes(adminUserSingular))
-      ];
-
-      // Filter for patients (CP_PATIENT, PATIENT user types)
-      const patients = allUsers.filter(u => {
-        const type = (u.userType || u.user?.userType || '').toUpperCase();
-        return type === 'CP_PATIENT' || type === 'PATIENT';
+    const tagType = (arr: any[], defaultType: string) =>
+      arr.map((u: any) => {
+        const userObj = u.user || u;
+        return { ...userObj, userType: userObj.userType || defaultType };
       });
 
-      console.log(`[API/PATIENTS] Fallback successful. Found ${patients.length} patients from admin list.`);
-      return NextResponse.json({ success: true, data: patients });
-    }
+    const allRaw = [
+      ...tagType(directPatients, 'CP_PATIENT'),
+      ...tagType(usersAll, 'CP_PATIENT'),
+      ...tagType(adminUsers, 'CP_PATIENT'),
+    ];
 
-    const contentType = response.headers.get('content-type');
-    let data: any;
-    
-    if (contentType?.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
-    
-    if (!response.ok) {
-      const message = (typeof data === 'object' && (data?.message || data?.error)) || 
-                      (typeof data === 'string' && data) || 
-                      'Backend error';
-      return NextResponse.json({ success: false, message }, { status: response.status });
-    }
+    const seen = new Set<string>();
+    const combined = allRaw.filter((u: any) => {
+      const id = u.id || u._id || u.slug;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      const type = (u.userType || '').toUpperCase();
+      return type === 'CP_PATIENT' || type === 'PATIENT';
+    });
 
-    const patients = data.data || data.patients || (Array.isArray(data) ? data : []);
-    return NextResponse.json({ success: true, data: patients });
+    return NextResponse.json({ success: true, data: combined });
   } catch (error: any) {
-    const isTimeout = error.name === 'AbortError' || error.name === 'TimeoutError';
     console.error('[API/PATIENTS] Error:', error);
     return NextResponse.json(
-      { success: false, message: isTimeout ? 'Backend request timed out' : 'Failed to reach backend' },
-      { status: isTimeout ? 504 : 502 }
+      { success: false, message: 'Failed to reach backend' },
+      { status: 502 }
     );
   }
 }
