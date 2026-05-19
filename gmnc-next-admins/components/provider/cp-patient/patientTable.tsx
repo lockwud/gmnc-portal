@@ -96,13 +96,14 @@ export default function CpPatientsPage() {
       if (result.success && Array.isArray(result.data)) {
         const mapped = result.data.map((p: any) => {
           const userObj = p.user || p;
+          const patientData = p;
           return {
-            slug: userObj.slug || userObj.id || userObj._id || '',
-            fullName: userObj.fullName || userObj.name || 'Unknown Patient',
-            gender: (userObj.gender?.toUpperCase() === 'MALE' ? 'MALE' : 'FEMALE') as 'MALE' | 'FEMALE',
-            dateOfBirth: userObj.dateOfBirth || new Date().toISOString(),
+            slug: userObj.slug || userObj.id || userObj._id || p.id || '',
+            fullName: userObj.fullName || userObj.name || p.fullName || 'Unknown Patient',
+            gender: ((userObj.gender || p.gender || '').toUpperCase() === 'MALE' ? 'MALE' : 'FEMALE') as 'MALE' | 'FEMALE',
+            dateOfBirth: userObj.dateOfBirth || p.dateOfBirth || new Date().toISOString(),
             caregiver: {
-              name: p.caregiver?.fullName || p.caregiver?.name || userObj.caregiver?.fullName || userObj.caregiver?.name || '—',
+              name: p.caregiver?.fullName || p.caregiver?.name || p.caregiver?.user?.fullName || userObj.caregiver?.fullName || userObj.caregiver?.name || '—',
             },
             latestAssessmentStatus: p.latestAssessmentStatus || userObj.latestAssessmentStatus || null,
             nextAppointmentDate: p.nextAppointmentDate || userObj.nextAppointmentDate || null,

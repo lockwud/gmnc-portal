@@ -72,33 +72,17 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${env.API_BASE_URL}/cp-patient`;
     let response = await fetchWithRetry(backendUrl);
 
-    // If direct /cp-patient still fails with 403 for an admin, try fallback to admin user list
+    // If direct /cp-patient still fails with 403 for an admin, try fallback to admin patients list
     if (response.status === 403) {
-      console.log('[API/PATIENTS] /cp-patient forbidden. Trying fallback to admin user list...');
-      const [adminUsers, adminUserSingular] = await Promise.all([
-        fetch(`${env.API_BASE_URL}/admin/users`, { headers: authHeader, cache: 'no-store' }),
-        fetch(`${env.API_BASE_URL}/admin/user`, { headers: authHeader, cache: 'no-store' })
-      ]);
+      console.log('[API/PATIENTS] /cp-patient forbidden. Trying fallback to /admin/patients...');
+      const adminPatientsRes = await fetch(`${env.API_BASE_URL}/admin/patients`, { headers: authHeader, cache: 'no-store' });
 
-      const processRes = async (res: Response) => {
-        if (!res.ok) return [];
-        const json = await res.json().catch(() => null);
-        return getItems(json);
-      };
-
-      const allUsers = [
-        ...(await processRes(adminUsers)),
-        ...(await processRes(adminUserSingular))
-      ];
-
-      // Filter for patients (CP_PATIENT, PATIENT user types)
-      const patients = allUsers.filter(u => {
-        const type = (u.userType || u.user?.userType || '').toUpperCase();
-        return type === 'CP_PATIENT' || type === 'PATIENT';
-      });
-
-      console.log(`[API/PATIENTS] Fallback successful. Found ${patients.length} patients from admin list.`);
-      return NextResponse.json({ success: true, data: patients });
+      if (adminPatientsRes.ok) {
+        const adminData = await adminPatientsRes.json().catch(() => null);
+        const fallbackPatients = getItems(adminData);
+        console.log(`[API/PATIENTS] Fallback successful. Found ${fallbackPatients.length} patients from admin list.`);
+        return NextResponse.json({ success: true, data: fallbackPatients });
+      }
     }
 
     const contentType = response.headers.get('content-type');
@@ -118,6 +102,19 @@ export async function GET(request: NextRequest) {
     }
 
     const patients = data.data || data.patients || (Array.isArray(data) ? data : []);
+    
+    if (patients.length === 0) {
+      console.log('[API/PATIENTS] /cp-patient returned empty data. Trying fallback to /admin/patients...');
+      const adminPatientsRes = await fetch(`${env.API_BASE_URL}/admin/patients`, { headers: authHeader, cache: 'no-store' });
+
+      if (adminPatientsRes.ok) {
+        const adminData = await adminPatientsRes.json().catch(() => null);
+        const fallbackPatients = getItems(adminData);
+        console.log(`[API/PATIENTS] Fallback successful. Found ${fallbackPatients.length} patients from admin list.`);
+        return NextResponse.json({ success: true, data: fallbackPatients });
+      }
+    }
+
     return NextResponse.json({ success: true, data: patients });
   } catch (error: any) {
     const isTimeout = error.name === 'AbortError' || error.name === 'TimeoutError';
