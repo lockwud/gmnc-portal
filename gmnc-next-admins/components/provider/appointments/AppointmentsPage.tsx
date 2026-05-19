@@ -10,231 +10,34 @@ import {
   Plus,
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
-import type { Appointment } from './types';
+import { getAppointments, createAppointment } from '@/lib/api/appointments';
+import { getPatients } from '@/lib/api/patients';
+import { getAdminUsers } from '@/lib/api/users';
+import type { Appointment, AppointmentStatus } from './types';
 
-// Dummy data
-const DUMMY_APPOINTMENTS = [
-  {
-    id: '1',
-    patientId: 'p1',
-    providerId: 'sp1',
-    appointmentDate: new Date(2026, 4, 17, 9, 0),
-    reasonText: 'Regular checkup',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p1', fullName: 'Robert Wilson' },
-    provider: {
-      id: 'sp1',
-      profession: 'GENERAL_PAEDIATRICIAN',
-      facilityName: 'Heart Health Clinic',
-      facilityAddress: '123 Medical St, NY',
-      user: {
-        id: 'u1',
-        fullName: 'Dr. Sarah Johnson',
-        phoneNumber: '+1-555-0101',
-        email: 'sarah.johnson@clinic.com',
-      },
+type Patient = { id: string; fullName: string };
+type Provider = { id: string; fullName: string; profession: string; facilityName: string };
+
+function mapApiAppointment(api: any): Appointment {
+  return {
+    id: api.id,
+    patientId: api.patientId,
+    providerId: api.providerId,
+    appointmentDate: api.appointmentDate ? new Date(api.appointmentDate) : new Date(),
+    reasonText: api.reasonText,
+    reasonAudio: api.reasonAudio,
+    status: api.status as AppointmentStatus,
+    patient: api.patient || { id: api.patientId, fullName: 'Unknown Patient' },
+    provider: api.provider || {
+      id: api.providerId,
+      profession: 'UNKNOWN',
+      facilityName: 'Unknown Facility',
+      facilityAddress: '',
+      user: { id: api.providerId, fullName: 'Unknown Provider', phoneNumber: '', email: '' },
     },
-  },
-  {
-    id: '2',
-    patientId: 'p2',
-    providerId: 'sp2',
-    appointmentDate: new Date(2026, 4, 17, 10, 30),
-    reasonText: 'Follow-up consultation',
-    reasonAudio: null,
-    status: 'PENDING',
-    patient: { id: 'p2', fullName: 'Jane Smith' },
-    provider: {
-      id: 'sp2',
-      profession: 'DEVELOPMENTAL_PAEDIATRICIAN',
-      facilityName: 'City Medical Center',
-      facilityAddress: '456 Health Ave, NY',
-      user: {
-        id: 'u2',
-        fullName: 'Dr. Michael Brown',
-        phoneNumber: '+1-555-0102',
-        email: 'michael.brown@clinic.com',
-      },
-    },
-  },
-  {
-    id: '3',
-    patientId: 'p3',
-    providerId: 'sp3',
-    appointmentDate: new Date(2026, 4, 18, 14, 0),
-    reasonText: 'Physical therapy session',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p3', fullName: 'John Doe' },
-    provider: {
-      id: 'sp3',
-      profession: 'PAEDIATRIC_NEUROLOGIST',
-      facilityName: 'Wellness Center',
-      facilityAddress: '789 Recovery Ln, NY',
-      user: {
-        id: 'u3',
-        fullName: 'Dr. Emily Davis',
-        phoneNumber: '+1-555-0103',
-        email: 'emily.davis@wellness.com',
-      },
-    },
-  },
-  {
-    id: '4',
-    patientId: 'p4',
-    providerId: 'sp1',
-    appointmentDate: new Date(2026, 4, 19, 11, 0),
-    reasonText: 'ECG test',
-    reasonAudio: null,
-    status: 'RESCHEDULED',
-    patient: { id: 'p4', fullName: 'Maria Garcia' },
-    provider: {
-      id: 'sp1',
-      profession: 'GENERAL_PAEDIATRICIAN',
-      facilityName: 'Heart Health Clinic',
-      facilityAddress: '123 Medical St, NY',
-      user: {
-        id: 'u1',
-        fullName: 'Dr. Sarah Johnson',
-        phoneNumber: '+1-555-0101',
-        email: 'sarah.johnson@clinic.com',
-      },
-    },
-  },
-  {
-    id: '5',
-    patientId: 'p5',
-    providerId: 'sp2',
-    appointmentDate: new Date(2026, 4, 20, 15, 30),
-    reasonText: 'Blood work',
-    reasonAudio: null,
-    status: 'PENDING',
-    patient: { id: 'p5', fullName: 'David Lee' },
-    provider: {
-      id: 'sp2',
-      profession: 'DEVELOPMENTAL_PAEDIATRICIAN',
-      facilityName: 'City Medical Center',
-      facilityAddress: '456 Health Ave, NY',
-      user: {
-        id: 'u2',
-        fullName: 'Dr. Michael Brown',
-        phoneNumber: '+1-555-0102',
-        email: 'michael.brown@clinic.com',
-      },
-    },
-  },
-  {
-    id: '6',
-    patientId: 'p1',
-    providerId: 'sp3',
-    appointmentDate: new Date(2026, 4, 21, 9, 30),
-    reasonText: 'Orthopedic consultation',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p1', fullName: 'Robert Wilson' },
-    provider: {
-      id: 'sp3',
-      profession: 'REHABILITATION_PAEDIATRICIAN',
-      facilityName: 'Bone & Joint Center',
-      facilityAddress: '321 Surgical Way, NY',
-      user: {
-        id: 'u4',
-        fullName: 'Dr. James Wilson',
-        phoneNumber: '+1-555-0104',
-        email: 'james.wilson@orthopedic.com',
-      },
-    },
-  },
-  {
-    id: '7',
-    patientId: 'p6',
-    providerId: 'sp4',
-    appointmentDate: new Date(2026, 4, 22, 13, 0),
-    reasonText: 'Dental cleaning',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p6', fullName: 'Lisa Anderson' },
-    provider: {
-      id: 'sp4',
-      profession: 'SPEECH_THERAPIST',
-      facilityName: 'Smile Dental',
-      facilityAddress: '654 Tooth St, NY',
-      user: {
-        id: 'u5',
-        fullName: 'Dr. Patricia Moore',
-        phoneNumber: '+1-555-0105',
-        email: 'patricia.moore@dental.com',
-      },
-    },
-  },
-  {
-    id: '8',
-    patientId: 'p2',
-    providerId: 'sp3',
-    appointmentDate: new Date(2026, 4, 23, 10, 0),
-    reasonText: 'Rehab session',
-    reasonAudio: null,
-    status: 'PENDING',
-    patient: { id: 'p2', fullName: 'Jane Smith' },
-    provider: {
-      id: 'sp3',
-      profession: 'OCCUPATIONAL_THERAPIST',
-      facilityName: 'Wellness Center',
-      facilityAddress: '789 Recovery Ln, NY',
-      user: {
-        id: 'u3',
-        fullName: 'Dr. Emily Davis',
-        phoneNumber: '+1-555-0103',
-        email: 'emily.davis@wellness.com',
-      },
-    },
-  },
-  {
-    id: '9',
-    patientId: 'p3',
-    providerId: 'sp1',
-    appointmentDate: new Date(2026, 4, 24, 16, 0),
-    reasonText: 'Heart rate monitoring',
-    reasonAudio: null,
-    status: 'APPROVED',
-    patient: { id: 'p3', fullName: 'John Doe' },
-    provider: {
-      id: 'sp1',
-      profession: 'CLINICAL_PSYCHOLOGIST',
-      facilityName: 'Heart Health Clinic',
-      facilityAddress: '123 Medical St, NY',
-      user: {
-        id: 'u1',
-        fullName: 'Dr. Sarah Johnson',
-        phoneNumber: '+1-555-0101',
-        email: 'sarah.johnson@clinic.com',
-      },
-    },
-  },
-  {
-    id: '10',
-    patientId: 'p4',
-    providerId: 'sp2',
-    appointmentDate: new Date(2026, 4, 25, 11, 30),
-    reasonText: 'General checkup',
-    reasonAudio: null,
-    status: 'RESCHEDULED',
-    patient: { id: 'p4', fullName: 'Maria Garcia' },
-    provider: {
-      id: 'sp2',
-      profession: 'DIETITIAN',
-      facilityName: 'City Medical Center',
-      facilityAddress: '456 Health Ave, NY',
-      user: {
-        id: 'u2',
-        fullName: 'Dr. Michael Brown',
-        phoneNumber: '+1-555-0102',
-        email: 'michael.brown@clinic.com',
-      },
-    },
-  },
-] satisfies Appointment[];
+    notes: api.notes,
+  };
+}
 
 const PROVIDER_COLUMNS = [
   'GENERAL_PAEDIATRICIAN',
@@ -580,9 +383,13 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
 
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Appointment created:', formData);
+      const appointmentDate = `${formData.appointmentDate}T${formData.appointmentTime}:00`;
+      await createAppointment({
+        patientId: formData.patientId,
+        providerId: formData.providerId,
+        appointmentDate,
+        reasonText: formData.reasonText,
+      });
       onSuccess();
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -613,54 +420,47 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
     onClose();
   };
 
-  const DUMMY_PATIENTS = [
-    { id: 'p1', fullName: 'Robert Wilson' },
-    { id: 'p2', fullName: 'Jane Smith' },
-    { id: 'p3', fullName: 'John Doe' },
-    { id: 'p4', fullName: 'Maria Garcia' },
-    { id: 'p5', fullName: 'David Lee' },
-    { id: 'p6', fullName: 'Lisa Anderson' },
-  ];
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
 
-  const DUMMY_PROVIDERS = [
-    {
-      id: 'sp1',
-      fullName: 'Dr. Sarah Johnson',
-      profession: 'GENERAL_PAEDIATRICIAN',
-      facilityName: 'Heart Health Clinic',
-    },
-    {
-      id: 'sp2',
-      fullName: 'Dr. Michael Brown',
-      profession: 'DEVELOPMENTAL_PAEDIATRICIAN',
-      facilityName: 'City Medical Center',
-    },
-    {
-      id: 'sp3',
-      fullName: 'Dr. Emily Davis',
-      profession: 'PAEDIATRIC_NEUROLOGIST',
-      facilityName: 'Wellness Center',
-    },
-    {
-      id: 'sp4',
-      fullName: 'Dr. James Wilson',
-      profession: 'REHABILITATION_PAEDIATRICIAN',
-      facilityName: 'Bone & Joint Center',
-    },
-    {
-      id: 'sp5',
-      fullName: 'Dr. Patricia Moore',
-      profession: 'SPEECH_THERAPIST',
-      facilityName: 'Smile Dental',
-    },
-  ];
+  useEffect(() => {
+    async function loadData() {
+      if (!isOpen) return;
+      setLoadingData(true);
+      try {
+        const patientsData = await getPatients();
+        const mappedPatients = (patientsData.data || []).map((p: any) => ({
+          id: p.id || p.patientId,
+          fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown',
+        }));
+        setPatients(mappedPatients);
 
-  const patientOptions = DUMMY_PATIENTS.map((patient) => ({
+        const usersData = await getAdminUsers();
+        const mappedProviders = (usersData.data || [])
+          .filter((u: any) => u.userType === 'SERVICE_PROVIDER')
+          .map((u: any) => ({
+            id: u.id,
+            fullName: u.fullName || 'Unknown',
+            profession: u.profession || 'UNKNOWN',
+            facilityName: u.facilityName || 'Unknown Facility',
+          }));
+        setProviders(mappedProviders);
+      } catch (err) {
+        console.error('Failed to load patients/providers:', err);
+      } finally {
+        setLoadingData(false);
+      }
+    }
+    loadData();
+  }, [isOpen]);
+
+  const patientOptions = patients.map((patient) => ({
     value: patient.id,
     label: patient.fullName,
   }));
 
-  const providerOptions = DUMMY_PROVIDERS.map((provider) => ({
+  const providerOptions = providers.map((provider) => ({
     value: provider.id,
     label: `${provider.fullName} - ${getProfessionLabel(provider.profession)}`,
   }));
@@ -834,10 +634,37 @@ export default function AppointmentAdminPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAppointments() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getAppointments();
+        if (!active) return;
+        const mapped = (data.appointments || []).map(mapApiAppointment);
+        setAppointments(mapped);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Failed to load appointments');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadAppointments();
+    return () => { active = false; };
+  }, []);
 
   // Filter appointments based on selected status
   const filteredAppointments = useMemo(() => {
-    return DUMMY_APPOINTMENTS.filter(appointment => {
+    if (error) return [];
+    return appointments.filter(appointment => {
       // Status filter
       if (filters.status !== 'all' && appointment.status !== filters.status) {
         return false;
@@ -853,7 +680,7 @@ export default function AppointmentAdminPage() {
       }
       return true;
     });
-  }, [filters, viewMode, selectedDate]);
+  }, [appointments, filters, viewMode, selectedDate, error]);
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
@@ -869,8 +696,22 @@ export default function AppointmentAdminPage() {
 
   const handleSuccess = () => {
     setIsModalOpen(false);
-    // In a real app, you would refetch data here
+    void loadAppointments();
   };
+
+  async function loadAppointments() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAppointments();
+      const mapped = (data.appointments || []).map(mapApiAppointment);
+      setAppointments(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load appointments');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handleBoardWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     const target = event.target;
@@ -1069,15 +910,19 @@ export default function AppointmentAdminPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {filteredAppointments.length === 0 ? (
-                <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-400">
-                  No appointments found
-                </div>
-              ) : (
-                filteredAppointments.map((appointment) => (
-                  <AppointmentCard key={appointment.id} appointment={appointment} />
-                ))
-              )}
+{error ? (
+              <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-600">
+                {error}
+              </div>
+            ) : filteredAppointments.length === 0 ? (
+              <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-400">
+                No appointments found
+              </div>
+            ) : (
+              filteredAppointments.map((appointment) => (
+                <AppointmentCard key={appointment.id} appointment={appointment} />
+              ))
+            )}
             </div>
           </div>
         </div>
