@@ -190,3 +190,62 @@ export type UserAssignmentRecord = {
 };
 
 export type RolePermissionMap = Record<string, string[]>;
+
+// appointments
+
+export type AppointmentStatus = 'PENDING' | 'APPROVED' | 'RESCHEDULED' | 'CANCELLED';
+
+export type AppointmentListItem = {
+  id: string;
+  patientId: string;
+  providerId: string;
+  appointmentDate: string;
+  reasonText?: string | null;
+  reasonAudio?: string | null;
+  status: AppointmentStatus;
+  patient?: {
+    id: string;
+    fullName: string;
+    phoneNumber?: string;
+  };
+  provider?: {
+    id: string;
+    profession: string;
+    facilityName: string;
+    facilityAddress?: string;
+    user?: {
+      id: string;
+      fullName: string;
+      phoneNumber?: string;
+      email?: string;
+    };
+  };
+};
+
+export type AppointmentListResponse = {
+  appointments: AppointmentListItem[];
+  total: number;
+  page?: number;
+  pageSize?: number;
+};
+
+export type CreateAppointmentPayload = {
+  patientId: string;
+  providerId: string;
+  appointmentDate: string;
+  reasonText?: string;
+  reasonAudio?: string | null;
+  notes?: string | null;
+};
+
+export type CreateAppointmentResponse = {
+  id: string;
+  patientId: string;
+  providerId: string;
+  appointmentDate: string;
+  reasonText?: string | null;
+  reasonAudio?: string | null;
+  status: AppointmentStatus;
+  createdAt: string;
+  updatedAt: string;
+};
