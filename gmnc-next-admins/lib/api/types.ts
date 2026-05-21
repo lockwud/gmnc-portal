@@ -249,3 +249,25 @@ export type CreateAppointmentResponse = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type AppointmentSettingsType = {
+  id?: string;
+  allowPatientBooking: boolean;
+  minAppointmentNotice: number;
+  defaultDuration: number;
+  bufferTime: number;
+  maxDailyAppointments: number;
+  enableReminders: boolean;
+  reminderLeadTime: number;
+  requireConfirmation: boolean;
+  enableWaitlist: boolean;
+  workingHours?: WorkingHoursItem[];
+  slotInterval?: number;
+};
+
+export type WorkingHoursItem = {
+  day: string;
+  enabled: boolean;
+  start: string;
+  end: string;
+};

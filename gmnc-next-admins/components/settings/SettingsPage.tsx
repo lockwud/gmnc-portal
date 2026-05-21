@@ -47,7 +47,7 @@ const sections: Section[] = [
       {
         id: 'user-management',
         label: 'Profiles',
-        href: '/settings/users',
+        href: '/profile',
         icon: 'groups',
       },
      
