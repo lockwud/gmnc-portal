@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 import {
   ACCESS_TOKEN_COOKIE,
@@ -8,19 +8,23 @@ import {
   sessionCookieOptions,
 } from '@/lib/session';
 
-/** Cookie options that definitively expire a cookie. */
 const expiredCookieOptions = {
   ...sessionCookieOptions,
   maxAge: 0,
   expires: new Date(0),
 } as const;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
-  const sessionUser = deserializeSessionUser(cookieStore.get(SESSION_COOKIE)?.value);
+  const cookieAccessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+  const cookieSessionUser = deserializeSessionUser(cookieStore.get(SESSION_COOKIE)?.value);
 
-  // Both cookies must be present and valid
+  const authHeader = request.headers.get('Authorization');
+  const headerAccessToken = authHeader?.replace(/^Bearer\s+/i, '');
+
+  const accessToken = cookieAccessToken ?? headerAccessToken;
+  const sessionUser = cookieSessionUser;
+
   if (!sessionUser || !accessToken) {
     const res = NextResponse.json(
       { user: null, success: false },
@@ -31,8 +35,6 @@ export async function GET() {
     return res;
   }
 
-  // Return the session user from the cookie — the access token is attached
-  // to all subsequent backend API calls by the individual route handlers.
   return NextResponse.json({
     user: sessionUser,
     accessToken,

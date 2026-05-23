@@ -36,7 +36,7 @@ export const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   phoneNumber: z.string().trim().min(1, 'Phone number is required'),
   gender: genderSchema,
-  userType: userTypeSchema,
+  role: userTypeSchema,
   dateOfBirth: z.string().optional().nullable().describe('ISO date string (YYYY-MM-DD)'),
   profileImage: z.string().optional().nullable(),
   address: z.string().optional().nullable(),

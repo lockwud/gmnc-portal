@@ -131,15 +131,15 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
               type="button"
               style={{ color: activeBg, borderColor: '#e6e9f2', fontWeight: 600 }}
             >
-              <span className="text-sm">{user?.name ? user.name.substring(0, 2).toUpperCase() : 'MA'}</span>
+              <span className="text-sm">{user?.name ? user.name.substring(0, 2).toUpperCase() : ''}</span>
             </button>
 
             {userOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg z-40 border">
                 <div className="p-3 overflow-hidden">
-                  <p className="font-semibold text-sm truncate" title={user?.name || 'Marian Augben Nyarko'}>{user?.name || 'Marian Augben Nyarko'}</p>
-                  <p className="text-xs text-gray-500 capitalize">{selectedRole || 'Super Tester'}</p>
-                  <p className="text-xs text-gray-500 mt-1 truncate" title={user?.email || 'priscilla@example.com'}>{user?.email || 'priscilla@example.com'}</p>
+                  <p className="font-semibold text-sm truncate" title={user?.name}>{user?.name || 'Account'}</p>
+                  <p className="text-xs text-gray-500 capitalize">{selectedRole || 'User'}</p>
+                  <p className="text-xs text-gray-500 mt-1 truncate" title={user?.email}>{user?.email || ''}</p>
                 </div>
 
                 <div className="border-t">

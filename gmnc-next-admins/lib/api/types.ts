@@ -19,7 +19,7 @@ export type RegisterRequest = {
   password: string;
   phoneNumber: string;
   gender: 'MALE' | 'FEMALE';
-  userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+  role: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
   dateOfBirth?: string | null;
   profileImage?: string | null;
   address?: string | null;
@@ -270,4 +270,75 @@ export type WorkingHoursItem = {
   enabled: boolean;
   start: string;
   end: string;
+};
+
+export type TelehealthSettingsType = {
+  id?: string;
+  enableTelehealth: boolean;
+  defaultProviderMinutes: number;
+  maxConcurrentSessions: number;
+  recordingEnabled: boolean;
+  waitingRoomEnabled: boolean;
+  requireApproval: boolean;
+  sessionTimeout: number;
+  connectTimeout: number;
+};
+
+export type TelehealthRoomStatus = 'scheduled' | 'live' | 'completed' | 'canceled';
+
+export type TelehealthRoomType = {
+  id: string;
+  title?: string;
+  description?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  status: TelehealthRoomStatus;
+  maxParticipants: number;
+  externalMeetingId?: string;
+  joinUrl?: string;
+  isRecordingEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NotificationType = 'info' | 'warning' | 'success' | 'error';
+
+export type NotificationStatus = 'unread' | 'read' | 'archived';
+
+export type NotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  priority: NotificationType;
+  status: NotificationStatus;
+  readAt?: string | null;
+  archivedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NotificationListResponse = {
+  notifications: NotificationItem[];
+  total: number;
+  page?: number;
+  pageSize?: number;
+};
+
+export type PushTokenRegisterPayload = {
+  token: string;
+  deviceType?: string;
+  deviceId?: string;
+};
+
+export type ResourceType = {
+  id: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  type?: string;
+  url?: string;
+  fileUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };

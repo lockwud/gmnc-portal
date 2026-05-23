@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
 
     return [
       {
+        source: '/resource/:path*',
+        destination: `${apiBaseUrl}/resource/:path*`,
+      },
+      {
         source: '/assessment/:path*',
         destination: `${apiBaseUrl}/assessment/:path*`,
       },
@@ -32,6 +36,18 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/schedule-appointment/:path*',
+        destination: `${apiBaseUrl}/schedule-appointment/:path*`,
+      },
+      {
+        source: '/api/settings/:path*',
+        destination: `${apiBaseUrl}/settings/:path*`,
+      },
+      {
+        source: '/api/telehealth/:path*',
+        destination: `${apiBaseUrl}/telehealth/:path*`,
+      },
+      {
+        source: '/api/appointment/:path*',
         destination: `${apiBaseUrl}/schedule-appointment/:path*`,
       },
     ];

@@ -15,12 +15,12 @@ export type PatientItem = {
   caregiverName?: string;
 };
 
-export async function getPatients(): Promise<{ data: PatientItem[] }> {
+export async function getPatients(token?: string | null): Promise<{ data: PatientItem[] }> {
   const res = await apiGet<{
     status: boolean;
     message?: string;
     data: PatientItem[];
-  }>(`/api/patients`);
+  }>('/api/patients', token);
 
   return res;
 }

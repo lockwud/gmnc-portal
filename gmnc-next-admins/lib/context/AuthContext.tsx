@@ -32,7 +32,7 @@ interface AuthContextType {
     password: string;
     phoneNumber: string;
     gender: 'MALE' | 'FEMALE';
-    userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+    role: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
     dateOfBirth?: string;
     profileImage?: string;
     address?: string;
@@ -91,6 +91,7 @@ function clearAuth() {
   try {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('gmnc_selected_role');
     const keysToRemove = Object.keys(localStorage).filter((k) => k.startsWith('gmnc_'));
     keysToRemove.forEach((k) => localStorage.removeItem(k));
     const sessionKeysToRemove = Object.keys(sessionStorage).filter((k) =>
@@ -129,10 +130,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
      async function hydrateAuth() {
        try {
+         const storedToken = localStorage.getItem('token') ?? '';
          const response = await fetch('/api/auth/me', {
            method: 'GET',
            cache: 'no-store',
            credentials: 'include',
+           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : undefined,
          });
 
         if (!response.ok) {
@@ -159,7 +162,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(accessToken);
         setSelectedRoleState(resolveSelectedRole(normalisedUser, storedRole));
 
-        // Keep localStorage in sync so child pages can read from it
         persistAuth(normalisedUser, accessToken);
       } catch {
         if (isMounted) {
@@ -239,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string;
     phoneNumber: string;
     gender: 'MALE' | 'FEMALE';
-    userType: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
+    role: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
     profileImage?: string;
     address?: string;
     digitalAddress?: string;

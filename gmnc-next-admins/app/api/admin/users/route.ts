@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const targetType = body.userType || 'SERVICE_PROVIDER';
+    const targetType = body.role || body.userType || 'SERVICE_PROVIDER';
     
     // Probed endpoints: 
     // - /auth/register (400 - Exists) 

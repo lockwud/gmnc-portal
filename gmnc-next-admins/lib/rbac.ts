@@ -48,6 +48,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   admin: [
     'appointment.read',
     'appointment.write',
+    'telehealth.start',
     'system.manage',
     'support.read',
     'caregiver.read',

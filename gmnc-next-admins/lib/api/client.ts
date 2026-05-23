@@ -1,5 +1,7 @@
 import { env } from '@/lib/env';
 
+const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
+
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -29,7 +31,7 @@ export type ApiClientResponse<T> = {
 
 export async function apiClient<T>(
   path: string,
-  options: RequestOptions = {},
+  options: RequestOptions & { skipJsonStringify?: boolean } = {},
 ): Promise<ApiClientResponse<T>> {
   const {
     method = 'GET',
@@ -38,18 +40,19 @@ export async function apiClient<T>(
     headers,
     cache = 'no-store',
     timeoutMs = 15000,
+    skipJsonStringify = false,
   } = options;
 
   let response: Response;
   try {
-    response = await fetch(`${env.API_BASE_URL}${path}`, {
+    response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        ...(skipJsonStringify ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: skipJsonStringify ? body as BodyInit : body ? JSON.stringify(body) : undefined,
       cache,
       signal: AbortSignal.timeout(timeoutMs),
     });
