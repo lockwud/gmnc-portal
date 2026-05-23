@@ -1,4 +1,4 @@
-import { AppointmentSettingsType, WorkingHoursItem } from './types';
+import { AppointmentSettingsType, TelehealthSettingsType } from './types';
 
 export const DEFAULT_SETTINGS: AppointmentSettingsType = {
   allowPatientBooking: true,
@@ -22,6 +22,17 @@ export const DEFAULT_SETTINGS: AppointmentSettingsType = {
   ],
 };
 
+export const DEFAULT_TELEHEALTH_SETTINGS: TelehealthSettingsType = {
+  enableTelehealth: true,
+  defaultProviderMinutes: 30,
+  maxConcurrentSessions: 5,
+  recordingEnabled: false,
+  waitingRoomEnabled: true,
+  requireApproval: false,
+  sessionTimeout: 30,
+  connectTimeout: 10,
+};
+
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);
 
@@ -36,12 +47,21 @@ async function parseJson<T>(res: Response): Promise<T> {
   return json as T;
 }
 
-async function apiGet<T>(path: string): Promise<T> {
+function getToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token') || localStorage.getItem('gmnc_token');
+  }
+  return null;
+}
+
+async function apiGet<T>(path: string, token?: string | null): Promise<T> {
+  const authToken = token ?? getToken();
   const res = await fetch(path, {
     method: 'GET',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
     cache: 'no-store',
   });
@@ -49,12 +69,14 @@ async function apiGet<T>(path: string): Promise<T> {
   return parseJson<T>(res);
 }
 
-async function apiPut<T>(path: string, body: unknown): Promise<T> {
+async function apiPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+  const authToken = token ?? getToken();
   const res = await fetch(path, {
     method: 'PUT',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
     body: JSON.stringify(body),
   });
@@ -62,13 +84,13 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return parseJson<T>(res);
 }
 
-export async function getAppointmentSettings(): Promise<AppointmentSettingsType> {
+export async function getAppointmentSettings(token?: string | null): Promise<AppointmentSettingsType> {
   try {
     const res = await apiGet<{
       status: boolean;
       message?: string;
       data: Partial<AppointmentSettingsType>;
-    }>('/api/settings/appointments');
+    }>('/api/settings/appointments', token);
 
     return { ...DEFAULT_SETTINGS, ...res.data };
   } catch {
@@ -77,13 +99,41 @@ export async function getAppointmentSettings(): Promise<AppointmentSettingsType>
 }
 
 export async function updateAppointmentSettings(
-  settings: AppointmentSettingsType
+  settings: AppointmentSettingsType,
+  token?: string | null
 ): Promise<AppointmentSettingsType> {
   const res = await apiPut<{
     status: boolean;
     message?: string;
     data: AppointmentSettingsType;
-  }>('/api/settings/appointments', settings);
+  }>('/api/settings/appointments', settings, token);
+
+  return res.data;
+}
+
+export async function getTelehealthSettings(token?: string | null): Promise<TelehealthSettingsType> {
+  try {
+    const res = await apiGet<{
+      status: boolean;
+      message?: string;
+      data: Partial<TelehealthSettingsType>;
+    }>('/api/settings/telehealth', token);
+
+    return { ...DEFAULT_TELEHEALTH_SETTINGS, ...res.data } as TelehealthSettingsType;
+  } catch {
+    return DEFAULT_TELEHEALTH_SETTINGS;
+  }
+}
+
+export async function updateTelehealthSettings(
+  settings: TelehealthSettingsType,
+  token?: string | null
+): Promise<TelehealthSettingsType> {
+  const res = await apiPut<{
+    status: boolean;
+    message?: string;
+    data: TelehealthSettingsType;
+  }>('/api/settings/telehealth', settings, token);
 
   return res.data;
 }

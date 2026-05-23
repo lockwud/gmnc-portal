@@ -13,6 +13,7 @@ import Modal from '@/components/ui/Modal';
 import { getAppointments, createAppointment } from '@/lib/api/appointments';
 import { getPatients } from '@/lib/api/patients';
 import { getAdminUsers } from '@/lib/api/users';
+import { useAuth } from '@/lib/context/AuthContext';
 import type { Appointment, AppointmentStatus } from './types';
 
 type Patient = { id: string; fullName: string };
@@ -340,7 +341,7 @@ function X({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: num
 }
 
 // Simplified modal for creating appointments (similar to user registration modal)
-function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) {
+function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen: boolean; onClose: () => void; onSuccess: () => void; token: string | null }) {
   const [openDropdown, setOpenDropdown] = useState<'patient' | 'provider' | null>(null);
   const [formData, setFormData] = useState({
     patientId: '',
@@ -381,6 +382,10 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
       return;
     }
 
+    if (!token) {
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const appointmentDate = `${formData.appointmentDate}T${formData.appointmentTime}:00`;
@@ -389,7 +394,7 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
         providerId: formData.providerId,
         appointmentDate,
         reasonText: formData.reasonText,
-      });
+      }, token);
       onSuccess();
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -426,17 +431,17 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
 
   useEffect(() => {
     async function loadData() {
-      if (!isOpen) return;
+      if (!isOpen || !token) return;
       setLoadingData(true);
       try {
-        const patientsData = await getPatients();
+        const patientsData = await getPatients(token);
         const mappedPatients = (patientsData.data || []).map((p: any) => ({
           id: p.id || p.patientId,
           fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown',
         }));
         setPatients(mappedPatients);
 
-        const usersData = await getAdminUsers();
+        const usersData = await getAdminUsers(token);
         const mappedProviders = (usersData.data || [])
           .filter((u: any) => u.userType === 'SERVICE_PROVIDER')
           .map((u: any) => ({
@@ -453,7 +458,7 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
       }
     }
     loadData();
-  }, [isOpen]);
+  }, [isOpen, token]);
 
   const patientOptions = patients.map((patient) => ({
     value: patient.id,
@@ -486,7 +491,7 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
           </button>
         </div>
 
-        <div className="flex-1">
+<div className="flex-1">
           <form onSubmit={handleSubmit} className="mt-8 flex h-full flex-col">
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-3 md:col-span-2">
@@ -498,49 +503,49 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
                 </div>
               </div>
 
-            {/* Patient Selection */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-slate-700">Patient</label>
-              <SmallDropdown
-                value={formData.patientId}
-                options={patientOptions}
-                onChange={(value) => {
-                  setFormData((prev) => ({ ...prev, patientId: value }));
-                  setErrors((prev) => ({ ...prev, patientId: '' }));
-                }}
-                ariaLabel="Select patient"
-                placeholder="Select a patient"
-                open={openDropdown === 'patient'}
-                onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'patient' : null)}
-                pageSize={4}
-              />
-              {errors.patientId && (
-                <p className="mt-1 text-xs text-red-600">{errors.patientId}</p>
-              )}
-            </div>
+              {/* Patient Selection */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700">Patient</label>
+                <SmallDropdown
+                  value={formData.patientId}
+                  options={patientOptions}
+                  onChange={(value) => {
+                    setFormData((prev) => ({ ...prev, patientId: value }));
+                    setErrors((prev) => ({ ...prev, patientId: '' }));
+                  }}
+                  ariaLabel="Select patient"
+                  placeholder="Select a patient"
+                  open={openDropdown === 'patient'}
+                  onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'patient' : null)}
+                  pageSize={4}
+                />
+                {errors.patientId && (
+                  <p className="mt-1 text-xs text-red-600">{errors.patientId}</p>
+                )}
+              </div>
 
-            {/* Provider Selection */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-slate-700">Provider</label>
-              <SmallDropdown
-                value={formData.providerId}
-                options={providerOptions}
-                onChange={(value) => {
-                  setFormData((prev) => ({ ...prev, providerId: value }));
-                  setErrors((prev) => ({ ...prev, providerId: '' }));
-                }}
-                ariaLabel="Select provider"
-                placeholder="Select a provider"
-                open={openDropdown === 'provider'}
-                onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'provider' : null)}
-                pageSize={4}
-              />
-              {errors.providerId && (
-                <p className="mt-1 text-xs text-red-600">{errors.providerId}</p>
-              )}
-            </div>
+              {/* Provider Selection */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700">Provider</label>
+                <SmallDropdown
+                  value={formData.providerId}
+                  options={providerOptions}
+                  onChange={(value) => {
+                    setFormData((prev) => ({ ...prev, providerId: value }));
+                    setErrors((prev) => ({ ...prev, providerId: '' }));
+                  }}
+                  ariaLabel="Select provider"
+                  placeholder="Select a provider"
+                  open={openDropdown === 'provider'}
+                  onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'provider' : null)}
+                  pageSize={4}
+                />
+                {errors.providerId && (
+                  <p className="mt-1 text-xs text-red-600">{errors.providerId}</p>
+                )}
+              </div>
 
-            {/* Date and Time */}
+              {/* Date and Time */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-slate-700">Date</label>
                 <div className="relative">
@@ -578,26 +583,26 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
                 )}
               </div>
 
-            {/* Reason */}
-            <div className="space-y-3 md:col-span-2">
-              <label className="text-sm font-medium text-slate-700">Reason for Appointment</label>
-              <div className="relative">
-                <FileText className="pointer-events-none absolute left-4 top-4 h-4 w-4 text-slate-400" />
-                <textarea
-                  name="reasonText"
-                  value={formData.reasonText}
-                  onChange={handleChange}
-                  placeholder="Enter the reason for this appointment"
-                  rows={4}
-                  className={`min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pl-11 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-emerald-500 ${
-                    errors.reasonText ? 'border-red-500' : ''
-                  }`}
-                />
+              {/* Reason */}
+              <div className="space-y-3 md:col-span-2">
+                <label className="text-sm font-medium text-slate-700">Reason for Appointment</label>
+                <div className="relative">
+                  <FileText className="pointer-events-none absolute left-4 top-4 h-4 w-4 text-slate-400" />
+                  <textarea
+                    name="reasonText"
+                    value={formData.reasonText}
+                    onChange={handleChange}
+                    placeholder="Enter the reason for this appointment"
+                    rows={4}
+                    className={`min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pl-11 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-emerald-500 ${
+                      errors.reasonText ? 'border-red-500' : ''
+                    }`}
+                  />
+                </div>
+                {errors.reasonText && (
+                  <p className="mt-1 text-xs text-red-600">{errors.reasonText}</p>
+                )}
               </div>
-              {errors.reasonText && (
-                <p className="mt-1 text-xs text-red-600">{errors.reasonText}</p>
-              )}
-            </div>
             </div>
 
             {/* Submit Button */}
@@ -614,7 +619,7 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
               <Button
                 type="submit"
                 className="rounded-full px-5 py-2 text-xs font-medium"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !token}
               >
                 {isSubmitting ? 'Creating...' : 'Create Appointment'}
               </Button>
@@ -627,6 +632,7 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
 }
 
 export default function AppointmentAdminPage() {
+  const { token } = useAuth();
   const [filters, setFilters] = useState({
     status: 'all',
   });
@@ -642,10 +648,11 @@ export default function AppointmentAdminPage() {
     let active = true;
 
     async function loadAppointments() {
+      if (!token) return;
       try {
         setLoading(true);
         setError(null);
-        const data = await getAppointments();
+        const data = await getAppointments(token);
         if (!active) return;
         const mapped = (data.appointments || []).map(mapApiAppointment);
         setAppointments(mapped);
@@ -659,7 +666,7 @@ export default function AppointmentAdminPage() {
 
     loadAppointments();
     return () => { active = false; };
-  }, []);
+  }, [token]);
 
   // Filter appointments based on selected status
   const filteredAppointments = useMemo(() => {
@@ -696,7 +703,21 @@ export default function AppointmentAdminPage() {
 
   const handleSuccess = () => {
     setIsModalOpen(false);
-    void loadAppointments();
+    if (token) {
+      void (async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const data = await getAppointments(token);
+          const mapped = (data.appointments || []).map(mapApiAppointment);
+          setAppointments(mapped);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load appointments');
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
   };
 
   async function loadAppointments() {
@@ -933,6 +954,7 @@ export default function AppointmentAdminPage() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleSuccess}
+        token={token}
       />
     </div>
   );

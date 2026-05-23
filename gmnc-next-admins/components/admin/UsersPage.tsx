@@ -326,7 +326,7 @@ export default function UserRegistrationPage() {
         email: formData.email || undefined,
         phoneNumber: formData.phoneNumber,
         gender: formData.gender,
-        userType: modalRole,
+        role: modalRole,
         dateOfBirth: formData.dateOfBirth || undefined,
         otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
       };

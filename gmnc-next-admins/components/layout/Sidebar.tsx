@@ -155,10 +155,10 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
             collapsible: true,
             children: [
               {
-                label: "PDF Resources",
-                path: "/provider/resources",
-                icon: "description",
-              },
+              label: "Documents",
+              path: "/provider/resources",
+              icon: "description",
+            },
               {
                 label: "Games & Wellbeing",
                 path: "/provider/games",

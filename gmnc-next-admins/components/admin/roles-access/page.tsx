@@ -89,13 +89,17 @@ export default function RolesAccessPage() {
   // =========================================
   useEffect(() => {
     const user = readUserFromStorage();
+    const token = readTokenFromStorage();
 
     if (user) {
       setCurrentUser(user);
       setInitialized(true);
     } else {
-      // localStorage not yet populated — fetch from /api/auth/me
-      fetch("/api/auth/me", { cache: "no-store", credentials: 'include' })
+      fetch("/api/auth/me", {
+        cache: "no-store",
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
         .then((r) => (r.ok ? r.json() : null))
         .then(
           (

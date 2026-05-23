@@ -113,13 +113,18 @@ export default function RoleAssignmentsPage() {
     didSetUser.current = true;
 
     const user = readUserFromStorage();
+    const token = readTokenFromStorage();
 
     if (user) {
       setCurrentUser(user);
       setInitialized(true);
     } else {
       // localStorage not populated yet — fall back to /api/auth/me
-      fetch("/api/auth/me", { cache: "no-store", credentials: 'include' })
+      fetch("/api/auth/me", {
+        cache: "no-store",
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
         .then((r) => (r.ok ? r.json() : null))
         .then((data: { user?: Record<string, unknown>; accessToken?: string } | null) => {
           if (!data?.user) return;
