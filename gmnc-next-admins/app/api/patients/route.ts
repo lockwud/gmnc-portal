@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const backendUrl = `${env.API_BASE_URL}/cp-patient`;
-    let response = await fetchWithRetry(backendUrl);
+    const response = await fetchWithRetry(backendUrl);
 
     // If direct /cp-patient still fails with 403 for an admin, try fallback to admin patients list
     if (response.status === 403) {

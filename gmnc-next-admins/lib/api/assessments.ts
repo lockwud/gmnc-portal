@@ -1,5 +1,6 @@
 import {
   AssessmentPatientReportResponse,
+  AssessmentReportResponse,
   AssessmentSubmitPayload,
   AssessmentSubmitResponse,
   AssessmentToolFormResponse,
@@ -23,12 +24,21 @@ async function parseJson<T>(res: Response): Promise<T> {
   return json as T;
 }
 
+function getClientToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token') || localStorage.getItem('gmnc_token');
+  }
+  return null;
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
+  const authToken = getClientToken();
   const res = await fetch(path, {
     method: 'GET',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
     cache: 'no-store',
   });
@@ -93,6 +103,16 @@ export async function getPatientAssessments(patientId: string) {
     message?: string;
     data: AssessmentPatientReportResponse;
   }>(`/api/assessment/patient/${patientId}/reports`);
+
+  return res.data;
+}
+
+export async function getAssessmentReport(assessmentId: string) {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: AssessmentReportResponse;
+  }>(`/api/assessment/${assessmentId}/report`);
 
   return res.data;
 }
