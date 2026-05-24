@@ -69,9 +69,10 @@ export default function AssessmentHubPage() {
         const result = await getPatients();
         if (!active) return;
 
-        const mappedPatients = result.data.map((patient) => ({
+        const mappedPatients = (result.data || []).map((patient: PatientItem) => ({
           ...patient,
-          age: calculateAge(patient.dateOfBirth ?? null),
+          caregiverName: patient.caregiverName || patient.caregiver?.user?.fullName || '',
+          age: calculateAge(patient.dateOfBirth),
         }));
 
         setPatients(mappedPatients);

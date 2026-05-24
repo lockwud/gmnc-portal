@@ -9,6 +9,11 @@ function buildBackendUrl(pathSegments: string[], search: string, adminFallback =
   return `${env.API_BASE_URL}/${prefix}/${encodedPath}${search}`;
 }
 
+function buildAdminPatientUrl(pathSegments: string[], search: string) {
+  const encodedPath = pathSegments.map(encodeURIComponent).join('/');
+  return `${env.API_BASE_URL}/admin/patients/${encodedPath}${search}`;
+}
+
 async function fetchWithFallback(
   url: string,
   fallbackUrl: string,
@@ -37,6 +42,7 @@ async function fetchWithFallback(
           method: 'POST',
           headers,
         });
+        console.log(`[API/ASSESSMENT] Bootstrap response: ${bootstrapRes.status}`);
 
         if (bootstrapRes.ok) {
           response = await fetch(url, {
@@ -45,21 +51,22 @@ async function fetchWithFallback(
             body,
             cache: 'no-store',
           });
+          console.log(`[API/ASSESSMENT] Retry ${url} after bootstrap: ${response.status}`);
+        }
+
+        if (response.status === 403 && fallbackUrl) {
+          console.log(`[API/ASSESSMENT] Retry with admin assessment path ${fallbackUrl}`);
+          const fallbackResponse = await fetch(fallbackUrl, {
+            method,
+            headers,
+            body,
+            cache: 'no-store',
+          });
+          return fallbackResponse;
         }
       } catch (bootstrapError) {
         console.error('[API/ASSESSMENT] admin/bootstrap failed:', bootstrapError);
       }
-    }
-
-    if (response.status === 403 && fallbackUrl) {
-      console.log(`[API/ASSESSMENT] retrying with admin assessment path ${fallbackUrl}`);
-      const fallbackResponse = await fetch(fallbackUrl, {
-        method,
-        headers,
-        body,
-        cache: 'no-store',
-      });
-      return fallbackResponse;
     }
 
     return response;
@@ -92,22 +99,38 @@ async function proxyAssessmentRequest(
   const url = new URL(request.url);
   const backendUrl = buildBackendUrl(path ?? [], url.search);
   const adminBackendUrl = buildBackendUrl(path ?? [], url.search, true);
+  const adminPatientUrl = buildAdminPatientUrl(path ?? [], url.search);
   const body = request.method === 'GET' || request.method === 'HEAD'
     ? undefined
     : await request.text();
+
+  console.log(`[API/ASSESSMENT] path: ${path?.join('/')}, backend: ${backendUrl}, admin: ${adminBackendUrl}, adminPatient: ${adminPatientUrl}`);
 
   const headers = {
     Authorization: `Bearer ${token}`,
     'Content-Type': request.headers.get('content-type') ?? 'application/json',
   };
 
-  const response = await fetchWithFallback(
+  let response = await fetchWithFallback(
     backendUrl,
     adminBackendUrl,
     request.method,
     headers,
     body,
   );
+
+  if (response.status === 403) {
+    console.log(`[API/ASSESSMENT] Trying admin/patient fallback: ${adminPatientUrl}`);
+    const adminPatientRes = await fetch(adminPatientUrl, {
+      method: request.method,
+      headers,
+      body,
+      cache: 'no-store',
+    });
+    if (adminPatientRes.ok) {
+      response = adminPatientRes;
+    }
+  }
 
   const responseText = await response.text();
   const contentType = response.headers.get('content-type') ?? 'application/json';

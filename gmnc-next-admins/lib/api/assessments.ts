@@ -7,6 +7,8 @@ import {
   AssessmentToolsResponse,
 } from './types';
 
+import { ACCESS_TOKEN_COOKIE } from '@/lib/session';
+
 let assessmentToolsPromise: Promise<AssessmentToolsResponse> | null = null;
 const assessmentToolFormPromises = new Map<string, Promise<AssessmentToolFormResponse>>();
 
@@ -26,7 +28,17 @@ async function parseJson<T>(res: Response): Promise<T> {
 
 function getClientToken(): string | null {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('token') || localStorage.getItem('gmnc_token');
+    const localToken = localStorage.getItem('token') || localStorage.getItem('gmnc_token');
+    if (localToken) return localToken;
+    
+    const cookies = document.cookie.split('; ');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.split('=');
+      if (name === ACCESS_TOKEN_COOKIE) {
+        return value;
+      }
+    }
+    return null;
   }
   return null;
 }
@@ -47,11 +59,13 @@ export async function apiGet<T>(path: string): Promise<T> {
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const authToken = getClientToken();
   const res = await fetch(path, {
     method: 'POST',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
     body: JSON.stringify(body),
   });

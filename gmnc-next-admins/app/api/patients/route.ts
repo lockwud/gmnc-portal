@@ -14,19 +14,20 @@ export async function GET(request: NextRequest) {
     'Content-Type': 'application/json',
   };
 
-  const getItems = (obj: any): any[] => {
+  const getItems = (obj: unknown): unknown[] => {
     if (Array.isArray(obj)) return obj;
     if (!obj) return [];
-    const data = obj.data || obj;
+    const data = (obj as Record<string, unknown>).data || obj;
     if (Array.isArray(data)) return data;
     const keys = ['users', 'items', 'patients', 'data'];
+    const record = obj as Record<string, unknown>;
     for (const key of keys) {
-      if (Array.isArray(obj[key])) return obj[key];
+      if (Array.isArray(record[key])) return record[key] as unknown[];
     }
     return [];
   };
 
-  const fetchWithRetry = async (url: string) => {
+  const fetchWithBootstrap = async (url: string) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -40,7 +41,6 @@ export async function GET(request: NextRequest) {
 
       clearTimeout(timeoutId);
 
-      // If we get a 403 Forbidden, try to bootstrap RBAC and retry once
       if (response.status === 403) {
         console.log(`[API/PATIENTS] 403 on ${url} — attempting auto-bootstrap...`);
         try {
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
             method: 'POST',
             headers: authHeader,
           });
+          console.log(`[API/PATIENTS] Bootstrap response: ${bootstrapRes.status}`);
           
           if (bootstrapRes.ok) {
             response = await fetch(url, {
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
               headers: authHeader,
               cache: 'no-store',
             });
+            console.log(`[API/PATIENTS] Retry ${url} after bootstrap: ${response.status}`);
           }
         } catch (bootstrapErr) {
           console.error('[API/PATIENTS] Auto-bootstrap failed:', bootstrapErr);
@@ -70,23 +72,43 @@ export async function GET(request: NextRequest) {
 
   try {
     const backendUrl = `${env.API_BASE_URL}/cp-patient`;
-    const response = await fetchWithRetry(backendUrl);
+    const response = await fetchWithBootstrap(backendUrl);
 
-    // If direct /cp-patient still fails with 403 for an admin, try fallback to admin patients list
     if (response.status === 403) {
       console.log('[API/PATIENTS] /cp-patient forbidden. Trying fallback to /admin/patients...');
-      const adminPatientsRes = await fetch(`${env.API_BASE_URL}/admin/patients`, { headers: authHeader, cache: 'no-store' });
+      const adminPatientsRes = await fetchWithBootstrap(`${env.API_BASE_URL}/admin/patients`);
 
       if (adminPatientsRes.ok) {
         const adminData = await adminPatientsRes.json().catch(() => null);
         const fallbackPatients = getItems(adminData);
         console.log(`[API/PATIENTS] Fallback successful. Found ${fallbackPatients.length} patients from admin list.`);
-        return NextResponse.json({ success: true, data: fallbackPatients });
+        return NextResponse.json({ status: true, data: fallbackPatients });
+      } else {
+        console.log(`[API/PATIENTS] /admin/patients returned ${adminPatientsRes.status}. Trying /admin/users...`);
+      }
+
+      console.log('[API/PATIENTS] /admin/patients also failed. Trying /admin/users with patient filter...');
+      const adminUsersRes = await fetchWithBootstrap(`${env.API_BASE_URL}/admin/users`);
+      if (adminUsersRes.ok) {
+        const usersData = await adminUsersRes.json().catch(() => null);
+        const allUsers = getItems(usersData);
+        const patientsFromUsers = allUsers.filter((u: unknown) => {
+          const userObj = (u as Record<string, unknown>).user || u;
+          return (userObj as Record<string, unknown>).userType === 'CP_PATIENT' || 
+                 (userObj as Record<string, unknown>).role === 'PATIENT' || 
+                 (userObj as Record<string, unknown>).type === 'PATIENT';
+        });
+        console.log(`[API/PATIENTS] Found ${patientsFromUsers.length} patients from /admin/users.`);
+        if (patientsFromUsers.length > 0) {
+          return NextResponse.json({ success: true, data: patientsFromUsers });
+        }
+      } else {
+        console.log(`[API/PATIENTS] /admin/users returned ${adminUsersRes.status}.`);
       }
     }
 
     const contentType = response.headers.get('content-type');
-    let data: any;
+    let data: unknown;
     
     if (contentType?.includes('application/json')) {
       data = await response.json();
@@ -95,29 +117,46 @@ export async function GET(request: NextRequest) {
     }
     
     if (!response.ok) {
-      const message = (typeof data === 'object' && (data?.message || data?.error)) || 
+      const message = (typeof data === 'object' && data !== null && ('message' in data || 'error' in data)) || 
                       (typeof data === 'string' && data) || 
                       'Backend error';
-      return NextResponse.json({ success: false, message }, { status: response.status });
+      return NextResponse.json({ status: false, message }, { status: response.status });
     }
 
-    const patients = data.data || data.patients || (Array.isArray(data) ? data : []);
+    const patients = (data as Record<string, unknown>).data || (data as Record<string, unknown>).patients || (Array.isArray(data) ? data : []);
     
-    if (patients.length === 0) {
+    if (!Array.isArray(patients) || patients.length === 0) {
       console.log('[API/PATIENTS] /cp-patient returned empty data. Trying fallback to /admin/patients...');
-      const adminPatientsRes = await fetch(`${env.API_BASE_URL}/admin/patients`, { headers: authHeader, cache: 'no-store' });
+      const adminPatientsRes = await fetchWithBootstrap(`${env.API_BASE_URL}/admin/patients`);
 
       if (adminPatientsRes.ok) {
         const adminData = await adminPatientsRes.json().catch(() => null);
         const fallbackPatients = getItems(adminData);
         console.log(`[API/PATIENTS] Fallback successful. Found ${fallbackPatients.length} patients from admin list.`);
-        return NextResponse.json({ success: true, data: fallbackPatients });
+        return NextResponse.json({ status: true, data: fallbackPatients });
+      }
+
+      console.log('[API/PATIENTS] /admin/patients empty. Trying /admin/users with patient filter...');
+      const adminUsersRes = await fetchWithBootstrap(`${env.API_BASE_URL}/admin/users`);
+      if (adminUsersRes.ok) {
+        const usersData = await adminUsersRes.json().catch(() => null);
+        const allUsers = getItems(usersData);
+        const patientsFromUsers = allUsers.filter((u: unknown) => {
+          const userObj = (u as Record<string, unknown>).user || u;
+          return (userObj as Record<string, unknown>).userType === 'CP_PATIENT' || 
+                 (userObj as Record<string, unknown>).role === 'PATIENT' || 
+                 (userObj as Record<string, unknown>).type === 'PATIENT';
+        });
+        console.log(`[API/PATIENTS] Found ${patientsFromUsers.length} patients from /admin/users.`);
+if (patientsFromUsers.length > 0) {
+          return NextResponse.json({ status: true, data: patientsFromUsers });
+        }
       }
     }
 
-    return NextResponse.json({ success: true, data: patients });
-  } catch (error: any) {
-    const isTimeout = error.name === 'AbortError' || error.name === 'TimeoutError';
+    return NextResponse.json({ status: true, data: patients });
+  } catch (error: unknown) {
+    const isTimeout = (error as Error).name === 'AbortError' || (error as Error).name === 'TimeoutError';
     console.error('[API/PATIENTS] Error:', error);
     return NextResponse.json(
       { success: false, message: isTimeout ? 'Backend request timed out' : 'Failed to reach backend' },
