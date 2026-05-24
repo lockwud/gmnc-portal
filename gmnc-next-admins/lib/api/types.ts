@@ -62,6 +62,16 @@ export type AssessmentPatientReportResponse = {
   assessments: AssessmentListItem[];
 };
 
+export type AssessmentReportResponse = {
+  assessmentId: string;
+  report: {
+    summary?: string | null;
+    interpretation?: string | null;
+    scores?: Record<string, unknown> | null;
+    recommendations?: unknown;
+  };
+};
+
 export type AssessmentToolItem = {
   toolName: string;
   toolCode: string;

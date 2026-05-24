@@ -50,6 +50,10 @@ const nextConfig: NextConfig = {
         source: '/api/appointment/:path*',
         destination: `${apiBaseUrl}/schedule-appointment/:path*`,
       },
+       {
+        source: '/api/assessment/:path*',
+        destination: `${apiBaseUrl}/assessment/:path*`,
+      },
     ];
   },
 };

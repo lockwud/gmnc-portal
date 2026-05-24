@@ -1,81 +1,28 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import EmptyState from '@/components/ui/EmptyState';
+import { getPatients, type PatientItem } from '@/lib/api/patients';
+import { getPatientAssessments } from '@/lib/api/assessments';
+import type { AssessmentListItem } from '@/lib/api/types';
 
-type Patient = {
-  id: string;
-  fullName: string;
-  caregiverName: string;
-  age: number;
+type Patient = PatientItem & {
+  age?: number;
   latestAssessmentStatus?: 'DRAFT' | 'COMPLETED' | 'REVIEWED' | null;
 };
 
-type AssessmentHistoryItem = {
-  id: string;
-  toolCode: string;
-  toolVersion: string;
-  status: 'DRAFT' | 'COMPLETED' | 'REVIEWED';
-  assessedAt: string;
-  summary?: string;
-};
-
-const mockPatients: Patient[] = [
-  {
-    id: 'cp-001',
-    fullName: 'Kwame Mensah',
-    caregiverName: 'Akosua Mensah',
-    age: 7,
-    latestAssessmentStatus: 'COMPLETED',
-  },
-  {
-    id: 'cp-002',
-    fullName: 'Ama Serwaa',
-    caregiverName: 'Yaa Serwaa',
-    age: 8,
-    latestAssessmentStatus: 'DRAFT',
-  },
-  {
-    id: 'cp-003',
-    fullName: 'Kofi Owusu',
-    caregiverName: 'Adwoa Owusu',
-    age: 10,
-    latestAssessmentStatus: 'REVIEWED',
-  },
-];
-
-const mockAssessmentHistory: Record<string, AssessmentHistoryItem[]> = {
-  'cp-001': [
-    {
-      id: 'asmt-001',
-      toolCode: 'GMFM-66',
-      toolVersion: '1.0.0',
-      status: 'COMPLETED',
-      assessedAt: '2026-05-01T10:30:00.000Z',
-      summary: 'Gross motor performance improved across standing and walking dimensions.',
-    },
-    {
-      id: 'asmt-002',
-      toolCode: 'MACS',
-      toolVersion: '1.0.0',
-      status: 'REVIEWED',
-      assessedAt: '2026-04-14T09:00:00.000Z',
-      summary: 'Manual ability remains stable with mild difficulty in bimanual tasks.',
-    },
-  ],
-  'cp-002': [
-    {
-      id: 'asmt-003',
-      toolCode: 'CFCS',
-      toolVersion: '1.0.0',
-      status: 'DRAFT',
-      assessedAt: '2026-05-03T12:00:00.000Z',
-      summary: 'Communication review in progress.',
-    },
-  ],
-  'cp-003': [],
-};
+function calculateAge(dateOfBirth?: string | null) {
+  if (!dateOfBirth) return undefined;
+  const dob = new Date(dateOfBirth);
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
 
 function formatDateTime(value?: string | null) {
   if (!value) return '—';
@@ -104,32 +51,100 @@ function getStatusClass(status?: string | null) {
 export default function AssessmentHubPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
-    mockPatients[0]?.id ?? null
-  );
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [selectedHistory, setSelectedHistory] = useState<AssessmentListItem[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPatients() {
+      try {
+        setLoadingPatients(true);
+        setError(null);
+
+        const result = await getPatients();
+        if (!active) return;
+
+        const mappedPatients = result.data.map((patient) => ({
+          ...patient,
+          age: calculateAge(patient.dateOfBirth ?? null),
+        }));
+
+        setPatients(mappedPatients);
+        setSelectedPatientId((current) => current ?? mappedPatients[0]?.id ?? null);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Failed to load patients.');
+      } finally {
+        if (active) setLoadingPatients(false);
+      }
+    }
+
+    loadPatients();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedPatient =
+    patients.find((patient) => patient.id === selectedPatientId) ?? null;
+
+  const assessmentPatientId = selectedPatient
+    ? (selectedPatient.patientId || selectedPatient.id)
+    : null;
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadHistory() {
+      if (!assessmentPatientId) {
+        setSelectedHistory([]);
+        setLoadingHistory(false);
+        return;
+      }
+
+      try {
+        setLoadingHistory(true);
+        setError(null);
+        setSelectedHistory([]);
+
+        const result = await getPatientAssessments(assessmentPatientId);
+        if (!active) return;
+
+        setSelectedHistory(result.assessments || []);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Failed to load assessment history.');
+      } finally {
+        if (active) setLoadingHistory(false);
+      }
+    }
+
+    loadHistory();
+    return () => {
+      active = false;
+    };
+  }, [assessmentPatientId]);
 
   const filteredPatients = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return mockPatients;
+    if (!term) return patients;
 
-    return mockPatients.filter((patient) => {
+    return patients.filter((patient) => {
       return (
         patient.fullName.toLowerCase().includes(term) ||
-        patient.caregiverName.toLowerCase().includes(term)
+        (patient.caregiverName ?? '').toLowerCase().includes(term)
       );
     });
-  }, [search]);
-
-  const selectedPatient =
-    mockPatients.find((patient) => patient.id === selectedPatientId) ?? null;
-
-  const selectedHistory = selectedPatient
-    ? mockAssessmentHistory[selectedPatient.id] ?? []
-    : [];
+  }, [patients, search]);
 
   const handleCreateAssessment = () => {
     if (!selectedPatient) return;
-    router.push(`/provider/assessments/create?patientId=${selectedPatient.id}`);
+    router.push(`/provider/assessments/create?patientId=${assessmentPatientId}`);
   };
 
   return (
@@ -154,7 +169,15 @@ export default function AssessmentHubPage() {
 
         <div className="min-h-0 flex-1 overflow-auto p-3">
           <div className="space-y-2">
-            {filteredPatients.length === 0 ? (
+            {loadingPatients ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                Loading patients...
+              </div>
+            ) : error && patients.length === 0 ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {error}
+              </div>
+            ) : filteredPatients.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
                 No patients found.
               </div>
@@ -179,10 +202,10 @@ export default function AssessmentHubPage() {
                           {patient.fullName}
                         </p>
                         <p className="truncate text-xs text-slate-500">
-                          Caregiver: {patient.caregiverName}
+                          Caregiver: {patient.caregiverName ?? '—'}
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
-                          {patient.age} yrs
+                          {patient.age != null ? `${patient.age} yrs` : 'Age unknown'}
                         </p>
                       </div>
 
@@ -210,7 +233,7 @@ export default function AssessmentHubPage() {
             </h2>
             <p className="mt-1 text-xs text-slate-500">
               {selectedPatient
-                ? `Caregiver: ${selectedPatient.caregiverName} • ${selectedPatient.age} yrs`
+                ? `Caregiver: ${selectedPatient.caregiverName ?? '—'} • ${selectedPatient.age != null ? `${selectedPatient.age} yrs` : 'Age unknown'}`
                 : 'Choose a patient from the left panel.'}
             </p>
           </div>
@@ -242,6 +265,14 @@ export default function AssessmentHubPage() {
               title="Select a patient"
               description="Choose a patient from the left panel to view assessment history and begin a new assessment."
             />
+          ) : loadingHistory ? (
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">
+              Loading assessment history...
+            </div>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
           ) : selectedHistory.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="w-full max-w-md">
@@ -304,7 +335,7 @@ export default function AssessmentHubPage() {
                       </div>
 
                       <p className="line-clamp-2 text-sm text-slate-600">
-                        {assessment.summary || 'No summary available.'}
+                        {assessment.report?.summary || 'No summary available.'}
                       </p>
                     </div>
 
