@@ -3,21 +3,27 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBaFxxNQ7Hc9i-pOmYyFplx0cRQFGzsEhY",
-  authDomain: "gmnc-94865.firebaseapp.com",
-  projectId: "gmnc-94865",
-  storageBucket: "gmnc-94865.appspot.com",
-  messagingSenderId: "662648667940",
-  appId: "1:662648667940:web:58597247259c30c89a7db1",
-  measurementId: "G-96T187L67N"
+  apiKey: self.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: self.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: self.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: self.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: self.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: self.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: self.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 
-// VAPID key - replace with your actual key
-const VAPID_KEY = self.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BB6MYyNjjjGl9bHmXlyILE3pp9JPFuNDvZhFxHYYc0VrZmKPLN0SMoUAITu9XZXtpMZOtq3FCfFsQGBhibzkMbY";
+// VAPID key - injected at build time from .env.local
+// IMPORTANT: Service workers do not have access to process.env directly.
+// You must inject the VAPID key at build time or use a placeholder replaced by your build tool.
+const VAPID_KEY = self.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+
+if (!VAPID_KEY) {
+  console.warn('VAPID key is not set. Please ensure NEXT_PUBLIC_FIREBASE_VAPID_KEY is injected at build time.');
+}
 
 messaging.onBackgroundMessage(function(payload) {
   const notificationTitle = payload.notification?.title || 'GMNC Notification';
