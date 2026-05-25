@@ -6,7 +6,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { Eye } from 'lucide-react';
 import { getProvidersWaitingVerification, Provider } from '@/lib/api/providers';
 
-export default function ProvidersPage() {
+export default function ProviderApprovalsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,8 +49,8 @@ export default function ProvidersPage() {
     <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div>
-          <h1 className="text-[15px] font-semibold text-slate-900">Service Providers</h1>
-          <p className="text-xs text-slate-400">Manage all service provider accounts</p>
+          <h1 className="text-[15px] font-semibold text-slate-900">Provider Approvals</h1>
+          <p className="text-xs text-slate-400">Review and manage provider registrations</p>
         </div>
       </div>
 
@@ -64,8 +64,8 @@ export default function ProvidersPage() {
             <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white">
               <div className="w-full max-w-md">
                 <EmptyState
-                  title="No providers found"
-                  description="No service providers are registered."
+                  title="No pending providers"
+                  description="All provider registrations have been processed."
                 />
               </div>
             </div>
@@ -77,7 +77,7 @@ export default function ProvidersPage() {
                     <tr className="bg-emerald-600 text-white">
                       <th className="px-4 py-3 text-left text-[11px] font-medium">Name</th>
                       <th className="px-4 py-3 text-left text-[11px] font-medium">Email</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-medium">Profession</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-medium">Specialty</th>
                       <th className="px-4 py-3 text-left text-[11px] font-medium">Status</th>
                       <th className="px-4 py-3 text-left text-[11px] font-medium">Registered</th>
                       <th className="px-4 py-3 text-center text-[11px] font-medium">Action</th>

@@ -54,6 +54,7 @@ export async function apiClient<T>(
       },
       body: skipJsonStringify ? body as BodyInit : body ? JSON.stringify(body) : undefined,
       cache,
+      credentials: 'include',
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (networkError) {
