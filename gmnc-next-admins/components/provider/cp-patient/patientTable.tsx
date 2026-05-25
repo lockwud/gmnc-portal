@@ -93,10 +93,10 @@ export default function CpPatientsPage() {
       const response = await fetch('/api/patients');
       const result = await response.json();
 
-      if (result.success && Array.isArray(result.data)) {
+      // Accept both 'status' and 'success' for compatibility
+      if ((result.status || result.success) && Array.isArray(result.data)) {
         const mapped = result.data.map((p: any) => {
           const userObj = p.user || p;
-          const patientData = p;
           return {
             slug: userObj.slug || userObj.id || userObj._id || p.id || '',
             fullName: userObj.fullName || userObj.name || p.fullName || 'Unknown Patient',

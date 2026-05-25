@@ -51,11 +51,17 @@ export type ProviderVerificationStatus = 'PENDING_REVIEW' | 'VERIFIED' | 'REJECT
 
 export type ProviderVerificationAction = 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES' | 'SUSPEND';
 
+export type ProviderDocument = {
+  url: string;
+  name?: string;
+  type?: string;
+};
+
 export type Provider = {
   id: string;
   userId: string;
   licenseNumber: string;
-  licenseImage: string;
+  licenseImage: string | null;
   licenseExpiry: string;
   licenseIssuedBy: string;
   licenseIssuedDate: string;
@@ -73,11 +79,7 @@ export type Provider = {
   verificationNote: string;
   verifiedAt: string;
   verifiedBy: string;
-  documents?: Array<{
-    url: string;
-    name?: string;
-    type?: string;
-  }>;
+  documents?: ProviderDocument[];
   user: {
     id: string;
     fullName: string;
@@ -115,7 +117,7 @@ export async function getProvidersWaitingVerification(token?: string): Promise<P
 
 export async function getProviderById(id: string, token?: string): Promise<Provider> {
   const res = await apiGet<ProviderApiResponse>(`/admin/providers/${id}`, token);
-  return res.data;
+  return Array.isArray(res.data) ? res.data[0] : res.data;
 }
 
 type VerificationActionBody = {
@@ -131,10 +133,14 @@ export async function verifyProvider(
   licenseStatus?: string,
   token?: string
 ): Promise<Provider> {
-  const res = await apiPatch<ProviderApiResponse>(`/admin/providers/${id}/verification`, {
+  // Only include verificationNote if notes is a non-empty string
+  const payload: VerificationActionBody = {
     action,
-    verificationNote: notes,
     licenseStatus,
-  } as VerificationActionBody, token);
+  };
+  if (notes && notes.trim() !== '') {
+    payload.verificationNote = notes;
+  }
+  const res = await apiPatch<ProviderApiResponse>(`/admin/providers/${id}/verification`, payload, token);
   return res.data;
 }
