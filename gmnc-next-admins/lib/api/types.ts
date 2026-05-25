@@ -315,15 +315,31 @@ export type NotificationType = 'info' | 'warning' | 'success' | 'error';
 
 export type NotificationStatus = 'unread' | 'read' | 'archived';
 
+export type PushTokenRegisterPayload = {
+  token: string;
+  deviceType?: string;
+  deviceId?: string;
+};
+
+export type NotificationCategory =
+  | "DIRECT_MESSAGE"
+  | "COMMUNITY_MESSAGE"
+  | "COMMUNITY_ANNOUNCEMENT"
+  | "APPOINTMENT_REMINDER"
+  | "TASK_REMINDER"
+  | "SYSTEM";
+
+export type NotificationPriority = 'info' | 'warning' | 'success' | 'error';
+
 export type NotificationItem = {
   id: string;
   type: string;
+  category: NotificationCategory;
   title: string;
-  message: string;
-  priority: NotificationType;
-  status: NotificationStatus;
-  readAt?: string | null;
-  archivedAt?: string | null;
+  content: string;
+  priority?: NotificationPriority;
+  data?: Record<string, unknown>;
+  status: "UNREAD" | "READ" | "ARCHIVED";
   createdAt: string;
   updatedAt: string;
 };
@@ -333,12 +349,6 @@ export type NotificationListResponse = {
   total: number;
   page?: number;
   pageSize?: number;
-};
-
-export type PushTokenRegisterPayload = {
-  token: string;
-  deviceType?: string;
-  deviceId?: string;
 };
 
 export type ResourceType = {

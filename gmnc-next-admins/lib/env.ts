@@ -3,4 +3,5 @@ const apiBaseUrl = process.env.API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_A
 export const env = {
   API_BASE_URL: apiBaseUrl ? apiBaseUrl.replace(/\/+$/, '') : '',
   NODE_ENV: process.env.NODE_ENV ?? 'development',
+  FIREBASE_VAPID_KEY: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? '',
 } as const;
