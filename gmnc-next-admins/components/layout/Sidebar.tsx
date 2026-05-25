@@ -52,9 +52,27 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         collapsible: true,
         children: [
           {
-            label: "Analytics",
-            path: "/admin/analytics",
-            icon: "insights",
+            label: "Approvals",
+            path: "/admin/approvals",
+            icon: "task",
+            collapsible: true,
+            children: [
+              {
+                label: "Provider Verification",
+                path: "/admin/approvals/providers",
+                icon: "verified_user",
+              },
+              {
+                label: "Referrals",
+                path: "/admin/approvals/referrals",
+                icon: "compare_arrows",
+              },
+              {
+                label: "Appointments",
+                path: "/admin/approvals/appointments",
+                icon: "event",
+              },
+            ],
           },
           {
             label: "Users",
@@ -70,11 +88,6 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
             label: "Role Assignments",
             path: "/admin/role-assignments",
             icon: "manage_accounts",
-          },
-          {
-            label: "Audit Viewer",
-            path: "/admin/audit",
-            icon: "history",
           },
         ],
       },
@@ -92,16 +105,6 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
                 label: "Patient List",
                 path: "/provider/cp-patient",
                 icon: "groups",
-              },
-              {
-                label: "Enrollments",
-                path: "/provider/enrollments",
-                icon: "person_add",
-              },
-              {
-                label: "Care Plans",
-                path: "/provider/care-plans",
-                icon: "favorite",
               },
             ],
           },
