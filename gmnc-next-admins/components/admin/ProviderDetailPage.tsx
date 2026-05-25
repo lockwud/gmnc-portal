@@ -27,6 +27,7 @@ import {
   verifyProvider,
   Provider,
   ProviderVerificationAction,
+  ProviderDocument,
 } from '@/lib/api/providers';
 
 export default function ProviderDetailPage({
@@ -80,10 +81,11 @@ export default function ProviderDetailPage({
     if (!provider) return;
 
     try {
+      // Always send a string for verificationNote (empty string if not typed)
       await verifyProvider(
         provider.id,
         action,
-        actionNote || undefined,
+        actionNote ?? '',
         action === 'APPROVE' ? 'ACTIVE' : undefined
       );
 
@@ -180,9 +182,9 @@ export default function ProviderDetailPage({
     },
   ];
 
-  return (
+return (
     <>
-      <div className="min-h-screen bg-[#f7f8fc]">
+      <div className="flex h-screen flex-col bg-[#f7f8fc]">
         {/* TOP HEADER */}
         <div className="sticky top-0 z-30 border-b border-slate-200 bg-white">
           <div className="flex items-center justify-between px-8 py-5">
@@ -261,10 +263,11 @@ export default function ProviderDetailPage({
           </div>
         </div>
 
-{/* CONTENT */}
-        <div className="grid min-h-[calc(100vh-88px)] grid-cols-[360px_1fr]">
-          {/* LEFT SIDEBAR - PROVIDER DETAILS */}
-          <div className="flex flex-col overflow-y-auto scrollbar-none border-r border-slate-200 bg-white">
+        {/* CONTENT */}
+        <div className="flex-1 overflow-hidden">
+          <div className="grid h-full grid-cols-[360px_1fr]">
+            {/* LEFT SIDEBAR - PROVIDER DETAILS */}
+          <div className="h-full flex flex-col overflow-y-auto scrollbar-none border-r border-slate-200 bg-white">
             {/* SECTION HEADER */}
             <div className="border-b border-slate-200 px-6 py-6">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
@@ -322,7 +325,7 @@ export default function ProviderDetailPage({
           </div>
 
           {/* RIGHT CONTENT - DOCUMENTS */}
-          <div className="bg-[#fafbff]">
+          <div className="h-full bg-[#fafbff]">
             {/* TABS */}
             <div className="flex items-center gap-8 border-b border-slate-200 bg-white px-8">
               <button
@@ -403,7 +406,7 @@ export default function ProviderDetailPage({
 
                         <div className="grid gap-6 lg:grid-cols-2">
                           {provider.documents.map(
-                            (doc: any, idx: number) => (
+                            (doc: ProviderDocument, idx: number) => (
                               <div
                                 key={idx}
                                 className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
@@ -468,8 +471,9 @@ export default function ProviderDetailPage({
           </div>
         </div>
       </div>
+    </div>
 
-      {/* MODAL */}
+    {/* MODAL */}
       <Modal
         isOpen={isActionModalOpen}
         onClose={() => setIsActionModalOpen(false)}
