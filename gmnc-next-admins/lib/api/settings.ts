@@ -1,4 +1,4 @@
-import { AppointmentSettingsType, TelehealthSettingsType } from './types';
+import { AppointmentSettingsType } from './types';
 
 export const DEFAULT_SETTINGS: AppointmentSettingsType = {
   allowPatientBooking: true,
@@ -20,17 +20,6 @@ export const DEFAULT_SETTINGS: AppointmentSettingsType = {
     { day: 'Saturday', enabled: false, start: '10:00', end: '14:00' },
     { day: 'Sunday', enabled: false, start: '10:00', end: '14:00' },
   ],
-};
-
-export const DEFAULT_TELEHEALTH_SETTINGS: TelehealthSettingsType = {
-  enableTelehealth: true,
-  defaultProviderMinutes: 30,
-  maxConcurrentSessions: 5,
-  recordingEnabled: false,
-  waitingRoomEnabled: true,
-  requireApproval: false,
-  sessionTimeout: 30,
-  connectTimeout: 10,
 };
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -107,33 +96,6 @@ export async function updateAppointmentSettings(
     message?: string;
     data: AppointmentSettingsType;
   }>('/api/settings/appointments', settings, token);
-
-  return res.data;
-}
-
-export async function getTelehealthSettings(token?: string | null): Promise<TelehealthSettingsType> {
-  try {
-    const res = await apiGet<{
-      status: boolean;
-      message?: string;
-      data: Partial<TelehealthSettingsType>;
-    }>('/api/settings/telehealth', token);
-
-    return { ...DEFAULT_TELEHEALTH_SETTINGS, ...res.data } as TelehealthSettingsType;
-  } catch {
-    return DEFAULT_TELEHEALTH_SETTINGS;
-  }
-}
-
-export async function updateTelehealthSettings(
-  settings: TelehealthSettingsType,
-  token?: string | null
-): Promise<TelehealthSettingsType> {
-  const res = await apiPut<{
-    status: boolean;
-    message?: string;
-    data: TelehealthSettingsType;
-  }>('/api/settings/telehealth', settings, token);
 
   return res.data;
 }

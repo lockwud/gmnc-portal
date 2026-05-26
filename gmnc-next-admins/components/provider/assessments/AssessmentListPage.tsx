@@ -14,6 +14,10 @@ export default function AssessmentListPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const patientId = searchParams.get('patientId');
+  const patientName = searchParams.get('patientName');
+  const patientGender = searchParams.get('patientGender');
+  const patientDob = searchParams.get('patientDob');
+  const caregiverName = searchParams.get('caregiverName');
 
   const [items, setItems] = useState<AssessmentListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +97,19 @@ export default function AssessmentListPage() {
     setPage(1);
   };
 
+  const reportHref = (item: AssessmentListItem) => {
+    const params = new URLSearchParams();
+    if (item.toolCode) params.set('toolCode', item.toolCode);
+    if (item.status) params.set('status', item.status);
+    if (item.assessedAt) params.set('assessedAt', item.assessedAt);
+    if (patientName) params.set('patientName', patientName);
+    if (patientGender) params.set('patientGender', patientGender);
+    if (patientDob) params.set('patientDob', patientDob);
+    if (caregiverName) params.set('caregiverName', caregiverName);
+    const query = params.toString();
+    return `/provider/assessments/${item.id}/report${query ? `?${query}` : ''}`;
+  };
+
   if (!patientId) {
     return (
       <div className="flex h-[calc(100vh-110px)] items-center justify-center bg-white">
@@ -158,7 +175,7 @@ export default function AssessmentListPage() {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => router.push(`/provider/assessments/${item.id}/report`)}
+                      onClick={() => router.push(reportHref(item))}
                       className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50/30"
                     >
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

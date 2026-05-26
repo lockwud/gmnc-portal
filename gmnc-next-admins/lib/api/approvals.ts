@@ -1,163 +1,131 @@
-async function parseJson<T>(res: Response): Promise<T> {
-  const json = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    const message =
-      json?.message ||
-      json?.error ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
-  }
-
-  return json as T;
-}
-
-function getToken(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token') || localStorage.getItem('gmnc_token');
-  }
-  return null;
-}
-
-async function apiGet<T>(path: string, token?: string | null): Promise<T> {
-  const authToken = token ?? getToken();
-  const res = await fetch(path, {
-    method: 'GET',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    cache: 'no-store',
-  });
-
-  return parseJson<T>(res);
-}
-
-async function apiPost<T>(path: string, body: unknown, token?: string | null): Promise<T> {
-  const authToken = token ?? getToken();
-  const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-
-  return parseJson<T>(res);
-}
-
-async function apiPatch<T>(path: string, body: unknown, token?: string | null): Promise<T> {
-  const authToken = token ?? getToken();
-  const res = await fetch(path, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-
-  return parseJson<T>(res);
-}
+import { apiClient } from './client';
 
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
-export type ApprovalType = 'ENROLLMENT' | 'CARE_PLAN' | 'REFERRAL' | 'TASK';
-
-export type ApprovalItem = {
+export type ProviderApprovalItem = {
   id: string;
-  type: ApprovalType;
-  referenceId: string;
-  title: string;
-  description?: string | null;
-  status: ApprovalStatus;
-  submittedBy: {
-    id: string;
-    fullName: string;
-  };
-  submittedAt: string;
-  reviewedBy?: {
-    id: string;
-    fullName: string;
-  } | null;
-  reviewedAt?: string | null;
-  notes?: string | null;
+  userId: string;
+  fullName: string;
+  email: string;
+  phoneNumber?: string;
+  facilityName: string;
+  profession: string;
+  licenseNumber: string;
+  verificationStatus: string;
+  verificationNote?: string;
+  createdAt: string;
 };
 
-export type ApprovalSummary = {
-  total: number;
-  pending: number;
-  approved: number;
-  rejected: number;
+export type AppointmentApprovalItem = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  providerId: string;
+  providerName: string;
+  appointmentDate: string;
+  reasonText?: string;
+  status: string;
+  createdAt: string;
 };
 
-export async function getApprovals(
-  params?: { status?: ApprovalStatus; type?: ApprovalType },
-  token?: string | null
-): Promise<{ approvals: ApprovalItem[]; total: number }> {
-  const query = new URLSearchParams();
-  if (params?.status) query.append('status', params.status);
-  if (params?.type) query.append('type', params.type);
-  const queryString = query.toString();
+export type ReferralApprovalItem = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  referringProviderId: string;
+  referringProviderName: string;
+  receivingProviderId: string;
+  receivingProviderName: string;
+  status: string;
+  createdAt: string;
+};
 
-  const res = await apiGet<{
+export async function getPendingProviderApprovals(token?: string | null): Promise<ProviderApprovalItem[]> {
+  const res = await apiClient<{
     status: boolean;
     message?: string;
-    data: ApprovalItem[];
-  }>(`/api/approval${queryString ? `?${queryString}` : ''}`, token);
+    data: ProviderApprovalItem[];
+  }>('/api/admin/providers/pending', { token: token ?? undefined });
 
-  const approvals = Array.isArray(res.data) ? res.data : [];
-  return { approvals, total: approvals.length };
+  return res.data.data || [];
 }
 
-export async function getApproval(id: string, token?: string | null): Promise<ApprovalItem> {
-  const res = await apiGet<{
+export async function approveProvider(id: string, note?: string, token?: string | null): Promise<ProviderApprovalItem> {
+  const res = await apiClient<{
     status: boolean;
     message?: string;
-    data: ApprovalItem;
-  }>(`/api/approval/${id}`, token);
+    data: ProviderApprovalItem;
+  }>(`/api/admin/providers/${id}/approve`, { method: 'PATCH', body: { note }, token: token ?? undefined });
 
-  return res.data;
+  return res.data.data;
 }
 
-export async function approveRequest(
-  id: string,
-  notes?: string,
-  token?: string | null
-): Promise<ApprovalItem> {
-  const res = await apiPatch<{
+export async function rejectProvider(id: string, reason: string, token?: string | null): Promise<ProviderApprovalItem> {
+  const res = await apiClient<{
     status: boolean;
     message?: string;
-    data: ApprovalItem;
-  }>(`/api/approval/${id}/approve`, { notes }, token);
+    data: ProviderApprovalItem;
+  }>(`/api/admin/providers/${id}/reject`, { method: 'PATCH', body: { reason }, token: token ?? undefined });
 
-  return res.data;
+  return res.data.data;
 }
 
-export async function rejectRequest(
-  id: string,
-  notes?: string,
-  token?: string | null
-): Promise<ApprovalItem> {
-  const res = await apiPatch<{
+export async function getPendingAppointmentApprovals(token?: string | null): Promise<AppointmentApprovalItem[]> {
+  const res = await apiClient<{
     status: boolean;
     message?: string;
-    data: ApprovalItem;
-  }>(`/api/approval/${id}/reject`, { notes }, token);
+    data: AppointmentApprovalItem[];
+  }>('/api/admin/appointments/pending', { token: token ?? undefined });
 
-  return res.data;
+  return res.data.data || [];
 }
 
-export async function getApprovalSummary(token?: string | null): Promise<ApprovalSummary> {
-  const res = await apiGet<{
+export async function approveAppointmentRequest(id: string, notes?: string, token?: string | null): Promise<AppointmentApprovalItem> {
+  const res = await apiClient<{
     status: boolean;
     message?: string;
-    data: ApprovalSummary;
-  }>('/api/approval/summary', token);
+    data: AppointmentApprovalItem;
+  }>(`/api/admin/appointments/` + id + '/approve', { method: 'PATCH', body: { notes }, token: token ?? undefined });
 
-  return res.data;
+  return res.data.data;
+}
+
+export async function rejectAppointmentRequest(id: string, reason: string, token?: string | null): Promise<AppointmentApprovalItem> {
+  const res = await apiClient<{
+    status: boolean;
+    message?: string;
+    data: AppointmentApprovalItem;
+  }>(`/api/admin/appointments/` + id + '/reject', { method: 'PATCH', body: { reason }, token: token ?? undefined });
+
+  return res.data.data;
+}
+
+export async function getPendingReferralApprovals(token?: string | null): Promise<ReferralApprovalItem[]> {
+  const res = await apiClient<{
+    status: boolean;
+    message?: string;
+    data: ReferralApprovalItem[];
+  }>('/api/admin/referrals/pending', { token: token ?? undefined });
+
+  return res.data.data || [];
+}
+
+export async function approveReferral(id: string, token?: string | null): Promise<ReferralApprovalItem> {
+  const res = await apiClient<{
+    status: boolean;
+    message?: string;
+    data: ReferralApprovalItem;
+  }>(`/api/admin/referrals/` + id + '/approve', { method: 'PATCH', body: {}, token: token ?? undefined });
+
+  return res.data.data;
+}
+
+export async function rejectReferral(id: string, reason: string, token?: string | null): Promise<ReferralApprovalItem> {
+  const res = await apiClient<{
+    status: boolean;
+    message?: string;
+    data: ReferralApprovalItem;
+  }>(`/api/admin/referrals/` + id + '/reject', { method: 'PATCH', body: { reason }, token: token ?? undefined });
+
+  return res.data.data;
 }

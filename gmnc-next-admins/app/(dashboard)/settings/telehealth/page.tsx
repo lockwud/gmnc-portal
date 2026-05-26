@@ -3,9 +3,19 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Video, Settings } from 'lucide-react';
-import { getTelehealthSettings, updateTelehealthSettings } from '@/lib/api/settings';
-import { DEFAULT_TELEHEALTH_SETTINGS } from '@/lib/api/settings';
+import { getTelehealthSettings, updateTelehealthSettings } from '@/lib/api/telehealth';
 import type { TelehealthSettingsType } from '@/lib/api/types';
+
+const DEFAULT_TELEHEALTH_SETTINGS: TelehealthSettingsType = {
+  enableTelehealth: true,
+  defaultProviderMinutes: 30,
+  maxConcurrentSessions: 5,
+  recordingEnabled: false,
+  waitingRoomEnabled: true,
+  requireApproval: false,
+  sessionTimeout: 30,
+  connectTimeout: 10,
+};
 
 function ToggleSwitch({
   checked,

@@ -7,10 +7,15 @@ import {
   AssessmentToolsResponse,
 } from './types';
 
-import { ACCESS_TOKEN_COOKIE } from '@/lib/session';
-
 let assessmentToolsPromise: Promise<AssessmentToolsResponse> | null = null;
 const assessmentToolFormPromises = new Map<string, Promise<AssessmentToolFormResponse>>();
+
+function getToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token') || localStorage.getItem('gmnc_token');
+  }
+  return null;
+}
 
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);
@@ -26,25 +31,8 @@ async function parseJson<T>(res: Response): Promise<T> {
   return json as T;
 }
 
-function getClientToken(): string | null {
-  if (typeof window !== 'undefined') {
-    const localToken = localStorage.getItem('token') || localStorage.getItem('gmnc_token');
-    if (localToken) return localToken;
-    
-    const cookies = document.cookie.split('; ');
-    for (const cookie of cookies) {
-      const [name, value] = cookie.split('=');
-      if (name === ACCESS_TOKEN_COOKIE) {
-        return value;
-      }
-    }
-    return null;
-  }
-  return null;
-}
-
 export async function apiGet<T>(path: string): Promise<T> {
-  const authToken = getClientToken();
+  const authToken = getToken();
   const res = await fetch(path, {
     method: 'GET',
     credentials: 'include',
@@ -59,7 +47,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const authToken = getClientToken();
+  const authToken = getToken();
   const res = await fetch(path, {
     method: 'POST',
     credentials: 'include',
@@ -73,7 +61,37 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return parseJson<T>(res);
 }
 
-export async function getAssessmentTools() {
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const authToken = getToken();
+  const res = await fetch(path, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  return parseJson<T>(res);
+}
+
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const authToken = getToken();
+  const res = await fetch(path, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  return parseJson<T>(res);
+}
+
+export async function getAssessmentTools(): Promise<AssessmentToolsResponse> {
   if (!assessmentToolsPromise) {
     assessmentToolsPromise = apiGet<{
       status: boolean;
@@ -85,7 +103,7 @@ export async function getAssessmentTools() {
   return assessmentToolsPromise;
 }
 
-export async function getAssessmentToolForm(toolCode: string) {
+export async function getAssessmentToolForm(toolCode: string): Promise<AssessmentToolFormResponse> {
   const normalizedToolCode = toolCode.trim();
 
   if (!assessmentToolFormPromises.has(normalizedToolCode)) {
@@ -102,7 +120,7 @@ export async function getAssessmentToolForm(toolCode: string) {
   return assessmentToolFormPromises.get(normalizedToolCode)!;
 }
 
-export async function warmAssessmentToolForms(toolCodes: string[]) {
+export async function warmAssessmentToolForms(toolCodes: string[]): Promise<void> {
   await Promise.allSettled(
     toolCodes
       .map((toolCode) => toolCode.trim())
@@ -111,7 +129,7 @@ export async function warmAssessmentToolForms(toolCodes: string[]) {
   );
 }
 
-export async function getPatientAssessments(patientId: string) {
+export async function getPatientAssessments(patientId: string): Promise<AssessmentPatientReportResponse> {
   const res = await apiGet<{
     status: boolean;
     message?: string;
@@ -121,7 +139,7 @@ export async function getPatientAssessments(patientId: string) {
   return res.data;
 }
 
-export async function getAssessmentReport(assessmentId: string) {
+export async function getAssessmentReport(assessmentId: string): Promise<AssessmentReportResponse> {
   const res = await apiGet<{
     status: boolean;
     message?: string;
@@ -131,12 +149,22 @@ export async function getAssessmentReport(assessmentId: string) {
   return res.data;
 }
 
-export async function submitAssessment(payload: AssessmentSubmitPayload) {
+export async function submitAssessment(payload: AssessmentSubmitPayload): Promise<AssessmentSubmitResponse> {
   const res = await apiPost<{
     status: boolean;
     message?: string;
     data: AssessmentSubmitResponse;
   }>('/api/assessment/submit', payload);
+
+  return res.data;
+}
+
+export async function getAssessmentById(assessmentId: string): Promise<{ id: string; patientId: string; providerId: string; toolCode: string; status: string; assessedAt?: string }> {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: { id: string; patientId: string; providerId: string; toolCode: string; status: string; assessedAt?: string };
+  }>(`/api/assessment/${assessmentId}`);
 
   return res.data;
 }

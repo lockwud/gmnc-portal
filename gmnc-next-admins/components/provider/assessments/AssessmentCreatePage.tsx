@@ -28,6 +28,12 @@ export default function AssessmentCreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const isAdmin = useMemo(() => {
+    return (
+      user?.userType?.toUpperCase() === 'ADMIN' ||
+      user?.roles?.some((role) => role.toUpperCase() === 'ADMIN')
+    );
+  }, [user?.roles, user?.userType]);
 
   // --- State hooks (missing in original code) ---
   const [tools, setTools] = useState<AssessmentToolItem[]>([]);
@@ -45,6 +51,10 @@ export default function AssessmentCreatePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const patientId = searchParams.get('patientId') || '';
+  const patientName = searchParams.get('patientName') || '';
+  const patientGender = searchParams.get('patientGender') || '';
+  const patientDob = searchParams.get('patientDob') || '';
+  const caregiverName = searchParams.get('caregiverName') || '';
 
   useEffect(() => {
     let active = true;
@@ -55,9 +65,6 @@ export default function AssessmentCreatePage() {
         setToolsError(null);
         const data = await getAssessmentTools();
         if (!active) return;
-
-        // Admin users can see all tools; otherwise rely on canCurrentUserUse flag from API
-        const isAdmin = user?.userType === 'ADMIN' || user?.roles?.some(role => role.toUpperCase() === 'ADMIN');
 
         const availableTools = (data.tools || []).filter((tool) => {
           if (isAdmin) {
@@ -91,7 +98,7 @@ export default function AssessmentCreatePage() {
     return () => {
       active = false;
     };
-  }, [user?.roles]);
+  }, [isAdmin]);
 
   useEffect(() => {
     let active = true;
@@ -198,7 +205,17 @@ export default function AssessmentCreatePage() {
       });
 
       window.localStorage.removeItem(draftStorageKey(patientId, selectedTool.toolCode));
-      router.push(`/provider/assessments/${result.assessment.id}/report`);
+      const params = new URLSearchParams();
+      if (result.assessment.toolCode) params.set('toolCode', result.assessment.toolCode);
+      if (result.assessment.status) params.set('status', result.assessment.status);
+      if (result.assessment.assessedAt) params.set('assessedAt', result.assessment.assessedAt);
+      if (patientName) params.set('patientName', patientName);
+      if (patientGender) params.set('patientGender', patientGender);
+      if (patientDob) params.set('patientDob', patientDob);
+      if (caregiverName) params.set('caregiverName', caregiverName);
+      if (user?.fullName || user?.name) params.set('assessedByName', user.fullName || user.name || '');
+      const query = params.toString();
+      router.push(`/provider/assessments/${result.assessment.id}/report${query ? `?${query}` : ''}`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to submit assessment.');
     } finally {
@@ -244,6 +261,7 @@ export default function AssessmentCreatePage() {
               tools={visibleTools}
               selectedToolCode={selectedTool?.toolCode}
               onSelect={handleSelectTool}
+              canUseRestrictedTools={isAdmin}
             />
           )}
         </div>
@@ -391,6 +409,7 @@ export default function AssessmentCreatePage() {
                       tools={visibleTools}
                       selectedToolCode={selectedTool?.toolCode}
                       onSelect={handleSelectTool}
+                      canUseRestrictedTools={isAdmin}
                     />
                   </div>
 

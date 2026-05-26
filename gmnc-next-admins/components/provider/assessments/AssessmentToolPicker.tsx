@@ -7,12 +7,14 @@ type Props = {
   tools: AssessmentToolItem[];
   selectedToolCode?: string | null;
   onSelect: (tool: AssessmentToolItem) => void;
+  canUseRestrictedTools?: boolean;
 };
 
 export default function AssessmentToolPicker({
   tools,
   selectedToolCode,
   onSelect,
+  canUseRestrictedTools = false,
 }: Props) {
   const professionStyles: Record<string, string> = {
     PHYSIOTHERAPIST: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
@@ -35,7 +37,7 @@ export default function AssessmentToolPicker({
     <div className="space-y-3">
       {tools.map((tool) => {
         const selected = selectedToolCode === tool.toolCode;
-        const disabled = !tool.canCurrentUserUse;
+        const disabled = !canUseRestrictedTools && !tool.canCurrentUserUse;
         const toolAccent = selected
           ? 'bg-emerald-600 text-white'
           : 'bg-slate-100 text-slate-600';
@@ -91,7 +93,7 @@ export default function AssessmentToolPicker({
               ))}
             </div>
 
-            {!tool.canCurrentUserUse && (
+            {!canUseRestrictedTools && !tool.canCurrentUserUse && (
               <p className="mt-3 text-xs text-red-600">
                 You are not authorized to use this tool for your profession.
               </p>
