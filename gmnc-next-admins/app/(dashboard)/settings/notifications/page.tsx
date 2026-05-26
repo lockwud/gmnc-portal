@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, Bell, CheckCircle, Archive } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api/telehealth';
-import type { NotificationItem } from '@/lib/api/types';
+import type { NotificationItem, NotificationPriority } from '@/lib/api/types';
 
 export default function NotificationsSettingsPage() {
   const { token } = useAuth();
@@ -50,7 +50,7 @@ export default function NotificationsSettingsPage() {
     }
   };
 
-  const getStatusClass = (priority: string) => {
+  const getStatusClass = (priority: NotificationPriority | undefined) => {
     switch (priority) {
       case 'warning': return 'bg-amber-50 text-amber-700';
       case 'error': return 'bg-red-50 text-red-700';
@@ -115,7 +115,7 @@ export default function NotificationsSettingsPage() {
                       Mark read
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1">{n.message}</p>
+                  <p className="text-[11px] text-slate-500 mt-1">{n.content}</p>
                   <p className="text-[10px] text-slate-400 mt-1">
                     {new Date(n.createdAt).toLocaleString()}
                   </p>

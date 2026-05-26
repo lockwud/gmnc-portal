@@ -43,9 +43,11 @@ export async function apiClient<T>(
     skipJsonStringify = false,
   } = options;
 
+  const baseUrl = env.API_BASE_URL || 'http://localhost:3001';
+  
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${baseUrl}${path}`, {
       method,
       headers: {
         ...(skipJsonStringify ? {} : { 'Content-Type': 'application/json' }),

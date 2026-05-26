@@ -5,7 +5,9 @@ import {
   NotificationListResponse,
   PushTokenRegisterPayload,
 } from './types';
-import { useAuth } from '@/lib/context/AuthContext';
+import { env } from '@/lib/env';
+
+const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
 
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);
@@ -30,7 +32,7 @@ function getToken(): string | null {
 
 async function apiGet<T>(path: string, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -45,7 +47,7 @@ async function apiGet<T>(path: string, token?: string | null): Promise<T> {
 
 async function apiPost<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -60,7 +62,7 @@ async function apiPost<T>(path: string, body: unknown, token?: string | null): P
 
 async function apiPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -75,7 +77,7 @@ async function apiPut<T>(path: string, body: unknown, token?: string | null): Pr
 
 async function apiDelete<T>(path: string, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'DELETE',
     credentials: 'include',
     headers: {
@@ -92,7 +94,7 @@ export async function getTelehealthSettings(token?: string | null): Promise<Tele
     status: boolean;
     message?: string;
     data: TelehealthSettingsType;
-  }>('/api/settings/telehealth', token);
+  }>('/settings/telehealth', token);
 
   return res.data;
 }
@@ -105,7 +107,7 @@ export async function updateTelehealthSettings(
     status: boolean;
     message?: string;
     data: TelehealthSettingsType;
-  }>('/api/settings/telehealth', settings, token);
+  }>('/settings/telehealth', settings, token);
 
   return res.data;
 }
@@ -115,7 +117,7 @@ export async function getTelehealthRooms(token?: string | null): Promise<{ rooms
     status: boolean;
     message?: string;
     data: TelehealthRoomType[];
-  }>('/api/telehealth/rooms', token);
+  }>('/telehealth/rooms', token);
 
   const rooms = Array.isArray(res.data) ? res.data : [];
   return { rooms, total: rooms.length };
@@ -126,7 +128,7 @@ export async function getTelehealthRoom(id: string, token?: string | null): Prom
     status: boolean;
     message?: string;
     data: TelehealthRoomType;
-  }>(`/api/telehealth/rooms/${id}`, token);
+  }>(`/telehealth/rooms/${id}`, token);
 
   return res.data;
 }
@@ -141,13 +143,13 @@ export async function createTelehealthRoom(payload: {
     status: boolean;
     message?: string;
     data: TelehealthRoomType;
-  }>('/api/telehealth/rooms', payload, token);
+  }>('/telehealth/rooms', payload, token);
 
   return res.data;
 }
 
 export async function cancelTelehealthRoom(id: string, token?: string | null): Promise<void> {
-  await apiDelete(`/api/telehealth/rooms/${id}`, token);
+  await apiDelete(`/telehealth/rooms/${id}`, token);
 }
 
 export async function getNotifications(token?: string | null): Promise<NotificationListResponse> {
@@ -158,7 +160,7 @@ export async function getNotifications(token?: string | null): Promise<Notificat
     total: number;
     page?: number;
     pageSize?: number;
-  }>('/api/notification', token);
+  }>('/notification', token);
 
   return {
     notifications: res.data || [],
@@ -169,21 +171,21 @@ export async function getNotifications(token?: string | null): Promise<Notificat
 }
 
 export async function getUnreadNotificationCount(token?: string | null): Promise<number> {
-  const res = await apiGet<{ count: number }>('/api/notification/unread-count', token);
+  const res = await apiGet<{ count: number }>('/notification/unread-count', token);
   return res.count;
 }
 
 export async function markNotificationAsRead(id: string, token?: string | null): Promise<void> {
-  await apiPut(`/api/notification/${id}/read`, {}, token);
+  await apiPut(`/notification/${id}/read`, {}, token);
 }
 
 export async function markAllNotificationsAsRead(token?: string | null): Promise<void> {
-  await apiPut('/api/notification/read-all', {}, token);
+  await apiPut('/notification/read-all', {}, token);
 }
 
 export async function registerPushToken(
   payload: PushTokenRegisterPayload,
   token?: string | null
 ): Promise<void> {
-  await apiPost('/api/notification/push-token', payload, token);
+  await apiPost('/notification/push-token', payload, token);
 }
