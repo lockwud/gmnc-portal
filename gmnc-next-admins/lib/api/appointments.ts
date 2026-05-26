@@ -5,6 +5,10 @@ import {
   CreateAppointmentResponse,
 } from './types';
 
+import { env } from '@/lib/env';
+
+const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
+
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);
 
@@ -26,9 +30,9 @@ function getToken(): string | null {
   return null;
 }
 
-export async function apiGet<T>(path: string, token?: string | null): Promise<T> {
+async function apGet<T>(path: string, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -41,9 +45,9 @@ export async function apiGet<T>(path: string, token?: string | null): Promise<T>
   return parseJson<T>(res);
 }
 
-async function apiPost<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+async function apPost<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -56,9 +60,9 @@ async function apiPost<T>(path: string, body: unknown, token?: string | null): P
   return parseJson<T>(res);
 }
 
-async function apiPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+async function apPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -71,9 +75,9 @@ async function apiPut<T>(path: string, body: unknown, token?: string | null): Pr
   return parseJson<T>(res);
 }
 
-async function apiPatch<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+async function apPatch<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: {
@@ -87,7 +91,7 @@ async function apiPatch<T>(path: string, body: unknown, token?: string | null): 
 }
 
 export async function getAppointments(token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
-  const res = await apiGet<{
+  const res = await apGet<{
     status: boolean;
     message?: string;
     data: AppointmentListItem[];
@@ -98,7 +102,7 @@ export async function getAppointments(token?: string | null): Promise<{ appointm
 }
 
 export async function createAppointment(payload: CreateAppointmentPayload, token?: string | null): Promise<CreateAppointmentResponse> {
-  const res = await apiPost<{
+  const res = await apPost<{
     status: boolean;
     message?: string;
     data: CreateAppointmentResponse;
@@ -108,7 +112,7 @@ export async function createAppointment(payload: CreateAppointmentPayload, token
 }
 
 export async function getProviderAppointments(providerId: string, token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
-  const res = await apiGet<{
+  const res = await apGet<{
     status: boolean;
     message?: string;
     data: AppointmentListItem[];
@@ -119,7 +123,7 @@ export async function getProviderAppointments(providerId: string, token?: string
 }
 
 export async function getPatientAppointments(patientId: string, token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
-  const res = await apiGet<{
+  const res = await apGet<{
     status: boolean;
     message?: string;
     data: AppointmentListItem[];
@@ -130,7 +134,7 @@ export async function getPatientAppointments(patientId: string, token?: string |
 }
 
 export async function getAppointment(id: string, token?: string | null): Promise<AppointmentListItem> {
-  const res = await apiGet<{
+  const res = await apGet<{
     status: boolean;
     message?: string;
     data: AppointmentListItem;
@@ -140,7 +144,7 @@ export async function getAppointment(id: string, token?: string | null): Promise
 }
 
 export async function updateAppointment(id: string, payload: Partial<CreateAppointmentPayload>, token?: string | null): Promise<CreateAppointmentResponse> {
-  const res = await apiPut<{
+  const res = await apPut<{
     status: boolean;
     message?: string;
     data: CreateAppointmentResponse;
@@ -150,7 +154,7 @@ export async function updateAppointment(id: string, payload: Partial<CreateAppoi
 }
 
 export async function approveAppointment(id: string, payload: { status: string; notes?: string }, token?: string | null): Promise<CreateAppointmentResponse> {
-  const res = await apiPatch<{
+  const res = await apPatch<{
     status: boolean;
     message?: string;
     data: CreateAppointmentResponse;
@@ -160,7 +164,7 @@ export async function approveAppointment(id: string, payload: { status: string; 
 }
 
 export async function rescheduleAppointment(id: string, payload: { appointmentDate: string; notes?: string }, token?: string | null): Promise<CreateAppointmentResponse> {
-  const res = await apiPatch<{
+  const res = await apPatch<{
     status: boolean;
     message?: string;
     data: CreateAppointmentResponse;

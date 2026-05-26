@@ -145,7 +145,26 @@ export default function AssessmentHubPage() {
 
   const handleCreateAssessment = () => {
     if (!selectedPatient) return;
-    router.push(`/provider/assessments/create?patientId=${assessmentPatientId}`);
+    const params = new URLSearchParams();
+    if (assessmentPatientId) params.set('patientId', assessmentPatientId);
+    if (selectedPatient.fullName) params.set('patientName', selectedPatient.fullName);
+    if (selectedPatient.gender) params.set('patientGender', selectedPatient.gender);
+    if (selectedPatient.dateOfBirth) params.set('patientDob', selectedPatient.dateOfBirth);
+    if (selectedPatient.caregiverName) params.set('caregiverName', selectedPatient.caregiverName);
+    router.push(`/provider/assessments/create?${params.toString()}`);
+  };
+
+  const reportHref = (assessment: AssessmentListItem) => {
+    const params = new URLSearchParams();
+    if (assessment.toolCode) params.set('toolCode', assessment.toolCode);
+    if (assessment.status) params.set('status', assessment.status);
+    if (assessment.assessedAt) params.set('assessedAt', assessment.assessedAt);
+    if (selectedPatient?.fullName) params.set('patientName', selectedPatient.fullName);
+    if (selectedPatient?.gender) params.set('patientGender', selectedPatient.gender);
+    if (selectedPatient?.dateOfBirth) params.set('patientDob', selectedPatient.dateOfBirth);
+    if (selectedPatient?.caregiverName) params.set('caregiverName', selectedPatient.caregiverName);
+    const query = params.toString();
+    return `/provider/assessments/${assessment.id}/report${query ? `?${query}` : ''}`;
   };
 
   return (
@@ -311,7 +330,7 @@ export default function AssessmentHubPage() {
                   key={assessment.id}
                   type="button"
                   onClick={() =>
-                    router.push(`/provider/assessments/${assessment.id}/report`)
+                    router.push(reportHref(assessment))
                   }
                   className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50/30"
                 >

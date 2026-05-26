@@ -229,6 +229,43 @@ export default function AssessmentFieldRenderer({
     );
   }
 
+  if (format === 'NUMBER_OR_NT') {
+    const numValue = value === 'NT' || value === 'nt' ? 'NT' : (value === undefined || value === null ? '' : String(Number(value)));
+    return (
+      <div className="space-y-2">
+        <label htmlFor={id} className="block text-sm font-medium text-slate-800">
+          {label}
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            id={id}
+            type="number"
+            min="0"
+            max="3"
+            value={numValue === 'NT' ? '' : numValue}
+            onChange={(e) => {
+              const newVal = e.target.value === '' ? '' : Number(e.target.value);
+              onChange(newVal);
+            }}
+            className="w-20 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500"
+          />
+          <span className="text-slate-400">or</span>
+          <button
+            type="button"
+            onClick={() => onChange('NT')}
+            className={`rounded-xl border px-3 py-1.5 text-sm transition ${
+              value === 'NT' || value === 'nt'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            NT
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (format === 'DATE') {
     return (
       <div className="max-w-[280px] space-y-2">

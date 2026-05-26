@@ -23,7 +23,7 @@ export function useNotifications() {
           const fcmToken = await getFCMToken();
           if (fcmToken) {
             setToken(fcmToken);
-            await registerPushToken({ token: fcmToken, deviceType: "web" }, token);
+            await registerPushToken({ token: fcmToken, deviceType: "web" }, token ?? undefined);
           }
         }
       }
@@ -43,7 +43,7 @@ export function useNotifications() {
       const fcmToken = await getFCMToken();
       if (fcmToken) {
         setToken(fcmToken);
-        await registerPushToken({ token: fcmToken, deviceType: "web" }, token);
+        await registerPushToken({ token: fcmToken, deviceType: "web" }, token ?? undefined);
       }
     }
     setLoading(false);
@@ -51,7 +51,7 @@ export function useNotifications() {
 
   const unsubscribe = async () => {
     if (notifyToken) {
-      await removePushToken(token);
+      await removePushToken(token ?? undefined);
       setToken(null);
     }
   };

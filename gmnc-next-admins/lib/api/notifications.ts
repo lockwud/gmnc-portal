@@ -1,16 +1,7 @@
 import { apiClient } from "./client";
+import type { PushTokenRegisterPayload } from "./types";
 
-export type PushTokenRegisterPayload = {
-  token: string;
-  deviceType?: string;
-  deviceId?: string;
-};
-
-export type PushTokenResponse = {
-  token: string | null;
-};
-
-export async function getPushToken(token?: string): Promise<PushTokenResponse> {
+export async function getPushToken(token?: string): Promise<{ token: string | null }> {
   const res = await apiClient<{ token: string | null }>("/notification/push-token", {
     method: "GET",
     token,
