@@ -1,4 +1,4 @@
-import {
+import type {
   TelehealthSettingsType,
   TelehealthRoomType,
   NotificationItem,
@@ -181,11 +181,4 @@ export async function markNotificationAsRead(id: string, token?: string | null):
 
 export async function markAllNotificationsAsRead(token?: string | null): Promise<void> {
   await apiPut('/notification/read-all', {}, token);
-}
-
-export async function registerPushToken(
-  payload: PushTokenRegisterPayload,
-  token?: string | null
-): Promise<void> {
-  await apiPost('/notification/push-token', payload, token);
 }

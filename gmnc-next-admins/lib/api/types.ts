@@ -109,6 +109,12 @@ export type AssessmentToolFormResponse = {
   toolCode: string;
   toolName?: string;
   sections: AssessmentFormSection[];
+  dimensions?: Array<{
+    code: string;
+    name: string;
+    start: number;
+    end: number;
+  }>;
 };
 
 export type AssessmentSubmitPayload = {
