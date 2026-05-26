@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import { useAuth } from '@/lib/context/AuthContext';
 
 import {
   CheckCircle2,
@@ -18,8 +19,10 @@ import {
   IdCard,
   Calendar,
   Building2,
-  Award,
   MapPin,
+  FileText,
+  Shield,
+  Clock,
 } from 'lucide-react';
 
 import {
@@ -36,27 +39,20 @@ export default function ProviderDetailPage({
   providerId: string;
 }) {
   const router = useRouter();
+  const { token } = useAuth();
 
   const [provider, setProvider] = useState<Provider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
-
   const [pendingAction, setPendingAction] =
     useState<ProviderVerificationAction | null>(null);
-
   const [actionNote, setActionNote] = useState('');
-
-  const [activeTab, setActiveTab] = useState<
-    'documents' | 'notes' | 'activity'
-  >('documents');
 
   useEffect(() => {
     const loadProvider = async () => {
       setIsLoading(true);
-
       try {
-        const data = await getProviderById(providerId);
+        const data = await getProviderById(providerId, token ?? undefined);
         setProvider(data);
       } catch (err) {
         console.error('Failed to load provider:', err);
@@ -66,469 +62,456 @@ export default function ProviderDetailPage({
     };
 
     loadProvider();
-  }, [providerId]);
+  }, [providerId, token]);
 
-  const openActionModal = (
-    action: ProviderVerificationAction
-  ) => {
+  const openActionModal = (action: ProviderVerificationAction) => {
     setPendingAction(action);
     setIsActionModalOpen(true);
   };
 
-  const handleVerificationAction = async (
-    action: ProviderVerificationAction
-  ) => {
+  const handleVerificationAction = async (action: ProviderVerificationAction) => {
     if (!provider) return;
-
     try {
-      // Always send a string for verificationNote (empty string if not typed)
       await verifyProvider(
         provider.id,
         action,
         actionNote ?? '',
-        action === 'APPROVE' ? 'ACTIVE' : undefined
+        action === 'APPROVE' ? 'ACTIVE' : undefined,
+        token ?? undefined
       );
-
       router.push('/admin/approvals/providers');
     } catch (err) {
       console.error('Failed to verify provider:', err);
     }
   };
 
-  const getStatusClass = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
       case 'VERIFIED':
-        return 'bg-emerald-100 text-emerald-700';
-
+        return {
+          bg: 'bg-emerald-50',
+          text: 'text-emerald-700',
+          border: 'border-emerald-200',
+          dot: 'bg-emerald-500',
+        };
       case 'PENDING_REVIEW':
-        return 'bg-amber-100 text-amber-700';
-
+        return {
+          bg: 'bg-amber-50',
+          text: 'text-amber-700',
+          border: 'border-amber-200',
+          dot: 'bg-amber-500',
+        };
       case 'REJECTED':
-        return 'bg-rose-100 text-rose-700';
-
+        return {
+          bg: 'bg-rose-50',
+          text: 'text-rose-700',
+          border: 'border-rose-200',
+          dot: 'bg-rose-500',
+        };
       default:
-        return 'bg-slate-100 text-slate-700';
+        return {
+          bg: 'bg-slate-50',
+          text: 'text-slate-700',
+          border: 'border-slate-200',
+          dot: 'bg-slate-500',
+        };
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc]">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="space-y-4 text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+          <p className="text-sm text-slate-600">Loading provider profile...</p>
+        </div>
       </div>
     );
   }
 
   if (!provider) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc]">
-        <p className="text-slate-500">
-          Provider not found
-        </p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="text-center">
+          <FileText className="mx-auto mb-4 h-12 w-12 text-slate-400" />
+          <p className="text-slate-500">Provider not found</p>
+        </div>
       </div>
     );
   }
 
-  const details = [
-    {
-      label: 'Email Address',
-      value: provider.user.email,
-      icon: Mail,
-      color: 'text-blue-500',
-    },
-    {
-      label: 'Phone Number',
-      value: provider.user.phoneNumber,
-      icon: Phone,
-      color: 'text-green-500',
-    },
-    {
-      label: 'Profession',
-      value: provider.profession,
-      icon: User,
-      color: 'text-violet-500',
-    },
-    {
-      label: 'Specialty',
-      value: provider.licenseType,
-      icon: Briefcase,
-      color: 'text-cyan-500',
-    },
-    {
-      label: 'License Number',
-      value: provider.licenseNumber,
-      icon: IdCard,
-      color: 'text-emerald-500',
-    },
-    {
-      label: 'License Expiry',
-      value: new Date(
-        provider.licenseExpiry
-      ).toLocaleDateString(),
-      icon: Calendar,
-      color: 'text-orange-500',
-    },
-    {
-      label: 'Facility',
-      value: provider.facilityName,
-      icon: Building2,
-      color: 'text-sky-500',
-    },
-    {
-      label: 'Experience',
-      value: `${provider.experience} years`,
-      icon: Award,
-      color: 'text-pink-500',
-    },
-  ];
+  const statusVariant = getStatusVariant(provider.verificationStatus);
 
-return (
-    <>
-      <div className="flex h-screen flex-col bg-[#f7f8fc]">
-        {/* TOP HEADER */}
-        <div className="sticky top-0 z-30 border-b border-slate-200 bg-white">
-          <div className="flex items-center justify-between px-8 py-5">
-            {/* LEFT */}
-            <div className="flex items-center gap-5">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-2xl font-bold text-emerald-700">
-                {provider.user.fullName?.charAt(0)}
-              </div>
-
-              <div>
-                <h1 className="text-2xl font-semibold text-slate-900">
-                  {provider.user.fullName}
-                </h1>
-
-                <div className="mt-1 flex items-center gap-3">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
-                      provider.verificationStatus
-                    )}`}
-                  >
-                    {provider.verificationStatus.replace(
-                      '_',
-                      ' '
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="h-screen max-h-screen overflow-y-auto scrollbar-none px-4 py-8 sm:px-6 lg:px-8">
+        <div className="space-y-10">
+          <header className="border-b border-slate-200 pb-6">
+            <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-xl font-bold text-emerald-700">
+                  {provider.user.fullName?.charAt(0)}
+                </div>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-semibold text-slate-900">
+                      {provider.user.fullName}
+                    </h1>
+                    {provider.verificationStatus === 'VERIFIED' && (
+                      <Shield className="h-6 w-6 text-emerald-600" />
                     )}
-                  </span>
-
-                  <span className="text-sm text-slate-500">
-                    {provider.profession}
-                  </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <div className={`inline-flex items-center gap-2 rounded-full ${statusVariant.bg} border ${statusVariant.border} px-3 py-1`}>
+                      <span className={`h-2 w-2 rounded-full ${statusVariant.dot}`} />
+                      <span className={`text-xs font-semibold ${statusVariant.text}`}>
+                        {provider.verificationStatus.replace('_', ' ')}
+                      </span>
+                    </div>
+                    {provider.profession && (
+                      <p className="text-sm font-medium text-slate-600">
+                        {provider.profession}
+                      </p>
+                    )}
+                    {provider.experience && (
+                      <p className="text-sm text-slate-500">
+                        {provider.experience} years experience
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* ACTIONS */}
-            {provider.verificationStatus !==
-              'VERIFIED' && (
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() =>
-                    openActionModal('APPROVE')
-                  }
-                  className="h-11 rounded-xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
-                >
-                  <div className="flex items-center gap-2">
+              {provider.verificationStatus !== 'VERIFIED' && (
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <Button
+                    onClick={() => openActionModal('APPROVE')}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-emerald-700"
+                  >
                     <CheckCircle2 size={18} />
                     Approve
-                  </div>
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    openActionModal(
-                      'REQUEST_CHANGES'
-                    )
-                  }
-                  className="h-11 rounded-xl border border-blue-200 bg-blue-50 px-5 text-blue-700 hover:bg-blue-100"
-                >
-                  <div className="flex items-center gap-2">
+                  </Button>
+                  <Button
+                    onClick={() => openActionModal('REQUEST_CHANGES')}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-medium text-blue-700 transition-all hover:bg-blue-100"
+                  >
                     <Edit2 size={18} />
                     Request Changes
-                  </div>
-                </Button>
-
-                <button
-                  onClick={() =>
-                    openActionModal('REJECT')
-                  }
-                  className="flex h-11 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-5 text-sm font-medium text-rose-700 hover:bg-rose-100"
-                >
-                  <XCircle size={18} />
-                  Reject
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* CONTENT */}
-        <div className="flex-1 overflow-hidden">
-          <div className="grid h-full grid-cols-[360px_1fr]">
-            {/* LEFT SIDEBAR - PROVIDER DETAILS */}
-          <div className="h-full flex flex-col overflow-y-auto scrollbar-none border-r border-slate-200 bg-white">
-            {/* SECTION HEADER */}
-            <div className="border-b border-slate-200 px-6 py-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                Provider Details
-              </h2>
+                  </Button>
+                  <Button
+                    onClick={() => openActionModal('REJECT')}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-5 py-2.5 text-sm font-medium text-rose-700 transition-all hover:bg-rose-100"
+                  >
+                    <XCircle size={18} />
+                    Reject
+                  </Button>
+                </div>
+              )}
             </div>
+          </header>
 
-            {/* DETAILS */}
-            <div className="flex-1 space-y-8 px-6 py-7">
-              {details.map((item, idx) => {
-                const Icon = item.icon;
-
-                return (
-                  <div key={idx}>
-                    <div className="mb-2 flex items-center gap-3">
-                      <Icon
-                        size={18}
-                        className={item.color}
-                      />
-
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        {item.label}
-                      </p>
+          <main className="w-full">
+            <div className="space-y-12">
+              <section>
+                <h2 className="mb-6 text-xl font-semibold text-slate-900">Professional Information</h2>
+                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="group">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-blue-50 p-2.5">
+                        <Mail size={20} className="text-blue-600" />
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Email
+                      </label>
                     </div>
-
-                    <p className="pl-7 text-sm font-medium leading-relaxed text-slate-900">
-                      {item.value || 'N/A'}
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.user.email}
                     </p>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* ADDRESS */}
-            <div className="border-t border-slate-200 px-6 py-7">
-              <div className="mb-2 flex items-center gap-3">
-                <MapPin
-                  size={18}
-                  className="text-emerald-600"
-                />
-
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Address
-                </p>
-              </div>
-
-              <p className="pl-7 text-sm font-medium text-slate-900">
-                {provider.user.address}
-              </p>
-
-              <p className="mt-2 pl-7 text-sm text-slate-500">
-                {provider.user.digitalAddress}
-              </p>
-            </div>
-          </div>
-
-          {/* RIGHT CONTENT - DOCUMENTS */}
-          <div className="h-full bg-[#fafbff]">
-            {/* TABS */}
-            <div className="flex items-center gap-8 border-b border-slate-200 bg-white px-8">
-              <button
-                onClick={() => setActiveTab('documents')}
-                className={`pb-4 pt-5 text-sm font-medium ${
-                  activeTab === 'documents'
-                    ? 'border-b-2 border-emerald-600 text-emerald-700'
-                    : 'text-slate-500'
-                }`}
-              >
-                Documents
-              </button>
-
-              <button
-                onClick={() => setActiveTab('notes')}
-                className={`pb-4 pt-5 text-sm font-medium ${
-                  activeTab === 'notes'
-                    ? 'border-b-2 border-emerald-600 text-emerald-700'
-                    : 'text-slate-500'
-                }`}
-              >
-                Verification Notes
-              </button>
-
-              <button
-                onClick={() => setActiveTab('activity')}
-                className={`pb-4 pt-5 text-sm font-medium ${
-                  activeTab === 'activity'
-                    ? 'border-b-2 border-emerald-600 text-emerald-700'
-                    : 'text-slate-500'
-                }`}
-              >
-                Activity
-              </button>
-            </div>
-
-            {/* TAB CONTENT */}
-            <div className="p-8">
-              {/* DOCUMENTS */}
-              {activeTab === 'documents' && (
-                <div className="space-y-10">
-                  {/* LICENSE */}
-                  {provider.licenseImage && (
-                    <div>
-                      <div className="mb-5">
-                        <h3 className="text-lg font-semibold text-slate-900">
-                          License Document
-                        </h3>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          Uploaded provider license
-                        </p>
+                  <div className="group">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-green-50 p-2.5">
+                        <Phone size={20} className="text-green-600" />
                       </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Phone
+                      </label>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.user.phoneNumber || '—'}
+                    </p>
+                  </div>
 
-                      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                        <div className="relative h-60 w-full">
-                          <Image
-                            src={provider.licenseImage}
-                            alt="License"
-                            fill
-                            priority
-                            className="object-contain"
-                            sizes="100vw"
-                          />
-                        </div>
+                  <div className="group">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-violet-50 p-2.5">
+                        <User size={20} className="text-violet-600" />
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Profession
+                      </label>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.profession || '—'}
+                    </p>
+                  </div>
+
+                  <div className="group">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-cyan-50 p-2.5">
+                        <Briefcase size={20} className="text-cyan-600" />
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Specialty
+                      </label>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.licenseType || '—'}
+                    </p>
+                  </div>
+
+                  <div className="group">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-emerald-50 p-2.5">
+                        <IdCard size={20} className="text-emerald-600" />
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        License #
+                      </label>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.licenseNumber || '—'}
+                    </p>
+                  </div>
+
+                  <div className="group">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-orange-50 p-2.5">
+                        <Calendar size={20} className="text-orange-600" />
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Expires
+                      </label>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.licenseExpiry
+                        ? new Date(provider.licenseExpiry).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h2 className="mb-6 text-xl font-semibold text-slate-900">Facility & Location</h2>
+                <div className="grid gap-8 sm:grid-cols-2">
+                  <div>
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-sky-50 p-2.5">
+                        <Building2 size={20} className="text-sky-600" />
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Facility
+                      </label>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.facilityName || '—'}
+                    </p>
+                    {provider.facilityType && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {provider.facilityType.replace('_', ' ')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-rose-50 p-2.5">
+                        <MapPin size={20} className="text-rose-600" />
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Address
+                      </label>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {provider.user.address || '—'}
+                    </p>
+                    {provider.user.digitalAddress && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Digital: {provider.user.digitalAddress}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {provider.licenseImage && (
+                <section>
+                  <h2 className="mb-6 text-xl font-semibold text-slate-900">License Image</h2>
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="relative h-64 w-full overflow-hidden rounded-lg bg-slate-100">
+                      <Image
+                        src={provider.licenseImage}
+                        alt="License"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {provider.verifiedAt && (
+                <section>
+                  <h2 className="mb-6 text-xl font-semibold text-slate-900">Activity Timeline</h2>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 rounded-xl bg-emerald-50 px-6 py-4 border border-emerald-200">
+                      <div className="rounded-lg bg-emerald-100 p-2.5">
+                        <CheckCircle2 size={20} className="text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-emerald-900">
+                          Verified on {new Date(provider.verifiedAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-xs text-emerald-700 mt-1">Provider approval completed</p>
                       </div>
                     </div>
-                  )}
-
-                  {/* ADDITIONAL DOCUMENTS */}
-                  {provider.documents &&
-                    Array.isArray(provider.documents) &&
-                    provider.documents.length > 0 && (
-                      <div>
-                        <h3 className="mb-5 text-lg font-semibold text-slate-900">
-                          Additional Documents
-                        </h3>
-
-                        <div className="grid gap-6 lg:grid-cols-2">
-                          {provider.documents.map(
-                            (doc: ProviderDocument, idx: number) => (
-                              <div
-                                key={idx}
-                                className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                              >
-                                {doc.type?.startsWith('image') ? (
-                                  <div className="relative h-[420px]">
-                                    <Image
-                                      src={doc.url}
-                                      alt={doc.name || 'Document'}
-                                      fill
-                                      className="object-cover"
-                                      sizes="50vw"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex h-[240px] items-center justify-center">
-                                    <a
-                                      href={doc.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="rounded-xl bg-emerald-100 px-5 py-3 text-sm font-medium text-emerald-700 hover:bg-emerald-200"
-                                    >
-                                      Open Document
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          )}
-                        </div>
+                    <div className="flex items-center gap-4 rounded-xl bg-slate-50 px-6 py-4 border border-slate-200">
+                      <div className="rounded-lg bg-slate-200 p-2.5">
+                        <Clock size={20} className="text-slate-600" />
                       </div>
-                    )}
-                </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-700">
+                          Registered on {new Date(provider.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Account created</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               )}
 
-              {/* NOTES */}
-              {activeTab === 'notes' && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    Verification Notes
-                  </h3>
-
-                  <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                    No verification notes yet.
-                  </p>
-                </div>
-              )}
-
-              {/* ACTIVITY */}
-              {activeTab === 'activity' && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    Activity
-                  </h3>
-
-                  <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                    No recent activity.
-                  </p>
-                </div>
+              {provider.documents && provider.documents.length > 0 && (
+                <section>
+                  <h2 className="mb-6 text-xl font-semibold text-slate-900">Documents</h2>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {provider.documents.map((doc: ProviderDocument, idx: number) => (
+                      <div key={idx} className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:border-slate-300 hover:shadow-md">
+                        {doc.type?.startsWith('image') ? (
+                          <div className="relative h-40 w-full overflow-hidden bg-slate-100">
+                            <Image
+                              src={doc.url}
+                              alt={doc.name || 'Document'}
+                              fill
+                              className="object-cover transition-transform group-hover:scale-105"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex h-40 items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-emerald-700"
+                            >
+                              <FileText size={16} />
+                              View
+                            </a>
+                          </div>
+                        )}
+                        {doc.name && (
+                          <div className="border-t border-slate-200 px-4 py-3">
+                            <p className="text-center text-xs font-semibold text-slate-900">
+                              {doc.name}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
               )}
             </div>
-          </div>
+          </main>
         </div>
       </div>
-    </div>
 
-    {/* MODAL */}
-      <Modal
-        isOpen={isActionModalOpen}
-        onClose={() => setIsActionModalOpen(false)}
-      >
-        <div className="w-full max-w-lg rounded-3xl bg-white p-8">
-          <h2 className="text-2xl font-semibold text-slate-900">
+      <Modal isOpen={isActionModalOpen} onClose={() => setIsActionModalOpen(false)}>
+        <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl">
+          <div className="mb-2 inline-flex items-center gap-3 rounded-lg bg-slate-100 px-3 py-1.5">
+            <Clock size={16} className="text-slate-600" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+              {pendingAction === 'APPROVE' && 'Approval'}
+              {pendingAction === 'REJECT' && 'Rejection'}
+              {pendingAction === 'REQUEST_CHANGES' && 'Request'}
+            </span>
+          </div>
+
+          <h2 className="mt-4 text-2xl font-semibold text-slate-900">
             {pendingAction === 'APPROVE' && 'Approve Provider'}
-
             {pendingAction === 'REJECT' && 'Reject Provider'}
-
-            {pendingAction ===
-              'REQUEST_CHANGES' &&
-              'Request Changes'}
+            {pendingAction === 'REQUEST_CHANGES' && 'Request Changes'}
           </h2>
 
-          <p className="mt-3 text-sm leading-relaxed text-slate-500">
-            Add optional notes for this action.
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            {pendingAction === 'APPROVE' &&
+              'This provider will be marked as verified and can start accepting patients.'}
+            {pendingAction === 'REJECT' &&
+              'This provider will be rejected. They will need to reapply.'}
+            {pendingAction === 'REQUEST_CHANGES' &&
+              'The provider will be notified to update their information.'}
           </p>
 
-          <textarea
-            value={actionNote}
-            onChange={(e) =>
-              setActionNote(e.target.value)
-            }
-            rows={5}
-            placeholder="Enter notes..."
-            className="mt-6 w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm outline-none focus:border-emerald-400"
-          />
+          <div className="mt-6">
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Notes (optional)
+            </label>
+            <textarea
+              value={actionNote}
+              onChange={(e) => setActionNote(e.target.value)}
+              rows={4}
+              placeholder="Add any additional notes or feedback..."
+              className="mt-3 w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm outline-none transition-colors focus:border-emerald-400 focus:bg-white focus:ring-1 focus:ring-emerald-100"
+            />
+          </div>
 
           <div className="mt-8 flex gap-3">
             <button
               type="button"
-              onClick={() =>
-                setIsActionModalOpen(false)
-              }
-              className="flex-1 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              onClick={() => setIsActionModalOpen(false)}
+              className="flex-1 rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50"
             >
               Cancel
             </button>
 
             <Button
-              className="flex-1 rounded-2xl py-3"
-              onClick={() => {
-                if (pendingAction) {
-                  handleVerificationAction(
-                    pendingAction
-                  );
-                }
-              }}
+              onClick={() => handleVerificationAction(pendingAction!)}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-medium text-white transition-all ${
+                pendingAction === 'APPROVE'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : pendingAction === 'REJECT'
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
               Confirm
             </Button>
           </div>
         </div>
       </Modal>
-    </>
+    </div>
   );
 }
