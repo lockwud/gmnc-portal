@@ -8,8 +8,8 @@ function getToken(): string | null {
 }
 
 async function apiGet<T>(path: string, token?: string | null): Promise<T> {
-  const authToken = token ?? getToken();
-  const res = await fetch(`${env.API_BASE_URL}${path}`, {
+   const authToken = token ?? getToken();
+   const res = await fetch(`/api/admin/providers${path}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -28,8 +28,8 @@ async function apiGet<T>(path: string, token?: string | null): Promise<T> {
 }
 
 async function apiPatch<T>(path: string, body: unknown, token?: string | null): Promise<T> {
-  const authToken = token ?? getToken();
-  const res = await fetch(`${env.API_BASE_URL}${path}`, {
+   const authToken = token ?? getToken();
+   const res = await fetch(`/api/admin/providers${path}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: {
@@ -111,14 +111,14 @@ type ProviderApiResponse = {
 };
 
 export async function getProvidersWaitingVerification(token?: string): Promise<Provider[]> {
-  const res = await apiGet<ProvidersListApiResponse>('/admin/providers', token);
-  return res.data || [];
-}
+   const res = await apiGet<ProvidersListApiResponse>('', token);
+   return res.data || [];
+ }
 
-export async function getProviderById(id: string, token?: string): Promise<Provider> {
-  const res = await apiGet<ProviderApiResponse>(`/admin/providers/${id}`, token);
-  return Array.isArray(res.data) ? res.data[0] : res.data;
-}
+ export async function getProviderById(id: string, token?: string): Promise<Provider> {
+   const res = await apiGet<ProviderApiResponse>(`/${id}`, token);
+   return Array.isArray(res.data) ? res.data[0] : res.data;
+ }
 
 type VerificationActionBody = {
   action: ProviderVerificationAction;
