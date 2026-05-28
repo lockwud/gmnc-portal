@@ -58,11 +58,23 @@ const nextConfig: NextConfig = {
         source: '/api/assessment/:path*',
         destination: `${apiBaseUrl}/assessment/:path*`,
       },
-      {
-        source: '/notification/:path*',
-        destination: `${apiBaseUrl}/notification/:path*`,
-      },
-    ];
+{
+         source: '/notification/:path*',
+         destination: `${apiBaseUrl}/notification/:path*`,
+       },
+       {
+         source: '/api/admin/providers/:path*',
+         destination: `${apiBaseUrl}/admin/providers/:path*`,
+       },
+{
+          source: '/api/patients',
+          destination: `${apiBaseUrl}/cp-patient`,
+        },
+        {
+          source: '/api/admin/patients',
+          destination: `${apiBaseUrl}/admin/patients`,
+        },
+        ];
   },
 };
 
