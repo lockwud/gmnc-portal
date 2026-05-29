@@ -1,216 +1,1008 @@
-// "use client";
+'use client';
 
-// import * as React from "react";
-// import {
-//   Search,
-//   Filter,
-//   MoreVertical,
-//   ClipboardList,
-//   CheckCircle2,
-//   Clock,
-//   PlayCircle,
-//   AlertCircle,
-//   User,
-//   Plus,
-//   Calendar,
-//   Layers,
-//   FileText,
-// } from "lucide-react";
-// import { Button } from "@/components/ui/Button";
-// import { Input } from "@/components/ui/Input";
-// import { Badge } from "@/components/ui/Badge";
-// import { Card } from "@/components/ui/Card";
-// import { Modal } from "@/components/ui/Modal";
-// import { cn } from "@/lib/utils";
-// import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import EmptyState from '@/components/ui/EmptyState';
+import Pagination from '@/components/ui/Pagination';
+import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/lib/context/AuthContext';
+import {
+  ClipboardList,
+  Plus,
+  Calendar,
+  Clock,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  Clock as ClockIcon,
+  AlertCircle,
+  Video,
+  ListChecks,
+  CalendarDays,
+  Eye,
+  Loader2,
+  Play,
+} from 'lucide-react';
 
-// const tasks = [
-//   { id: 1, name: "Stretching for kids - morning exercise", client: "Dromo Tijani", assignedTo: "Dr. Louisa Parker", category: "Physician Therapy", status: "In Progress", dueDate: "Today" },
-//   { id: 2, name: "Mouth and Tongue Exercises", client: "Serwaa Buaaduwaa", assignedTo: "Tijani Dromo", category: "Speech Therapy", status: "Pending", dueDate: "5/12/25" },
-//   { id: 3, name: "Lip and Jaw Exercise", client: "Isaac Dada Boat", assignedTo: "Samuel Aboagye", category: "Speech Therapy", status: "In Progress", dueDate: "Today" },
-//   { id: 4, name: "Speech and Sound Practice", client: "Sedem Gadokey", assignedTo: "Beryl Mensah", category: "Speech Therapy", status: "Completed", dueDate: "30/11/25" },
-//   { id: 5, name: "Upper Body Rotation", client: "Dromo Tijani", assignedTo: "Dr. Louisa Parker", category: "Physician Therapy", status: "In Progress", dueDate: "Today" },
-// ];
+interface Patient {
+  id: string;
+  fullName: string;
+  dateOfBirth: string;
+  gender: string;
+}
 
-// export default function TasksPage() {
-//   const [showAssignTaskModal, setShowAssignTaskModal] = React.useState(false);
+interface Referral {
+  id: string;
+  patientId: string;
+  patient?: Patient;
+  fromProviderId: string;
+  toProviderId: string;
+  toProfession: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
 
-//   return (
-//     <ProtectedRoute requiredPermission="appointment.read">
-//       <div className="space-y-8 pb-12">
-//         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-//           <div>
-//             <h1 className="text-3xl font-bold text-primary tracking-tight">Task Management</h1>
-//             <p className="text-slate-500 mt-1 font-medium">Track and monitor all assigned patient rehabilitation tasks.</p>
-//           </div>
-//           <Button variant="amber" className="gap-2 shrink-0 h-11 px-6 font-bold shadow-lg shadow-accent/20 rounded-xl" onClick={() => setShowAssignTaskModal(true)}>
-//             <Plus size={18} /> Assign New Task
-//           </Button>
-//         </div>
+interface RehabTask {
+  id: string;
+  patientId: string;
+  providerId: string;
+  referralId: string;
+  title: string;
+  instructions: string;
+  instructionSteps: string[] | null;
+  frequencyPerDay: number | null;
+  frequencyNote: string | null;
+  durationDays: number;
+  startDate: string | null;
+  endDate: string | null;
+  videoUrl: string | null;
+  progress: number;
+  status: 'ASSIGNED' | 'COMPLETED' | 'PENDING';
+  completedDates: string[];
+  createdAt: string;
+  updatedAt: string;
+  patient?: Patient;
+  referral?: Referral;
+}
 
-//         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-//           {[
-//             { label: "Total Tasks", value: "2,000", icon: ClipboardList, color: "text-primary", bg: "bg-slate-50" },
-//             { label: "Pending", value: "400", icon: Clock, color: "text-amber-500", bg: "bg-amber-50" },
-//             { label: "In Progress", value: "150", icon: PlayCircle, color: "text-sky-500", bg: "bg-sky-50" },
-//             { label: "Completed", value: "1,005", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50" },
-//             { label: "Overdue", value: "700", icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
-//           ].map((stat) => (
-//             <Card key={stat.label} className="p-5 border-none shadow-sm group hover:shadow-md transition-all flex flex-col items-center text-center">
-//               <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-3", stat.bg, stat.color)}>
-//                 <stat.icon size={22} />
-//               </div>
-//               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1.5">{stat.label}</p>
-//               <p className="text-2xl font-extrabold text-primary">{stat.value}</p>
-//             </Card>
-//           ))}
-//         </div>
+type TaskStatusFilter = 'ALL' | 'ASSIGNED' | 'COMPLETED';
+type WizardStep = 1 | 2 | 3;
 
-//         <Card className="overflow-hidden border border-slate-100 shadow-sm rounded-4xl bg-white">
-//           <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-//             <div className="flex flex-1 items-center gap-3">
-//               <div className="relative w-full max-w-sm">
-//                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-//                 <input placeholder="Search tasks, clients or providers..." className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-50 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" />
-//               </div>
-//               <div className="flex items-center gap-2">
-//                 <Button variant="ghost" className="h-12 px-5 text-slate-500 text-sm font-bold gap-2 hover:bg-slate-50 rounded-2xl border border-slate-50">
-//                   <Filter size={18} className="text-slate-400" /> Filters
-//                 </Button>
-//                 <Button variant="ghost" className="h-12 px-5 text-slate-500 text-sm font-bold gap-2 hover:bg-slate-50 rounded-2xl border border-slate-50">
-//                   <Layers size={18} className="text-slate-400" /> Category
-//                 </Button>
-//               </div>
-//             </div>
+const statusConfig: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
+  COMPLETED: {
+    label: 'Completed',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-700',
+    icon: <CheckCircle2 size={12} className="text-emerald-600" />,
+  },
+  ASSIGNED: {
+    label: 'In Progress',
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    icon: <ClockIcon size={12} className="text-blue-600" />,
+  },
+  PENDING: {
+    label: 'Pending',
+    bg: 'bg-amber-50',
+    text: 'text-amber-700',
+    icon: <AlertCircle size={12} className="text-amber-600" />,
+  },
+};
 
-//             <div className="flex items-center gap-4">
-//               <span className="text-[11px] font-bold text-slate-400 uppercase">Sort by:</span>
-//               <select aria-label="Sort tasks" className="bg-white border-none text-xs font-bold text-primary focus:ring-0 cursor-pointer">
-//                 <option>Newest First</option>
-//                 <option>Due Date</option>
-//                 <option>Priority</option>
-//               </select>
-//             </div>
-//           </div>
+export default function TasksPage() {
+  const router = useRouter();
+  const { token } = useAuth();
+  const { show } = useToast();
 
-//           <div className="overflow-x-auto">
-//             <table className="w-full text-left border-collapse">
-//               <thead>
-//                 <tr className="bg-slate-50/30">
-//                   <th className="p-5 pl-8 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Task Details</th>
-//                   <th className="p-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Assigned To</th>
-//                   <th className="p-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Category</th>
-//                   <th className="p-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Status</th>
-//                   <th className="p-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Due Date</th>
-//                   <th className="p-5 pr-8"></th>
-//                 </tr>
-//               </thead>
-//               <tbody className="divide-y divide-slate-50">
-//                 {tasks.map((task) => (
-//                   <tr key={task.id} className="hover:bg-emerald-50/30 transition-all group cursor-pointer">
-//                     <td className="p-5 pl-8">
-//                       <div className="flex items-center gap-4">
-//                         <div className="w-11 h-11 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-white transition-all group-hover:shadow-sm">
-//                           <FileText size={20} strokeWidth={1.5} />
-//                         </div>
-//                         <div className="flex flex-col">
-//                           <p className="font-bold text-primary group-hover:text-emerald-600 transition-colors leading-tight">{task.name}</p>
-//                           <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">Client: {task.client}</p>
-//                         </div>
-//                       </div>
-//                     </td>
-//                     <td className="p-5">
-//                       <div className="flex items-center gap-2">
-//                         <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-//                           <User size={14} />
-//                         </div>
-//                         <span className="text-sm font-bold text-slate-600">{task.assignedTo}</span>
-//                       </div>
-//                     </td>
-//                     <td className="p-5">
-//                       <Badge variant="outline" className="text-[10px] font-bold text-slate-400 border-slate-100 bg-white">
-//                         {task.category}
-//                       </Badge>
-//                     </td>
-//                     <td className="p-5">
-//                       <div className="flex items-center gap-2">
-//                         {task.status === "In Progress" && <PlayCircle size={16} className="text-sky-500" />}
-//                         {task.status === "Pending" && <Clock size={16} className="text-amber-500" />}
-//                         {task.status === "Completed" && <CheckCircle2 size={16} className="text-emerald-500" />}
-//                         <span className={cn("text-xs font-extrabold uppercase", task.status === "In Progress" && "text-sky-600", task.status === "Pending" && "text-amber-600", task.status === "Completed" && "text-emerald-600", task.status === "Overdue" && "text-rose-600")}>
-//                           {task.status}
-//                         </span>
-//                       </div>
-//                     </td>
-//                     <td className="p-5">
-//                       <span className="text-sm font-extrabold text-slate-500">{task.dueDate}</span>
-//                     </td>
-//                     <td className="p-5 pr-8 text-right">
-//                       <Button variant="ghost" size="icon" className="text-slate-300 group-hover:text-primary">
-//                         <MoreVertical size={18} />
-//                       </Button>
-//                     </td>
-//                   </tr>
-//                 ))}
-//               </tbody>
-//             </table>
-//           </div>
-//         </Card>
+  const [tasks, setTasks] = useState<RehabTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<RehabTask | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('ALL');
+  const [wizardStep, setWizardStep] = useState<WizardStep>(1);
 
-//         <Modal isOpen={showAssignTaskModal} onClose={() => setShowAssignTaskModal(false)} title="Assign New Task" className="max-w-md">
-//           <form className="space-y-6">
-//             <div className="space-y-4">
-//               <Input label="Task Name" placeholder="e.g. Daily stretching routine" icon={<FileText size={18} className="text-slate-400" />} />
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-//               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                 <div className="space-y-2">
-//                   <label className="text-sm font-bold text-primary">Assign to Therapist</label>
-//                   <select aria-label="Assign therapist" className="w-full h-12 px-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer">
-//                     <option>Select Provider</option>
-//                     <option>Dr. Louisa Parker</option>
-//                     <option>Tijani Dromo</option>
-//                     <option>Samuel Aboagye</option>
-//                   </select>
-//                 </div>
-//                 <div className="space-y-2">
-//                   <label className="text-sm font-bold text-primary">Target Client</label>
-//                   <select aria-label="Target client" className="w-full h-12 px-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer">
-//                     <option>Select Client</option>
-//                     <option>Dromo Tijani</option>
-//                     <option>Serwaa Buaaduwaa</option>
-//                     <option>Sedem Gadokey</option>
-//                   </select>
-//                 </div>
-//               </div>
+  // Form state
+  const [formData, setFormData] = useState({
+    patientId: '',
+    referralId: '',
+    title: '',
+    instructions: '',
+    instructionSteps: [] as string[],
+    frequencyPerDay: 1,
+    frequencyNote: '',
+    durationDays: 7,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    videoUrl: '',
+  });
+  const [instructionStepInput, setInstructionStepInput] = useState('');
 
-//               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                 <div className="space-y-2">
-//                   <label className="text-sm font-bold text-primary">Therapy Category</label>
-//                   <select aria-label="Therapy category" className="w-full h-12 px-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer">
-//                     <option>Select Category</option>
-//                     <option>Physio Therapy</option>
-//                     <option>Speech Therapy</option>
-//                     <option>Occupational Therapy</option>
-//                   </select>
-//                 </div>
-//                 <Input label="Due Date" type="date" icon={<Calendar size={18} className="text-slate-400" />} />
-//               </div>
+  // Options for selects
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [acceptedReferrals, setAcceptedReferrals] = useState<Referral[]>([]);
+  const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
 
-//               <div className="space-y-2">
-//                 <label className="text-sm font-bold text-primary">Task Description (Optional)</label>
-//                 <textarea rows={3} placeholder="Additional instructions for the provider..." className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all resize-none" />
-//               </div>
-//             </div>
+  useEffect(() => {
+    fetchTasks();
+    fetchPatients();
+    fetchAcceptedReferrals();
+  }, []);
 
-//             <div className="flex gap-3 pt-6 border-t border-slate-50 mt-4">
-//               <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl text-slate-500" onClick={() => setShowAssignTaskModal(false)}>
-//                 Cancel
-//               </Button>
-//               <Button variant="amber" className="flex-2 h-14 rounded-2xl font-bold px-12 shadow-lg shadow-accent/10">Assign Task</Button>
-//             </div>
-//           </form>
-//         </Modal>
-//       </div>
-//     </ProtectedRoute>
-//   );
-// }
+  const fetchTasks = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/assessment/tasks/my', {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setTasks(data.data?.tasks || data.tasks || []);
+      } else {
+        show({
+          title: 'Error',
+          message: data.message || 'Failed to load tasks',
+          type: 'error',
+          duration: 4000,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+      show({
+        title: 'Error',
+        message: 'Network error. Please try again.',
+        type: 'error',
+        duration: 4000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchPatients = async () => {
+    setIsLoadingPatients(true);
+    try {
+      const response = await fetch('/api/patients?limit=100', {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPatients(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch patients:', err);
+    } finally {
+      setIsLoadingPatients(false);
+    }
+  };
+
+  const fetchAcceptedReferrals = async () => {
+    setIsLoadingReferrals(true);
+    try {
+      const response = await fetch('/api/assessment/referrals/incoming', {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const allReferrals = data.data?.referrals || data.referrals || [];
+        const accepted = allReferrals.filter((r: Referral) => r.status === 'ACCEPTED');
+        setAcceptedReferrals(accepted);
+      }
+    } catch (err) {
+      console.error('Failed to fetch referrals:', err);
+    } finally {
+      setIsLoadingReferrals(false);
+    }
+  };
+
+  const resetWizard = () => {
+    setWizardStep(1);
+    setFormData({
+      patientId: '',
+      referralId: '',
+      title: '',
+      instructions: '',
+      instructionSteps: [],
+      frequencyPerDay: 1,
+      frequencyNote: '',
+      durationDays: 7,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      videoUrl: '',
+    });
+    setInstructionStepInput('');
+  };
+
+  const handleOpenCreateModal = () => {
+    resetWizard();
+    setIsCreateModalOpen(true);
+  };
+
+  const handleViewTask = (task: RehabTask) => {
+    setSelectedTask(task);
+    setIsViewModalOpen(true);
+  };
+
+  const handleAddInstructionStep = () => {
+    if (instructionStepInput.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        instructionSteps: [...prev.instructionSteps, instructionStepInput.trim()]
+      }));
+      setInstructionStepInput('');
+    }
+  };
+
+  const handleRemoveInstructionStep = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      instructionSteps: prev.instructionSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleNextStep = () => {
+    if (wizardStep === 1 && (!formData.patientId || !formData.title || !formData.instructions)) {
+      show({
+        title: 'Validation Error',
+        message: 'Please select a patient and enter task title and instructions.',
+        type: 'error',
+        duration: 3000,
+      });
+      return;
+    }
+    if (wizardStep < 3) {
+      setWizardStep((prev) => (prev + 1) as WizardStep);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (wizardStep > 1) {
+      setWizardStep((prev) => (prev - 1) as WizardStep);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/assessment/referrals/${formData.referralId}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          instructions: formData.instructions,
+          instructionSteps: formData.instructionSteps.length > 0 ? formData.instructionSteps : null,
+          frequencyPerDay: formData.frequencyPerDay,
+          frequencyNote: formData.frequencyNote || null,
+          durationDays: formData.durationDays,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          videoUrl: formData.videoUrl || null,
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        show({
+          title: 'Success',
+          message: 'Rehab task assigned successfully.',
+          type: 'success',
+          duration: 3000,
+        });
+        setIsCreateModalOpen(false);
+        resetWizard();
+        fetchTasks();
+      } else {
+        show({
+          title: 'Error',
+          message: data.message || 'Failed to assign task.',
+          type: 'error',
+          duration: 4000,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      show({
+        title: 'Error',
+        message: 'Network error. Please try again.',
+        type: 'error',
+        duration: 4000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const filteredTasks = tasks.filter(task => {
+    if (statusFilter === 'ALL') return true;
+    return task.status === statusFilter;
+  });
+
+  const getPaginatedTasks = () => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredTasks.slice(startIndex, endIndex);
+  };
+
+  const paginatedTasks = getPaginatedTasks();
+  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / pageSize));
+  const totalItems = filteredTasks.length;
+
+  // Counts for filters
+  const allTasksCount = tasks.length;
+  const inProgressCount = tasks.filter(t => t.status === 'ASSIGNED').length;
+  const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const calculateProgressColor = (progress: number) => {
+    if (progress >= 75) return 'bg-emerald-500';
+    if (progress >= 50) return 'bg-blue-500';
+    if (progress >= 25) return 'bg-amber-500';
+    return 'bg-rose-500';
+  };
+
+  const renderTaskRow = (task: RehabTask) => {
+    const status = statusConfig[task.status] || statusConfig.PENDING;
+    const progressColor = calculateProgressColor(task.progress);
+
+    return (
+      <tr
+        key={task.id}
+        className="transition cursor-pointer hover:bg-emerald-50"
+        onClick={() => handleViewTask(task)}
+      >
+        <td className="border-b border-slate-100 px-4 py-3">
+          <div className="bg-gradient-to-br from-slate-50/80 to-white rounded-lg p-2">
+            <p className="text-sm font-semibold text-slate-900">
+              {task.patient?.fullName || '—'}
+            </p>
+            <p className="text-[11px] text-slate-500">ID: {task.patientId?.slice(0, 8)}</p>
+          </div>
+        </td>
+        <td className="border-b border-slate-100 px-4 py-3">
+          <div className="bg-gradient-to-br from-slate-50/80 to-white rounded-lg p-2">
+            <p className="text-sm font-medium text-slate-800">{task.title}</p>
+            <p className="text-[11px] text-slate-500 line-clamp-1">{task.instructions}</p>
+          </div>
+        </td>
+        <td className="border-b border-slate-100 px-4 py-3">
+          <div className="bg-gradient-to-br from-slate-50/80 to-white rounded-lg p-2">
+            <div className="flex items-center gap-1">
+              <Calendar size={10} className="text-slate-400" />
+              <span className="text-sm text-slate-600">{task.durationDays} days</span>
+            </div>
+            {task.frequencyPerDay && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Clock size={10} className="text-slate-400" />
+                <span className="text-[11px] text-slate-600">{task.frequencyPerDay}x/day</span>
+              </div>
+            )}
+          </div>
+        </td>
+        <td className="border-b border-slate-100 px-4 py-3">
+          <div className="bg-gradient-to-br from-slate-50/80 to-white rounded-lg p-2">
+            <div className="flex items-center gap-2">
+              <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${progressColor}`} style={{ width: `${task.progress}%` }} />
+              </div>
+              <span className="text-xs font-medium text-slate-700">{task.progress}%</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              {task.completedDates?.length || 0}/{task.durationDays} days done
+            </p>
+          </div>
+        </td>
+        <td className="border-b border-slate-100 px-4 py-3">
+          <div className="bg-gradient-to-br from-slate-50/80 to-white rounded-lg p-2">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${status.bg} ${status.text}`}>
+              {status.icon}
+              {status.label}
+            </span>
+          </div>
+        </td>
+        <td className="border-b border-slate-100 px-4 py-3">
+          <div className="bg-gradient-to-br from-slate-50/80 to-white rounded-lg p-2">
+            <span className="text-sm text-slate-600">{formatDate(task.createdAt)}</span>
+          </div>
+        </td>
+        <td className="border-b border-slate-100 px-4 py-3 text-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewTask(task);
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+          >
+            <Eye size={12} />
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+        <div>
+          <h1 className="text-[15px] font-semibold text-slate-900">Rehab Tasks</h1>
+          <p className="text-xs text-slate-400">Manage patient rehabilitation tasks and track progress</p>
+        </div>
+        <Button
+          onClick={handleOpenCreateModal}
+          className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
+        >
+          <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-600 text-white">
+            <Plus size={10} strokeWidth={2.5} />
+          </span>
+          Create Task
+        </Button>
+      </div>
+
+      {/* Filters with colored icons and backdrop cards */}
+      <div className="border-b border-slate-200 px-4 py-2">
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
+            className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              statusFilter === 'ALL'
+                ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-200'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
+            }`}
+          >
+            <ClipboardList size={14} className={statusFilter === 'ALL' ? 'text-purple-600' : 'text-slate-400'} />
+            All Tasks
+            {allTasksCount > 0 && (
+              <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                statusFilter === 'ALL' ? 'bg-purple-200 text-purple-800' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {allTasksCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => { setStatusFilter('ASSIGNED'); setCurrentPage(1); }}
+            className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              statusFilter === 'ASSIGNED'
+                ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
+            }`}
+          >
+            <ClockIcon size={14} className={statusFilter === 'ASSIGNED' ? 'text-amber-600' : 'text-slate-400'} />
+            In Progress
+            {inProgressCount > 0 && (
+              <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                statusFilter === 'ASSIGNED' ? 'bg-amber-200 text-amber-800' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {inProgressCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => { setStatusFilter('COMPLETED'); setCurrentPage(1); }}
+            className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              statusFilter === 'COMPLETED'
+                ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
+            }`}
+          >
+            <CheckCircle2 size={14} className={statusFilter === 'COMPLETED' ? 'text-emerald-600' : 'text-slate-400'} />
+            Completed
+            {completedCount > 0 && (
+              <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                statusFilter === 'COMPLETED' ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {completedCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="min-h-0 flex-1 overflow-hidden bg-white px-4 pt-2 pb-4">
+        <div className="flex h-full min-h-0 flex-col gap-2">
+          {isLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white rounded-lg">
+              <div className="w-full max-w-md text-center">
+                <ClipboardList size={48} className="mx-auto mb-3 text-slate-300" />
+                <h3 className="text-base font-semibold text-slate-900">No tasks found</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  {statusFilter !== 'ALL' 
+                    ? `No ${statusFilter === 'ASSIGNED' ? 'in progress' : 'completed'} tasks available.`
+                    : "You haven't assigned any rehab tasks yet."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Table Container */}
+              <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 rounded-t-lg bg-white">
+                <div className="h-full overflow-auto scrollbar-none">
+                  <table className="w-full min-w-[900px] border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-emerald-600">
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white rounded-tl-lg">Patient</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Task Title</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Schedule</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Progress</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Status</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Created</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-medium text-white rounded-tr-lg">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedTasks.map(renderTaskRow)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              <div className="border border-slate-200 border-t-0 rounded-b-lg bg-white">
+                <Pagination
+                  page={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Create Task Modal - Multi-step Wizard */}
+      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)}>
+        <div className="w-full max-w-2xl rounded-2xl bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Create Rehab Task</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Assign a new rehabilitation task to a patient</p>
+            </div>
+            <button
+              onClick={() => setIsCreateModalOpen(false)}
+              className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
+            >
+              <XCircle size={16} />
+            </button>
+          </div>
+
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 mb-6">
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="flex items-center flex-1">
+                <div
+                  className={`h-1.5 flex-1 rounded-full transition ${
+                    step <= wizardStep ? 'bg-emerald-600' : 'bg-slate-200'
+                  }`}
+                />
+                {step < 3 && <div className="w-1" />}
+              </div>
+            ))}
+          </div>
+
+          {wizardStep === 1 && (
+            <div className="space-y-5">
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Select Patient *</label>
+                <select
+                  value={formData.patientId}
+                  onChange={(e) => {
+                    const patientId = e.target.value;
+                    setFormData(prev => ({ ...prev, patientId }));
+                    const referral = acceptedReferrals.find(r => r.patientId === patientId);
+                    if (referral) {
+                      setFormData(prev => ({ ...prev, referralId: referral.id }));
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                >
+                  <option value="">Select patient</option>
+                  {patients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Task Title *</label>
+                <Input
+                  placeholder="e.g., Upper Body Strengthening Exercises"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Instructions *</label>
+                <textarea
+                  value={formData.instructions}
+                  onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
+                  rows={3}
+                  placeholder="Describe the exercises and how to perform them..."
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {wizardStep === 2 && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">Frequency (per day)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={formData.frequencyPerDay}
+                    onChange={(e) => setFormData(prev => ({ ...prev, frequencyPerDay: parseInt(e.target.value) || 1 }))}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">Duration (days)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={formData.durationDays}
+                    onChange={(e) => {
+                      const days = parseInt(e.target.value) || 7;
+                      setFormData(prev => ({
+                        ...prev,
+                        durationDays: days,
+                        endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                      }));
+                    }}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Frequency Note (Optional)</label>
+                <Input
+                  placeholder="e.g., Morning and evening, before meals"
+                  value={formData.frequencyNote}
+                  onChange={(e) => setFormData(prev => ({ ...prev, frequencyNote: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">Start Date</label>
+                  <input
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">End Date</label>
+                  <input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Step-by-Step Instructions (Optional)</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={instructionStepInput}
+                    onChange={(e) => setInstructionStepInput(e.target.value)}
+                    placeholder="Add a step, e.g., Lie on your back"
+                    className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddInstructionStep()}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddInstructionStep}
+                    className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm font-medium hover:bg-emerald-100"
+                  >
+                    Add
+                  </button>
+                </div>
+                {formData.instructionSteps.length > 0 && (
+                  <div className="space-y-1 mt-2 max-h-32 overflow-y-auto">
+                    {formData.instructionSteps.map((step, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">{idx + 1}</span>
+                        <span className="flex-1">{step}</span>
+                        <button
+                          onClick={() => handleRemoveInstructionStep(idx)}
+                          className="text-rose-500 hover:text-rose-700"
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Instruction Video URL (Optional)</label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="https://youtube.com/watch?v=..."
+                    value={formData.videoUrl}
+                    onChange={(e) => setFormData(prev => ({ ...prev, videoUrl: e.target.value }))}
+                    className="flex-1"
+                  />
+                  {formData.videoUrl && (
+                    <a
+                      href={formData.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200"
+                    >
+                      <Play size={16} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {wizardStep === 3 && (
+            <div className="space-y-5">
+              <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-5 border border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-800 mb-3">Task Preview</h3>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex">
+                    <span className="w-28 text-xs text-slate-500">Patient:</span>
+                    <span className="text-sm font-medium text-slate-800">{patients.find(p => p.id === formData.patientId)?.fullName || '—'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-28 text-xs text-slate-500">Task Title:</span>
+                    <span className="text-sm font-medium text-slate-800">{formData.title || '—'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-28 text-xs text-slate-500">Instructions:</span>
+                    <span className="text-sm text-slate-600">{formData.instructions || '—'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-28 text-xs text-slate-500">Frequency:</span>
+                    <span className="text-sm text-slate-600">{formData.frequencyPerDay}x per day</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-28 text-xs text-slate-500">Duration:</span>
+                    <span className="text-sm text-slate-600">{formData.durationDays} days</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-28 text-xs text-slate-500">Date Range:</span>
+                    <span className="text-sm text-slate-600">{formData.startDate} to {formData.endDate}</span>
+                  </div>
+                  {formData.instructionSteps.length > 0 && (
+                    <div className="flex">
+                      <span className="w-28 text-xs text-slate-500">Steps:</span>
+                      <span className="text-sm text-slate-600">{formData.instructionSteps.length} steps</span>
+                    </div>
+                  )}
+                  {formData.videoUrl && (
+                    <div className="flex">
+                      <span className="w-28 text-xs text-slate-500">Video:</span>
+                      <span className="text-sm text-emerald-600 truncate">{formData.videoUrl}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-amber-50/80 to-white rounded-xl p-4 border border-amber-100">
+                <p className="text-sm text-amber-700 flex items-center gap-2">
+                  <AlertCircle size={14} />
+                  Once assigned, the patient will be able to view this task on their mobile app.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-between gap-3 mt-6 pt-4 border-t border-slate-100">
+            <button
+              onClick={wizardStep === 1 ? () => setIsCreateModalOpen(false) : handlePrevStep}
+              className="h-10 rounded-full border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {wizardStep === 1 ? 'Cancel' : 'Back'}
+            </button>
+            {wizardStep < 3 ? (
+              <Button
+                onClick={handleNextStep}
+                className="h-10 rounded-full bg-emerald-600 px-6 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                onClick={handleCreateTask}
+                disabled={isSubmitting}
+                className="h-10 rounded-full bg-emerald-600 px-6 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {isSubmitting ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                Assign Task
+              </Button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* View Task Modal */}
+      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)}>
+        <div className="w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6">
+          {selectedTask && (
+            <>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <ClipboardList size={18} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">{selectedTask.title}</h2>
+                    <p className="text-sm text-slate-500">{selectedTask.patient?.fullName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
+                >
+                  <XCircle size={14} />
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {/* Progress */}
+                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-slate-700">Progress</span>
+                    <span className="text-sm font-bold text-emerald-600">{selectedTask.progress}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${calculateProgressColor(selectedTask.progress)}`}
+                      style={{ width: `${selectedTask.progress}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+                    <span>Completed: {selectedTask.completedDates?.length || 0} days</span>
+                    <span>Total: {selectedTask.durationDays} days</span>
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                    <FileText size={14} className="text-blue-500" />
+                    Instructions
+                  </h3>
+                  <p className="text-sm text-slate-600">{selectedTask.instructions}</p>
+                </div>
+
+                {/* Step-by-Step Instructions */}
+                {selectedTask.instructionSteps && selectedTask.instructionSteps.length > 0 && (
+                  <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                      <ListChecks size={14} className="text-purple-500" />
+                      Step-by-Step Instructions
+                    </h3>
+                    <div className="space-y-2">
+                      {selectedTask.instructionSteps.map((step, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500 mt-0.5">{idx + 1}</span>
+                          <span className="text-sm text-slate-600">{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Task Details Grid */}
+                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays size={14} className="text-slate-400" />
+                      <div>
+                        <p className="text-[10px] text-slate-500">Duration</p>
+                        <p className="text-sm font-medium text-slate-700">{selectedTask.durationDays} days</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock size={14} className="text-slate-400" />
+                      <div>
+                        <p className="text-[10px] text-slate-500">Frequency</p>
+                        <p className="text-sm font-medium text-slate-700">{selectedTask.frequencyPerDay}x per day</p>
+                      </div>
+                    </div>
+                    {selectedTask.frequencyNote && (
+                      <div className="col-span-2 flex items-start gap-2">
+                        <AlertCircle size={14} className="text-slate-400 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] text-slate-500">Note</p>
+                          <p className="text-sm text-slate-600">{selectedTask.frequencyNote}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Video */}
+                {selectedTask.videoUrl && (
+                  <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                      <Video size={14} className="text-rose-500" />
+                      Instruction Video
+                    </h3>
+                    <a
+                      href={selectedTask.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700"
+                    >
+                      <Play size={14} />
+                      Watch Video
+                    </a>
+                  </div>
+                )}
+
+                {/* Status */}
+                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">Status</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusConfig[selectedTask.status]?.bg} ${statusConfig[selectedTask.status]?.text}`}>
+                      {statusConfig[selectedTask.status]?.icon}
+                      {statusConfig[selectedTask.status]?.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-slate-500">Created</span>
+                    <span className="text-xs text-slate-600">{formatDate(selectedTask.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+    </div>
+  );
+}

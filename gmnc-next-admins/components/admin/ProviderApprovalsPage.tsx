@@ -1,14 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import EmptyState from '@/components/ui/EmptyState';
-import { Eye } from 'lucide-react';
+import Pagination from '@/components/ui/Pagination';
+import { useToast } from '@/components/ui/Toast';
 import { getProvidersWaitingVerification, Provider } from '@/lib/api/providers';
 
 export default function ProviderApprovalsPage() {
+  const router = useRouter();
+  const { show } = useToast();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -16,14 +23,22 @@ export default function ProviderApprovalsPage() {
       try {
         const data = await getProvidersWaitingVerification();
         setProviders(data);
+        setTotalItems(data.length);
+        setTotalPages(Math.max(1, Math.ceil(data.length / pageSize)));
       } catch (err) {
         console.error('Failed to load providers:', err);
+        show({
+          title: 'Error',
+          message: 'Failed to load providers. Please try again.',
+          type: 'error',
+          duration: 4000,
+        });
       } finally {
         setIsLoading(false);
       }
     };
     loadProviders();
-  }, []);
+  }, [show, pageSize]);
 
   const formatDate = (value: string) =>
     new Date(value).toLocaleDateString(undefined, {
@@ -45,6 +60,27 @@ export default function ProviderApprovalsPage() {
     }
   };
 
+  const handleRowClick = (providerId: string) => {
+    router.push(`/admin/approvals/providers/${providerId}`);
+  };
+
+  const getPaginatedProviders = () => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return providers.slice(startIndex, endIndex);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const paginatedProviders = getPaginatedProviders();
+
   return (
     <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -61,7 +97,7 @@ export default function ProviderApprovalsPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
             </div>
           ) : providers.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white">
+            <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white rounded-lg">
               <div className="w-full max-w-md">
                 <EmptyState
                   title="No pending providers"
@@ -70,64 +106,70 @@ export default function ProviderApprovalsPage() {
               </div>
             </div>
           ) : (
-            <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 bg-white">
-              <div className="h-full overflow-auto scrollbar-none">
-                <table className="w-full min-w-[980px] border-collapse">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-emerald-600 text-white">
-                      <th className="px-4 py-3 text-left text-[11px] font-medium">Name</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-medium">Email</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-medium">Specialty</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-medium">Status</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-medium">Registered</th>
-                      <th className="px-4 py-3 text-center text-[11px] font-medium">Action</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {providers.map((provider, index) => (
-                      <tr
-                        key={provider.id}
-                        className={`transition ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                        } hover:bg-emerald-50 cursor-pointer`}
-                      >
-                        <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-                          {provider.user.fullName}
-                        </td>
-                        <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
-                          {provider.user.email}
-                        </td>
-                        <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
-                          {provider.profession}
-                        </td>
-                        <td className="border-b border-slate-100 px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusClass(
-                              provider.verificationStatus
-                            )}`}
-                          >
-                            {provider.verificationStatus.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
-                          {formatDate(provider.createdAt)}
-                        </td>
-                        <td className="border-b border-slate-100 px-4 py-3 text-center">
-                          <Link
-                            href={`/admin/approvals/providers/${provider.id}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            aria-label="View details"
-                          >
-                            <Eye size={16} />
-                          </Link>
-                        </td>
+            <>
+              {/* Table Container with independent scroll */}
+              <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 rounded-t-lg bg-white">
+                <div className="h-full overflow-auto scrollbar-none">
+                  <table className="w-full min-w-[980px] border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-emerald-600">
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white rounded-tl-lg">Name</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Email</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Specialty</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white">Status</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium text-white rounded-tr-lg">Registered</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+
+                    <tbody>
+                      {paginatedProviders.map((provider, index) => (
+                        <tr
+                          key={provider.id}
+                          onClick={() => handleRowClick(provider.id)}
+                          className={`transition cursor-pointer ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                          } hover:bg-emerald-50`}
+                        >
+                          <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
+                            {provider.user.fullName}
+                          </td>
+                          <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
+                            {provider.user.email}
+                          </td>
+                          <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
+                            {provider.profession}
+                          </td>
+                          <td className="border-b border-slate-100 px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusClass(
+                                provider.verificationStatus
+                              )}`}
+                            >
+                              {provider.verificationStatus.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">
+                            {formatDate(provider.createdAt)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+
+              {/* Pagination outside the scrollable area */}
+              <div className="border border-slate-200 border-t-0 rounded-b-lg bg-white">
+                <Pagination
+                  page={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                />
+              </div>
+            </>
           )}
         </div>
       </div>
