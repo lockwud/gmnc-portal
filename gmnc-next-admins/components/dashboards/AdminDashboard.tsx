@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   UsersIcon,
   AlertTriangleIcon,
@@ -27,6 +27,7 @@ import {
   Line,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { getSystemMetrics, triggerSystemMetricsComputation, triggerFullMetricsComputation, type SystemMetrics } from '@/lib/api/metrics';
 
 const PIE_DATA = [
   { name: 'Verified', value: 756, color: '#059669' },
@@ -59,6 +60,55 @@ const PATIENT_RECOVERY_DATA = [
   { label: 'Stable', value: '21%', note: 'Monitoring continues', color: 'blue' },
   { label: 'Needs attention', value: '11%', note: 'Closer intervention required', color: 'amber' },
 ];
+
+type SystemMetricsCard = {
+  totalUsers?: number | string;
+  verifiedProviders?: number | string;
+  openSupportTickets?: number | string;
+  carePlanAdherence?: number | string;
+  pendingApprovals?: number | string;
+  providerVerification?: {
+    verified?: number;
+    pending?: number;
+    flagged?: number;
+  };
+  improvementTrend?: Array<{ name: string; improvement: number }>;
+  dailyTasks?: Array<{ name: string; assigned: number }>;
+  patientRecovery?: Array<{
+    label: string;
+    value: string;
+    note: string;
+    color: string;
+  }>;
+};
+
+function formatMetric(value: unknown) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  if (typeof value === 'number') {
+    return value.toLocaleString();
+  }
+
+  return String(value);
+}
+
+function findMetric<T>(metrics: unknown, keys: string[], fallback: T): T {
+  const metricObject = metrics as Record<string, unknown> | null;
+  if (!metricObject) {
+    return fallback;
+  }
+
+  for (const key of keys) {
+    const value = metricObject[key];
+    if (value !== undefined && value !== null) {
+      return value as T;
+    }
+  }
+
+  return fallback;
+}
 
 type CompactStatCardProps = {
   title: string;
@@ -119,6 +169,77 @@ function CompactStatCard({
 
 export function AdminDashboard() {
   const [activeFilter, setActiveFilter] = useState('This Week');
+  const [metrics, setMetrics] = useState<SystemMetricsCard | null>(null);
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
+  const [isComputing, setIsComputing] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+
+  const loadMetrics = useCallback(async () => {
+    setMetricsError(null);
+    setIsLoadingMetrics(true);
+
+    try {
+      const data = await getSystemMetrics();
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid metrics response format');
+      }
+
+      setMetrics({
+        totalUsers: findMetric(data, ['totalUsers', 'total_users', 'userCount', 'usersCount'], undefined),
+        verifiedProviders: findMetric(data, ['verifiedProviders', 'verified_providers'], undefined),
+        openSupportTickets: findMetric(data, ['openSupportTickets', 'open_support_tickets', 'ticketsOpen'], undefined),
+        carePlanAdherence: findMetric(data, ['carePlanAdherence', 'care_plan_adherence', 'adherenceRate'], undefined),
+        pendingApprovals: findMetric(data, ['pendingApprovals', 'pending_approvals', 'approvalsPending'], undefined),
+        providerVerification: findMetric(data, ['providerVerification', 'provider_verification'], undefined),
+        improvementTrend: findMetric(data, ['improvementTrend', 'improvement_trend'], undefined),
+        dailyTasks: findMetric(data, ['dailyTasks', 'daily_tasks'], undefined),
+        patientRecovery: findMetric(data, ['patientRecovery', 'patient_recovery'], undefined),
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load system metrics';
+      console.error('Failed to load admin dashboard metrics:', errorMessage, error);
+      setMetricsError(errorMessage);
+    } finally {
+      setIsLoadingMetrics(false);
+    }
+  }, []);
+
+  const handleRefresh = useCallback(async (filter: string) => {
+    setActiveFilter(filter);
+    setIsComputing(true);
+    setMetricsError(null);
+
+    try {
+      if (filter === 'All Time') {
+        await triggerFullMetricsComputation();
+      } else {
+        await triggerSystemMetricsComputation();
+      }
+    } catch (error) {
+      console.error('Metrics computation failed:', error);
+    } finally {
+      setIsComputing(false);
+    }
+
+    await loadMetrics();
+  }, [loadMetrics]);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
+
+  const providerVerificationData = metrics?.providerVerification
+    ? [
+        { name: 'Verified', value: metrics.providerVerification.verified ?? 0, color: '#059669' },
+        { name: 'Pending', value: metrics.providerVerification.pending ?? 0, color: '#f59e0b' },
+        { name: 'Flagged', value: metrics.providerVerification.flagged ?? 0, color: '#ef4444' },
+      ]
+    : PIE_DATA;
+
+  const improvementTrendData = metrics?.improvementTrend ?? IMPROVEMENT_TREND_DATA;
+  const dailyTasksData = metrics?.dailyTasks ?? DAILY_TASKS_DATA;
+  const patientRecoveryData = metrics?.patientRecovery ?? PATIENT_RECOVERY_DATA;
 
   return (
     <div className="space-y-4 pb-6">
@@ -130,22 +251,33 @@ export function AdminDashboard() {
           <p className="mt-1 flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest text-slate-400">
             Platform operations
           </p>
+          {metricsError ? (
+            <p className="mt-2 text-xs text-rose-600">{metricsError}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {['Today', 'This Week', 'This Month', 'All Time'].map((filter) => (
             <button
               key={filter}
-              onClick={() => setActiveFilter(filter)}
+              onClick={() => handleRefresh(filter)}
+              disabled={isComputing}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[9px] font-medium transition-all',
                 activeFilter === filter
                   ? 'border-slate-300 bg-slate-100 text-slate-900'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+                isComputing && 'pointer-events-none opacity-50'
               )}
             >
-              <RefreshCwIcon size={10} className="shrink-0" />
-              <span>{filter}</span>
+              <RefreshCwIcon
+                size={10}
+                className={cn(
+                  'shrink-0',
+                  isComputing && activeFilter === filter && 'animate-spin'
+                )}
+              />
+              <span>{isComputing && activeFilter === filter ? 'Computing...' : filter}</span>
             </button>
           ))}
         </div>
@@ -154,7 +286,7 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <CompactStatCard
           title="Total Users"
-          value="2,450"
+          value={formatMetric(metrics?.totalUsers)}
           icon={<UsersIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
@@ -166,7 +298,7 @@ export function AdminDashboard() {
 
         <CompactStatCard
           title="Verified Providers"
-          value="862"
+          value={formatMetric(metrics?.verifiedProviders)}
           icon={<UserCheckIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
@@ -178,7 +310,7 @@ export function AdminDashboard() {
 
         <CompactStatCard
           title="Open Support Tickets"
-          value="12"
+          value={formatMetric(metrics?.openSupportTickets)}
           icon={<AlertTriangleIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
@@ -190,7 +322,7 @@ export function AdminDashboard() {
 
         <CompactStatCard
           title="Care Plan Adherence"
-          value="84%"
+          value={formatMetric(metrics?.carePlanAdherence)}
           icon={<HeartPulseIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
@@ -202,7 +334,7 @@ export function AdminDashboard() {
 
         <CompactStatCard
           title="Pending Approvals"
-          value="34"
+          value={formatMetric(metrics?.pendingApprovals)}
           icon={<ActivityIcon size={14} />}
           badge="Queue"
           meta="Users, providers and escalations"
@@ -224,7 +356,7 @@ export function AdminDashboard() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
-                  data={PIE_DATA}
+                  data={providerVerificationData}
                   cx="50%"
                   cy="48%"
                   innerRadius={48}
@@ -232,7 +364,7 @@ export function AdminDashboard() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {PIE_DATA.map((entry, index) => (
+                  {providerVerificationData.map((entry, index) => (
                     <PieCell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -257,7 +389,7 @@ export function AdminDashboard() {
           </div>
 
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={IMPROVEMENT_TREND_DATA}>
+            <LineChart data={improvementTrendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis
                 dataKey="name"
@@ -305,7 +437,7 @@ export function AdminDashboard() {
           </div>
 
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={DAILY_TASKS_DATA} barCategoryGap={18}>
+            <BarChart data={dailyTasksData} barCategoryGap={18}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis
                 dataKey="name"
@@ -350,7 +482,7 @@ export function AdminDashboard() {
           </div>
 
           <div className="space-y-2.5">
-            {PATIENT_RECOVERY_DATA.map((item) => (
+            {patientRecoveryData.map((item) => (
               <div
                 key={item.label}
                 className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2.5"
