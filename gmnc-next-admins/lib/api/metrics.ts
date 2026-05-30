@@ -1,5 +1,11 @@
 export type SystemMetrics = {
   totalUsers?: number;
+  activeUsers?: number;
+  totalPatients?: number;
+  totalProviders?: number;
+  totalAssessments?: number;
+  totalTasks?: number;
+  platformAdherenceRate?: number;
   verifiedProviders?: number;
   openSupportTickets?: number;
   carePlanAdherence?: number | string;
@@ -20,9 +26,12 @@ export type SystemMetrics = {
   [key: string]: unknown;
 };
 
-export async function getSystemMetrics(): Promise<SystemMetrics> {
+export async function getSystemMetrics(filter?: string): Promise<SystemMetrics> {
   try {
-    const response = await fetch('/api/metrics/system', {
+    const url = filter
+      ? `/api/metrics/system?filter=${encodeURIComponent(filter)}`
+      : '/api/metrics/system';
+    const response = await fetch(url, {
       method: 'GET',
       credentials: 'include',
       cache: 'no-store',

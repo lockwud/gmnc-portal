@@ -48,7 +48,11 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    const backendUrl = `${env.API_BASE_URL}/metrics/system`;
+    const { searchParams } = new URL(request.url);
+    const filter = searchParams.get('filter');
+    const backendUrl = filter
+      ? `${env.API_BASE_URL}/metrics/system?filter=${encodeURIComponent(filter)}`
+      : `${env.API_BASE_URL}/metrics/system`;
     const response = await fetchWithBootstrap(backendUrl, authHeader);
     const responseText = await response.text();
     const contentType = response.headers.get('content-type') ?? 'application/json';
