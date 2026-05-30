@@ -714,27 +714,29 @@ export default function UserRegistrationPage() {
                   />
                 </div>
 
-                <div className="space-y-3 md:col-span-2">
-                  <label className="text-sm font-medium text-slate-700">OTP Channel</label>
-                  {modalRole === 'ADMIN' ? (
-                    <div className="flex h-10 w-full items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
-                      Email (Auto-configured for Admin)
-                    </div>
-                  ) : (
-                    <SmallDropdown
-                      value={formData.otpChannel}
-                      options={[
-                        { value: 'sms' as OtpChannel, label: 'SMS' },
-                        { value: 'email' as OtpChannel, label: 'Email' },
-                      ]}
-                      onChange={(value) =>
-                        setFormData((prev) => ({ ...prev, otpChannel: value }))
-                      }
-                      ariaLabel="Select OTP channel"
-                      widthClass="w-full"
-                    />
-                  )}
-                </div>
+                {!isEditMode && (
+                  <div className="space-y-3 md:col-span-2">
+                    <label className="text-sm font-medium text-slate-700">OTP Channel</label>
+                    {modalRole === 'ADMIN' ? (
+                      <div className="flex h-10 w-full items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
+                        Email (Auto-configured for Admin)
+                      </div>
+                    ) : (
+                      <SmallDropdown
+                        value={formData.otpChannel}
+                        options={[
+                          { value: 'sms' as OtpChannel, label: 'SMS' },
+                          { value: 'email' as OtpChannel, label: 'Email' },
+                        ]}
+                        onChange={(value) =>
+                          setFormData((prev) => ({ ...prev, otpChannel: value }))
+                        }
+                        ariaLabel="Select OTP channel"
+                        widthClass="w-full"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -810,12 +812,14 @@ export default function UserRegistrationPage() {
                           })
                         : '—'}
                     </p>
-                    <p>
-                      <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
-                      {modalRole === 'ADMIN'
-                        ? 'Email (Auto)'
-                        : formData.otpChannel.toUpperCase()}
-                    </p>
+                    {!isEditMode && (
+                      <p>
+                        <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
+                        {modalRole === 'ADMIN'
+                          ? 'Email (Auto)'
+                          : formData.otpChannel.toUpperCase()}
+                      </p>
+                    )}
                     <p>
                       <span className="font-medium text-slate-900">Password:</span> ••••••••
                     </p>
