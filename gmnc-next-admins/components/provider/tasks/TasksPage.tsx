@@ -94,9 +94,9 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
 };
 
 export default function TasksPage() {
-  const router = useRouter();
-  const { token } = useAuth();
-  const { show } = useToast();
+   const router = useRouter();
+   const { token, isLoading: authIsLoading } = useAuth();
+   const { show } = useToast();
 
   const [tasks, setTasks] = useState<RehabTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,82 +133,116 @@ export default function TasksPage() {
   const [acceptedReferrals, setAcceptedReferrals] = useState<Referral[]>([]);
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
 
-  useEffect(() => {
-    fetchTasks();
-    fetchPatients();
-    fetchAcceptedReferrals();
-  }, []);
+   useEffect(() => {
+     // Wait for auth to finish loading before checking token
+     if (!authIsLoading) {
+       fetchTasks();
+       fetchPatients();
+       fetchAcceptedReferrals();
+     }
+   }, [authIsLoading]);
 
-  const fetchTasks = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/assessment/tasks/my', {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: 'include',
-      });
-      const data = await response.json();
+const fetchTasks = async () => {
+     if (!token) {
+       show({
+         title: 'Error',
+         message: 'Authentication token is missing',
+         type: 'error',
+         duration: 4000,
+       });
+       setIsLoading(false);
+       return;
+     }
+     setIsLoading(true);
+     try {
+       const response = await fetch('/api/assessment/tasks/my', {
+         headers: { Authorization: `Bearer ${token}` },
+         credentials: 'include',
+       });
+       const data = await response.json();
 
-      if (data.success) {
-        setTasks(data.data?.tasks || data.tasks || []);
-      } else {
-        show({
-          title: 'Error',
-          message: data.message || 'Failed to load tasks',
-          type: 'error',
-          duration: 4000,
+       if (data.status === "SUCCESS" || data.success) {
+         setTasks(data.data?.tasks || data.tasks || []);
+       } else {
+         show({
+           title: 'Error',
+           message: data.message || 'Failed to load tasks',
+           type: 'error',
+           duration: 4000,
+         });
+       }
+     } catch (err) {
+       console.error('Failed to fetch tasks:', err);
+       show({
+         title: 'Error',
+         message: 'Network error. Please try again.',
+         type: 'error',
+         duration: 4000,
+       });
+     } finally {
+       setIsLoading(false);
+     }
+   };
+
+const fetchPatients = async () => {
+     if (!token) {
+       show({
+         title: 'Error',
+         message: 'Authentication token is missing',
+         type: 'error',
+         duration: 4000,
+       });
+       setIsLoadingPatients(false);
+       return;
+     }
+     setIsLoadingPatients(true);
+     try {
+       const response = await fetch('/api/patients?limit=100', {
+         headers: { Authorization: `Bearer ${token}` },
+         credentials: 'include',
+       });
+       const data = await response.json();
+       if (data.status === "SUCCESS" || data.success) {
+         const patientList = data.data?.data || data.data || [];
+         setPatients(Array.isArray(patientList) ? patientList : []);
+       }
+     } catch (err) {
+       console.error('Failed to fetch patients:', err);
+     } finally {
+       setIsLoadingPatients(false);
+     }
+   };
+
+   const fetchAcceptedReferrals = async () => {
+     if (!token) {
+       show({
+         title: 'Error',
+         message: 'Authentication token is missing',
+         type: 'error',
+         duration: 4000,
+       });
+       setIsLoadingReferrals(false);
+       return;
+     }
+     setIsLoadingReferrals(true);
+     try {
+const response = await fetch('/api/assessment/referrals/incoming', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
         });
-      }
-    } catch (err) {
-      console.error('Failed to fetch tasks:', err);
-      show({
-        title: 'Error',
-        message: 'Network error. Please try again.',
-        type: 'error',
-        duration: 4000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const data = await response.json();
 
-  const fetchPatients = async () => {
-    setIsLoadingPatients(true);
-    try {
-      const response = await fetch('/api/patients?limit=100', {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (data.success) {
-        setPatients(data.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch patients:', err);
-    } finally {
-      setIsLoadingPatients(false);
-    }
-  };
-
-  const fetchAcceptedReferrals = async () => {
-    setIsLoadingReferrals(true);
-    try {
-      const response = await fetch('/api/assessment/referrals/incoming', {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: 'include',
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        const allReferrals = data.data?.referrals || data.referrals || [];
-        const accepted = allReferrals.filter((r: Referral) => r.status === 'ACCEPTED');
-        setAcceptedReferrals(accepted);
-      }
-    } catch (err) {
-      console.error('Failed to fetch referrals:', err);
-    } finally {
-      setIsLoadingReferrals(false);
-    }
-  };
+        if (data.status === "SUCCESS" || data.success) {
+          const allReferrals = data.data?.referrals || data.referrals || [];
+          const accepted = allReferrals.filter((r: Referral) => r.status === 'ACCEPTED');
+          setAcceptedReferrals(accepted);
+        }
+     } catch (err) {
+       console.error('Failed to fetch referrals:', err);
+     } finally {
+       setIsLoadingReferrals(false);
+     }
+   };
 
   const resetWizard = () => {
     setWizardStep(1);
@@ -276,61 +310,70 @@ export default function TasksPage() {
     }
   };
 
-  const handleCreateTask = async () => {
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/assessment/referrals/${formData.referralId}/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          instructions: formData.instructions,
-          instructionSteps: formData.instructionSteps.length > 0 ? formData.instructionSteps : null,
-          frequencyPerDay: formData.frequencyPerDay,
-          frequencyNote: formData.frequencyNote || null,
-          durationDays: formData.durationDays,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          videoUrl: formData.videoUrl || null,
-        }),
-        credentials: 'include',
-      });
+   const handleCreateTask = async () => {
+     if (!token) {
+       show({
+         title: 'Error',
+         message: 'Authentication token is missing',
+         type: 'error',
+         duration: 4000,
+       });
+       return;
+     }
+     setIsSubmitting(true);
+     try {
+       const response = await fetch(`/api/assessment/referrals/${formData.referralId}/tasks`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+           Authorization: `Bearer ${token}`,
+         },
+         body: JSON.stringify({
+           title: formData.title,
+           instructions: formData.instructions,
+           instructionSteps: formData.instructionSteps.length > 0 ? formData.instructionSteps : null,
+           frequencyPerDay: formData.frequencyPerDay,
+           frequencyNote: formData.frequencyNote || null,
+           durationDays: formData.durationDays,
+           startDate: formData.startDate,
+           endDate: formData.endDate,
+           videoUrl: formData.videoUrl || null,
+         }),
+         credentials: 'include',
+       });
 
-      const data = await response.json();
+const data = await response.json();
 
-      if (data.success) {
-        show({
-          title: 'Success',
-          message: 'Rehab task assigned successfully.',
-          type: 'success',
-          duration: 3000,
-        });
-        setIsCreateModalOpen(false);
-        resetWizard();
-        fetchTasks();
-      } else {
+        if (data.status === "SUCCESS" || data.success) {
+          show({
+            title: 'Success',
+            message: 'Rehab task assigned successfully.',
+            type: 'success',
+            duration: 3000,
+          });
+          setIsCreateModalOpen(false);
+          resetWizard();
+          fetchTasks();
+        } else {
+          show({
+            title: 'Error',
+            message: data.message || 'Failed to assign task.',
+            type: 'error',
+            duration: 3000,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to create task:', err);
         show({
           title: 'Error',
-          message: data.message || 'Failed to assign task.',
+          message: 'Network error. Please try again.',
           type: 'error',
-          duration: 4000,
-        });
-      }
-    } catch (err) {
-      console.error('Failed to create task:', err);
-      show({
-        title: 'Error',
-        message: 'Network error. Please try again.',
-        type: 'error',
-        duration: 4000,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+         duration: 3000,
+       });
+     } finally {
+       setIsSubmitting(false);
+     }
+   };
 
   const filteredTasks = tasks.filter(task => {
     if (statusFilter === 'ALL') return true;
