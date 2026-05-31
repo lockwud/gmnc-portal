@@ -20,6 +20,7 @@ export async function createResource(
     body: formData,
     token,
     skipJsonStringify: true,
+    timeoutMs: 60000,
   });
   return res.data.data;
 }
@@ -34,6 +35,7 @@ export async function updateResource(
     body: formData,
     token,
     skipJsonStringify: true,
+    timeoutMs: 60000,
   });
   return res.data.data;
 }

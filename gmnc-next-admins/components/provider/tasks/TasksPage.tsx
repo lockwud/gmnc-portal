@@ -134,15 +134,19 @@ export default function TasksPage() {
   const [acceptedReferrals, setAcceptedReferrals] = useState<Referral[]>([]);
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
   const [patientDropdownOpen, setPatientDropdownOpen] = useState(false);
+  const [videos, setVideos] = useState<{ id: string; title: string }[]>([]);
+  const [videoDropdownOpen, setVideoDropdownOpen] = useState(false);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
 
    useEffect(() => {
-     // Wait for auth to finish loading before checking token
-     if (!authIsLoading) {
-       fetchTasks();
-       fetchPatients();
-       fetchAcceptedReferrals();
-     }
-   }, [authIsLoading]);
+      // Wait for auth to finish loading before checking token
+      if (!authIsLoading) {
+        fetchTasks();
+        fetchPatients();
+        fetchAcceptedReferrals();
+        fetchVideos();
+      }
+    }, [authIsLoading]);
 
 const fetchTasks = async () => {
      if (!token) {
@@ -242,9 +246,25 @@ const response = await fetch('/api/assessment/referrals/incoming', {
      } catch (err) {
        console.error('Failed to fetch referrals:', err);
      } finally {
-       setIsLoadingReferrals(false);
-     }
-   };
+    setIsLoadingReferrals(false);
+    };
+  };
+
+  const fetchVideos = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/user/videos?pageSize=50&order=date`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await res.json();
+      const videosWrapper = data?.data?.videos?.videos ?? data?.data?.videos ?? data?.videos ?? [];
+      const list = Array.isArray(videosWrapper) ? videosWrapper : [];
+      setVideos(list.map((v: Record<string, string>) => ({ id: v.videoId || v.id || '', title: v.title || '' })));
+    } catch (err) {
+      console.error('Failed to fetch videos:', err);
+    }
+  };
 
   const resetWizard = () => {
     setWizardStep(1);
@@ -803,25 +823,29 @@ const data = await response.json();
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-700 mb-1 block">Instruction Video URL (Optional)</label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="https://youtube.com/watch?v=..."
-                    value={formData.videoUrl}
-                    onChange={(e) => setFormData(prev => ({ ...prev, videoUrl: e.target.value }))}
-                    className="flex-1"
-                  />
-                  {formData.videoUrl && (
-                    <a
-                      href={formData.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200"
-                    >
-                      <Play size={16} />
-                    </a>
-                  )}
-                </div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Instruction Video (Optional)</label>
+                <SmallDropdown
+                  value={formData.videoUrl || ''}
+                  options={Array.isArray(videos) ? videos.map((v) => ({ value: v.id, label: v.title })) : []}
+                  onChange={(videoId) => {
+                    const video = videos.find((v) => v.id === videoId);
+                    setFormData((prev) => ({ ...prev, videoUrl: video?.videoUrl || video?.url || '' }));
+                  }}
+                  placeholder="Select a video..."
+                  open={videoDropdownOpen}
+                  onOpenChange={setVideoDropdownOpen}
+                />
+                {formData.videoUrl && (
+                  <a
+                    href={formData.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
+                  >
+                    <Play size={12} />
+                    Open selected video
+                  </a>
+                )}
               </div>
             </div>
           )}
@@ -949,32 +973,34 @@ const data = await response.json();
                   </div>
                 </div>
 
-                {/* Instructions */}
-                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                  <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                    <FileText size={14} className="text-blue-500" />
-                    Instructions
-                  </h3>
-                  <p className="text-sm text-slate-600 whitespace-pre-line">{selectedTask.instructions}</p>
-                </div>
+                 {/* Instructions */}
+                 <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                   <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                     <FileText size={14} className="text-blue-500" />
+                     Instructions
+                   </h3>
+                   <div className="text-sm text-slate-600 max-h-32 overflow-y-auto whitespace-pre-line leading-relaxed">
+                     {selectedTask.instructions}
+                   </div>
+                 </div>
 
-                {/* Step-by-Step Instructions */}
-                {selectedTask.instructionSteps && selectedTask.instructionSteps.length > 0 && (
-                  <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                    <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                      <ListChecks size={14} className="text-purple-500" />
-                      Step-by-Step Instructions
-                    </h3>
-                    <div className="space-y-2">
-                      {selectedTask.instructionSteps.map((step, idx) => (
-                        <div key={idx} className="flex items-start gap-2">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500 mt-0.5">{idx + 1}</span>
-                          <span className="text-sm text-slate-600">{step}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                 {/* Step-by-Step Instructions */}
+                 {selectedTask.instructionSteps && selectedTask.instructionSteps.length > 0 && (
+                   <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
+                     <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                       <ListChecks size={14} className="text-purple-500" />
+                       Step-by-Step Instructions
+                     </h3>
+                     <div className="max-h-40 overflow-y-auto space-y-2">
+                       {selectedTask.instructionSteps.map((step, idx) => (
+                         <div key={idx} className="flex items-start gap-2">
+                           <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500 mt-0.5 flex-shrink-0">{idx + 1}</span>
+                           <span className="text-sm text-slate-600 leading-relaxed">{step}</span>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
 
                 {/* Task Details Grid */}
                 <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
