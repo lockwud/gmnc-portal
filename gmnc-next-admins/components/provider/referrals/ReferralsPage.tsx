@@ -73,11 +73,16 @@ interface CreateReferralData {
 }
 
 const professionOptions = [
+  { value: 'GENERAL_PAEDIATRICIAN', label: 'General Paediatrician' },
+  { value: 'DEVELOPMENTAL_PAEDIATRICIAN', label: 'Developmental Paediatrician' },
+  { value: 'PAEDIATRIC_NEUROLOGIST', label: 'Paediatric Neurologist' },
+  { value: 'REHABILITATION_PAEDIATRICIAN', label: 'Rehabilitation Paediatrician' },
   { value: 'PHYSIOTHERAPIST', label: 'Physiotherapist' },
   { value: 'OCCUPATIONAL_THERAPIST', label: 'Occupational Therapist' },
   { value: 'SPEECH_THERAPIST', label: 'Speech Therapist' },
+  { value: 'CLINICAL_PSYCHOLOGIST', label: 'Clinical Psychologist' },
   { value: 'DIETITIAN', label: 'Dietitian' },
-  { value: 'PSYCHOLOGIST', label: 'Psychologist' },
+  { value: 'PHARMACIST', label: 'Pharmacist' },
 ];
 
 const statusConfig: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
@@ -376,8 +381,7 @@ export default function ReferralsPage() {
     }
     setIsLoadingPatients(true);
     try {
-      // Use admin endpoint for listing all patients
-      const response = await fetch('/api/patients?limit=100', {
+      const response = await fetch('/api/patients?limit=200', {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
@@ -388,41 +392,14 @@ export default function ReferralsPage() {
         return;
       }
       const data = await response.json();
-      if (data.status === "SUCCESS" || data.success) {
-        const patientList = data.data?.data || data.data || [];
-        // Fetch assessments for all patients to filter by those with assessments
-        const patientsWithAssessments = await Promise.all(
-          patientList.map(async (p: any) => {
-            try {
-              const assessRes = await fetch(`/api/assessment/patient/${p.id}/reports`, {
-                headers: { Authorization: `Bearer ${token}` },
-                credentials: 'include',
-              });
-              if (assessRes.ok) {
-                const assessData = await assessRes.json();
-                const assessments = assessData.data?.assessments || assessData.assessments || [];
-                return {
-                  id: p.id,
-                  fullName: p.fullName,
-                  assessmentCount: assessments.length,
-                  hasAssessments: assessments.length > 0,
-                };
-              }
-            } catch (e) {
-              console.error(`Failed to fetch assessments for patient ${p.id}:`, e);
-            }
-            return {
-              id: p.id,
-              fullName: p.fullName,
-              assessmentCount: 0,
-              hasAssessments: false,
-            };
-          })
-        );
-        // Filter to show only patients with assessments
-        const filtered = patientsWithAssessments.filter((p: any) => p.hasAssessments);
-        setPatients(filtered);
-      }
+      const patientList = (data.data?.data || data.data || []) as any[];
+      const formatted = patientList.map((p: any) => ({
+        id: p.id,
+        fullName: p.fullName,
+        assessmentCount: 0,
+        hasAssessments: true,
+      }));
+      setPatients(formatted);
     } catch (err) {
       console.error('Failed to fetch patients:', err);
       show({
@@ -547,13 +524,13 @@ export default function ReferralsPage() {
       return;
     }
     try {
-      const response = await fetch(`/api/providers/${user.id}`, {
+      const response = await fetch(`/api/providers?userId=${user.id}`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
       const data = await response.json();
-      if (data.status === "SUCCESS" || data.success) {
-        const providerData = data.data || data;
+      if ((data.status === "SUCCESS" || data.success) && Array.isArray(data.data?.data) && data.data.data.length > 0) {
+        const providerData = data.data.data[0];
         setCurrentProvider({
           id: providerData.id,
           profession: providerData.profession,
