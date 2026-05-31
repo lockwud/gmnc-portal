@@ -62,16 +62,6 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
                 path: "/admin/approvals/providers",
                 icon: "verified_user",
               },
-              {
-                label: "Referrals",
-                path: "/admin/approvals/referrals",
-                icon: "compare_arrows",
-              },
-              {
-                label: "Appointments",
-                path: "/admin/approvals/appointments",
-                icon: "event",
-              },
             ],
           },
           {
@@ -169,18 +159,7 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
               },
             ],
           },
-          {
-            label: "Insights",
-            icon: "analytics",
-            collapsible: true,
-            children: [
-              {
-                label: "Metrics",
-                path: "/provider/metrics",
-                icon: "query_stats",
-              },
-            ],
-          },
+
         ],
       },
       {
@@ -209,12 +188,7 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
         icon: "assessment",
         collapsible: false,
       },
-      {
-        label: "Audit Logs",
-        path: "/audit-logs",
-        icon: "history",
-        collapsible: false,
-      },
+
       {
         label: "System Settings",
         path: "/settings",
