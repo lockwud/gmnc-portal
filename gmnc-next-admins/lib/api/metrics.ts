@@ -86,6 +86,83 @@ export async function triggerSystemMetricsComputation(): Promise<{ success: bool
   return json as { success: boolean; message?: string };
 }
 
+export type ProviderMetrics = {
+  id?: string;
+  providerId?: string;
+  snapshotDate?: string;
+  period?: string;
+  totalPatients?: number;
+  activePatients?: number;
+  totalAssessments?: number;
+  completedAssessments?: number;
+  totalReferrals?: number;
+  totalTasks?: number;
+  completedTasks?: number;
+  adherenceRate?: number;
+  createdAt?: string;
+  [key: string]: unknown;
+};
+
+export async function getProviderMetrics(filter?: string): Promise<ProviderMetrics> {
+  try {
+    const url = filter
+      ? `/api/metrics/provider?filter=${encodeURIComponent(filter)}`
+      : '/api/metrics/provider';
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const message =
+        json?.message ||
+        json?.error ||
+        `Failed to load provider metrics (${response.status})`;
+      throw new Error(String(message));
+    }
+
+    if (!json) {
+      throw new Error('Empty response from provider metrics endpoint');
+    }
+
+    const payload = json as { data?: ProviderMetrics } | ProviderMetrics;
+    const metrics = (payload as { data?: ProviderMetrics }).data ?? (payload as ProviderMetrics);
+
+    if (!metrics || typeof metrics !== 'object') {
+      throw new Error('Invalid provider metrics data structure');
+    }
+
+    return metrics;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch provider metrics';
+    console.error('[getProviderMetrics] Error:', message);
+    throw error;
+  }
+}
+
+export async function triggerProviderMetricsComputation(): Promise<{ success: boolean; message?: string }> {
+  const response = await fetch('/api/metrics/compute/provider', {
+    method: 'POST',
+    credentials: 'include',
+    cache: 'no-store',
+  });
+
+  const json = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      json?.message ||
+      json?.error ||
+      `Failed to compute provider metrics (${response.status})`;
+    throw new Error(String(message));
+  }
+
+  return json as { success: boolean; message?: string };
+}
+
 export async function triggerFullMetricsComputation(): Promise<{ success: boolean; message?: string }> {
   const response = await fetch('/api/metrics/compute/all', {
     method: 'POST',
