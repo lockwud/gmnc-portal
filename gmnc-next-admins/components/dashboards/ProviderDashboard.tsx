@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Badge from '@/components/ui/Badge';
 import {
   CheckCircleIcon,
@@ -26,8 +26,10 @@ import {
   Bar,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { getProviderMetrics, triggerProviderMetricsComputation } from '@/lib/api/metrics';
+import ProviderDashboardSkeleton from '@/components/layout/skeletons/ProviderDashboardSkeleton';
 
-const IMPROVEMENT_DATA = [
+const FALLBACK_IMPROVEMENT_DATA = [
   { name: 'Mon', value: 42 },
   { name: 'Tue', value: 46 },
   { name: 'Wed', value: 51 },
@@ -37,7 +39,7 @@ const IMPROVEMENT_DATA = [
   { name: 'Sun', value: 69 },
 ];
 
-const ADHERENCE_DATA = [
+const FALLBACK_ADHERENCE_DATA = [
   { name: 'Mon', value: 68 },
   { name: 'Tue', value: 70 },
   { name: 'Wed', value: 73 },
@@ -47,7 +49,7 @@ const ADHERENCE_DATA = [
   { name: 'Sun', value: 84 },
 ];
 
-const TASK_DATA = [
+const FALLBACK_TASK_DATA = [
   { name: 'Mon', assigned: 8 },
   { name: 'Tue', assigned: 10 },
   { name: 'Wed', assigned: 9 },
@@ -57,7 +59,7 @@ const TASK_DATA = [
   { name: 'Sun', assigned: 4 },
 ];
 
-const PROVIDER_RECOVERY_DATA = [
+const FALLBACK_RECOVERY_DATA = [
   { label: 'Improving Patients', value: '18', note: 'Responding well to therapy', color: 'emerald' },
   { label: 'Stable Cases', value: '7', note: 'Routine monitoring ongoing', color: 'blue' },
   { label: 'Needs Review', value: '3', note: 'Closer clinical attention', color: 'amber' },
@@ -142,8 +144,114 @@ function SectionCard({
   );
 }
 
+function formatMetric(value: unknown) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  if (typeof value === 'number') {
+    return value.toLocaleString();
+  }
+
+  return String(value);
+}
+
+function findMetric<T>(metrics: unknown, keys: string[], fallback: T): T {
+  const metricObject = metrics as Record<string, unknown> | null;
+  if (!metricObject) {
+    return fallback;
+  }
+
+  for (const key of keys) {
+    const value = metricObject[key];
+    if (value !== undefined && value !== null) {
+      return value as T;
+    }
+  }
+
+  return fallback;
+}
+
+type ProviderMetricsCard = {
+  totalPatients?: number | string;
+  activePatients?: number | string;
+  totalAssessments?: number | string;
+  completedAssessments?: number | string;
+  totalReferrals?: number | string;
+  totalTasks?: number | string;
+  completedTasks?: number | string;
+  adherenceRate?: number | string;
+};
+
 export function ProviderDashboard() {
   const [activeFilter, setActiveFilter] = useState('This Week');
+  const [metrics, setMetrics] = useState<ProviderMetricsCard | null>(null);
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
+  const [isComputing, setIsComputing] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+
+  const loadMetrics = useCallback(async (filter?: string) => {
+    setMetricsError(null);
+    setIsLoadingMetrics(true);
+
+    try {
+      const data = await getProviderMetrics(filter);
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid metrics response format');
+      }
+
+      const snapshotObj = (data && typeof data === 'object' && 'snapshot' in data && data.snapshot)
+        ? (data.snapshot as Record<string, unknown>)
+        : (data as Record<string, unknown>);
+
+      setMetrics({
+        totalPatients: findMetric(snapshotObj, ['totalPatients', 'total_patients'], undefined),
+        activePatients: findMetric(snapshotObj, ['activePatients', 'active_patients'], undefined),
+        totalAssessments: findMetric(snapshotObj, ['totalAssessments', 'total_assessments'], undefined),
+        completedAssessments: findMetric(snapshotObj, ['completedAssessments', 'completed_assessments'], undefined),
+        totalReferrals: findMetric(snapshotObj, ['totalReferrals', 'total_referrals'], undefined),
+        totalTasks: findMetric(snapshotObj, ['totalTasks', 'total_tasks'], undefined),
+        completedTasks: findMetric(snapshotObj, ['completedTasks', 'completed_tasks'], undefined),
+        adherenceRate: findMetric(snapshotObj, ['adherenceRate', 'adherence_rate'], undefined),
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load provider metrics';
+      console.error('Failed to load provider dashboard metrics:', errorMessage, error);
+      setMetricsError(errorMessage);
+    } finally {
+      setIsLoadingMetrics(false);
+    }
+  }, []);
+
+  const handleRefresh = useCallback(async (filter: string) => {
+    setActiveFilter(filter);
+    setIsComputing(true);
+    setMetricsError(null);
+
+    try {
+      await triggerProviderMetricsComputation();
+    } catch (error) {
+      console.error('Provider metrics computation failed:', error);
+    } finally {
+      setIsComputing(false);
+    }
+
+    await loadMetrics(filter);
+  }, [loadMetrics]);
+
+  useEffect(() => {
+    loadMetrics(activeFilter);
+  }, [loadMetrics, activeFilter]);
+
+  const improvementTrendData = FALLBACK_IMPROVEMENT_DATA;
+  const adherenceTrendData = FALLBACK_ADHERENCE_DATA;
+  const dailyTasksData = FALLBACK_TASK_DATA;
+  const patientRecoveryData = FALLBACK_RECOVERY_DATA;
+
+  if (isLoadingMetrics && !metrics) {
+    return <ProviderDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-5 pb-6">
@@ -155,22 +263,33 @@ export function ProviderDashboard() {
           <p className="mt-1 flex items-center gap-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-400">
             Clinical progress, referrals, adherence
           </p>
+          {metricsError ? (
+            <p className="mt-2 text-xs text-rose-600">{metricsError}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {['Today', 'This Week', 'This Month', 'All Time'].map((filter) => (
             <button
               key={filter}
-              onClick={() => setActiveFilter(filter)}
+              onClick={() => handleRefresh(filter)}
+              disabled={isComputing}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[9px] font-medium transition-all',
                 activeFilter === filter
                   ? 'border-slate-300 bg-slate-100 text-slate-900'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+                isComputing && 'pointer-events-none opacity-50'
               )}
             >
-              <RefreshCwIcon size={10} className="shrink-0" />
-              <span>{filter}</span>
+              <RefreshCwIcon
+                size={10}
+                className={cn(
+                  'shrink-0',
+                  isComputing && activeFilter === filter && 'animate-spin'
+                )}
+              />
+              <span>{isComputing && activeFilter === filter ? 'Computing...' : filter}</span>
             </button>
           ))}
         </div>
@@ -178,63 +297,72 @@ export function ProviderDashboard() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <CompactStatCard
-          title="Sessions Completed"
-          value="124"
+          title="Completed Assessments"
+          value={formatMetric(metrics?.completedAssessments)}
           icon={<CheckCircleIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">This Week +12</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Rating 4.9/5</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">
+                Total {metrics?.totalAssessments !== undefined ? formatMetric(metrics.totalAssessments) : '—'}
+              </span>
             </div>
           }
         />
 
         <CompactStatCard
           title="Referrals"
-          value="28"
+          value={formatMetric(metrics?.totalReferrals)}
           icon={<GitPullRequestArrowIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">Pending 9</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Approved 16</span>
-              <span className="rounded-full bg-rose-50 px-2 py-1 text-rose-600">Declined 3</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">
+                Patients {metrics?.totalPatients !== undefined ? formatMetric(metrics.totalPatients) : '—'}
+              </span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+                Active {metrics?.activePatients !== undefined ? formatMetric(metrics.activePatients) : '—'}
+              </span>
             </div>
           }
         />
 
         <CompactStatCard
           title="Care Plan Adherence"
-          value="84%"
+          value={metrics?.adherenceRate !== undefined ? `${metrics.adherenceRate}%` : '—'}
           icon={<HeartPulseIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">On Track 68%</span>
-              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">At Risk 16%</span>
+              <span className="rounded-full bg-green-50 px-2 py-1 text-green-600">
+                Active patients {metrics?.activePatients !== undefined ? formatMetric(metrics.activePatients) : '—'}
+              </span>
             </div>
           }
         />
 
         <CompactStatCard
           title="Assigned Tasks"
-          value="11"
+          value={formatMetric(metrics?.totalTasks)}
           icon={<ActivityIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Done 7</span>
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">Open 4</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+                Done {metrics?.completedTasks !== undefined ? formatMetric(metrics.completedTasks) : '—'}
+              </span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                Total {metrics?.totalTasks !== undefined ? formatMetric(metrics.totalTasks) : '—'}
+              </span>
             </div>
           }
         />
 
         <CompactStatCard
-          title="Approvals"
-          value="19"
+          title="Total Patients"
+          value={formatMetric(metrics?.totalPatients)}
           icon={<ClipboardCheckIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">Pending 5</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Approved 12</span>
-              <span className="rounded-full bg-rose-50 px-2 py-1 text-rose-600">Rejected 2</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+                Active {metrics?.activePatients !== undefined ? formatMetric(metrics.activePatients) : '—'}
+              </span>
             </div>
           }
         />
@@ -247,7 +375,7 @@ export function ProviderDashboard() {
         >
           <div className="flex items-center justify-center">
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={IMPROVEMENT_DATA}>
+              <LineChart data={improvementTrendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
@@ -277,7 +405,7 @@ export function ProviderDashboard() {
           subtitle="Exercise and session completion rate across active care plans"
         >
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={ADHERENCE_DATA}>
+            <AreaChart data={adherenceTrendData}>
               <defs>
                 <linearGradient id="providerAdherenceFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.12} />
@@ -314,7 +442,7 @@ export function ProviderDashboard() {
           subtitle="Scheduled provider tasks and follow-ups across the week"
         >
           <ResponsiveContainer width="100%" height={230}>
-            <BarChart data={TASK_DATA} barCategoryGap={18}>
+            <BarChart data={dailyTasksData} barCategoryGap={18}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
               <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
@@ -348,7 +476,7 @@ export function ProviderDashboard() {
           </div>
 
           <div className="space-y-2.5">
-            {PROVIDER_RECOVERY_DATA.map((item) => (
+            {patientRecoveryData.map((item) => (
               <div
                 key={item.label}
                 className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2.5"
