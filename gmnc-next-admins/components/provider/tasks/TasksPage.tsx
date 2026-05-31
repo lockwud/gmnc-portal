@@ -6,6 +6,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import SmallDropdown from '@/components/ui/SmallDropdown';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -132,6 +133,7 @@ export default function TasksPage() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [acceptedReferrals, setAcceptedReferrals] = useState<Referral[]>([]);
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
+  const [patientDropdownOpen, setPatientDropdownOpen] = useState(false);
 
    useEffect(() => {
      // Wait for auth to finish loading before checking token
@@ -201,11 +203,11 @@ const fetchPatients = async () => {
          headers: { Authorization: `Bearer ${token}` },
          credentials: 'include',
        });
-       const data = await response.json();
-       if (data.status === "SUCCESS" || data.success) {
-         const patientList = data.data?.data || data.data || [];
-         setPatients(Array.isArray(patientList) ? patientList : []);
-       }
+        const data = await response.json();
+        if (data.status === "SUCCESS" || data.status === true || data.success) {
+          const patientList = data.data?.data || data.data || [];
+          setPatients(Array.isArray(patientList) ? patientList : []);
+        }
      } catch (err) {
        console.error('Failed to fetch patients:', err);
      } finally {
@@ -328,17 +330,17 @@ const response = await fetch('/api/assessment/referrals/incoming', {
            'Content-Type': 'application/json',
            Authorization: `Bearer ${token}`,
          },
-         body: JSON.stringify({
-           title: formData.title,
-           instructions: formData.instructions,
-           instructionSteps: formData.instructionSteps.length > 0 ? formData.instructionSteps : null,
-           frequencyPerDay: formData.frequencyPerDay,
-           frequencyNote: formData.frequencyNote || null,
-           durationDays: formData.durationDays,
-           startDate: formData.startDate,
-           endDate: formData.endDate,
-           videoUrl: formData.videoUrl || null,
-         }),
+          body: JSON.stringify({
+            title: formData.title,
+            instructions: formData.instructions,
+            ...(formData.instructionSteps.length > 0 ? { instructionSteps: formData.instructionSteps } : {}),
+            frequencyPerDay: formData.frequencyPerDay,
+            ...(formData.frequencyNote ? { frequencyNote: formData.frequencyNote } : {}),
+            durationDays: formData.durationDays,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+            ...(formData.videoUrl ? { videoUrl: formData.videoUrl } : {}),
+          }),
          credentials: 'include',
        });
 
@@ -661,25 +663,20 @@ const data = await response.json();
             <div className="space-y-5">
               <div>
                 <label className="text-sm font-medium text-slate-700 mb-1 block">Select Patient *</label>
-                <select
-                  value={formData.patientId}
-                  onChange={(e) => {
-                    const patientId = e.target.value;
-                    setFormData(prev => ({ ...prev, patientId }));
-                    const referral = acceptedReferrals.find(r => r.patientId === patientId);
+                <SmallDropdown
+                  value={formData.patientId as string}
+                  options={patients.map((p) => ({ value: p.id, label: p.fullName }))}
+                  onChange={(patientId) => {
+                    setFormData((prev) => ({ ...prev, patientId }));
+                    const referral = acceptedReferrals.find((r) => r.patientId === patientId);
                     if (referral) {
-                      setFormData(prev => ({ ...prev, referralId: referral.id }));
+                      setFormData((prev) => ({ ...prev, referralId: referral.id }));
                     }
                   }}
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
-                >
-                  <option value="">Select patient</option>
-                  {patients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.fullName}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select patient"
+                  open={patientDropdownOpen}
+                  onOpenChange={setPatientDropdownOpen}
+                />
               </div>
 
               <div>
@@ -958,7 +955,7 @@ const data = await response.json();
                     <FileText size={14} className="text-blue-500" />
                     Instructions
                   </h3>
-                  <p className="text-sm text-slate-600">{selectedTask.instructions}</p>
+                  <p className="text-sm text-slate-600 whitespace-pre-line">{selectedTask.instructions}</p>
                 </div>
 
                 {/* Step-by-Step Instructions */}
