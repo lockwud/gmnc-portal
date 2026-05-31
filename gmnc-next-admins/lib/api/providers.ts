@@ -141,6 +141,6 @@ export async function verifyProvider(
   if (notes && notes.trim() !== '') {
     payload.verificationNote = notes;
   }
-  const res = await apiPatch<ProviderApiResponse>(`/admin/providers/${id}/verification`, payload, token);
+  const res = await apiPatch<ProviderApiResponse>(`/${id}/verification`, payload, token);
   return res.data;
 }

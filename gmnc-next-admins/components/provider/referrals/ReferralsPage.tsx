@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
 import {
@@ -16,22 +14,20 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  User,
-  Briefcase,
-  Calendar,
-  FileText,
   Plus,
-  Eye,
+  ChevronDown,
 } from 'lucide-react';
 
 interface Patient {
   id: string;
   fullName: string;
+ 
 }
 
 interface Provider {
   id: string;
   profession: string;
+  userType?: string;
   user: {
     fullName: string;
   };
@@ -77,11 +73,16 @@ interface CreateReferralData {
 }
 
 const professionOptions = [
+  { value: 'GENERAL_PAEDIATRICIAN', label: 'General Paediatrician' },
+  { value: 'DEVELOPMENTAL_PAEDIATRICIAN', label: 'Developmental Paediatrician' },
+  { value: 'PAEDIATRIC_NEUROLOGIST', label: 'Paediatric Neurologist' },
+  { value: 'REHABILITATION_PAEDIATRICIAN', label: 'Rehabilitation Paediatrician' },
   { value: 'PHYSIOTHERAPIST', label: 'Physiotherapist' },
   { value: 'OCCUPATIONAL_THERAPIST', label: 'Occupational Therapist' },
   { value: 'SPEECH_THERAPIST', label: 'Speech Therapist' },
+  { value: 'CLINICAL_PSYCHOLOGIST', label: 'Clinical Psychologist' },
   { value: 'DIETITIAN', label: 'Dietitian' },
-  { value: 'PSYCHOLOGIST', label: 'Psychologist' },
+  { value: 'PHARMACIST', label: 'Pharmacist' },
 ];
 
 const statusConfig: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
@@ -111,9 +112,176 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
   },
 };
 
+function SmallDropdown<T extends string>({
+  value,
+  options,
+  onChange,
+  placeholder,
+  open,
+  onOpenChange,
+  pageSize = 4,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  placeholder: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  pageSize?: number;
+}) {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        onOpenChange(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') onOpenChange(false);
+    }
+
+    if (open) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [onOpenChange, open]);
+
+  const selected = options.find((option) => option.value === value);
+  const filteredOptions = options.filter((option) =>
+    option.label.toLowerCase().includes(search.trim().toLowerCase())
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredOptions.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedOptions = filteredOptions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  return (
+    <div ref={rootRef} className="relative w-full">
+      <button
+        type="button"
+        aria-label={placeholder}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => {
+          const nextOpen = !open;
+          if (nextOpen) {
+            setSearch('');
+            setPage(1);
+          }
+          onOpenChange(nextOpen);
+        }}
+        className="flex h-10 w-full items-center justify-between rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 transition hover:border-slate-300"
+      >
+        <span className={selected ? 'truncate' : 'truncate text-slate-400'}>
+          {selected?.label ?? placeholder}
+        </span>
+        <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-full rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search..."
+            className="mb-2 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+          />
+
+          <div className="max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {paginatedOptions.length === 0 ? (
+              <div className="px-3 py-2.5 text-sm text-slate-500">No results found.</div>
+            ) : (
+              paginatedOptions.map((option) => {
+                const active = option.value === value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => {
+                      onChange(option.value);
+                      onOpenChange(false);
+                    }}
+                    className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                      active
+                        ? 'bg-slate-100 text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-2 flex items-center justify-between px-2 py-1">
+            <button
+              type="button"
+              className="rounded px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={currentPage === 1}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            >
+              Prev
+            </button>
+            <span className="text-xs text-slate-500">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              className="rounded px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={currentPage === totalPages}
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function X({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 export default function ReferralsPage() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { show } = useToast();
   
   const [incomingReferrals, setIncomingReferrals] = useState<Referral[]>([]);
@@ -127,11 +295,16 @@ export default function ReferralsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   
+  // Current provider info
+  const [currentProvider, setCurrentProvider] = useState<Provider | null>(null);
+  
   // Create referral form state
   const [formData, setFormData] = useState<CreateReferralData>({
     patientId: '',
     toProfession: 'PHYSIOTHERAPIST',
     reason: '',
+    toProviderId: undefined,
+    assessmentId: undefined,
   });
   
   // Options for selects
@@ -141,10 +314,13 @@ export default function ReferralsPage() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [isLoadingAssessments, setIsLoadingAssessments] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<'patient' | 'profession' | 'provider' | 'assessment' | null>(null);
 
   useEffect(() => {
-    fetchReferrals();
-  }, []);
+      if (token) {
+      fetchReferrals();
+    }
+  }, [token]);
 
   const fetchReferrals = async () => {
     setIsLoading(true);
@@ -160,14 +336,24 @@ export default function ReferralsPage() {
         }),
       ]);
 
-      const incomingData = await incomingRes.json();
-      const outgoingData = await outgoingRes.json();
-
-      if (incomingData.success) {
-        setIncomingReferrals(incomingData.data?.referrals || incomingData.referrals || []);
+      if (!incomingRes.ok) {
+        console.error('Incoming referrals API error:', incomingRes.status);
+        setIncomingReferrals([]);
+      } else {
+        const incomingData = await incomingRes.json();
+        if (incomingData.status === "SUCCESS" || incomingData.success) {
+          setIncomingReferrals(incomingData.data?.referrals || incomingData.referrals || []);
+        }
       }
-      if (outgoingData.success) {
-        setOutgoingReferrals(outgoingData.data?.referrals || outgoingData.referrals || []);
+
+      if (!outgoingRes.ok) {
+        console.error('Outgoing referrals API error:', outgoingRes.status);
+        setOutgoingReferrals([]);
+      } else {
+        const outgoingData = await outgoingRes.json();
+        if (outgoingData.status === "SUCCESS" || outgoingData.success) {
+          setOutgoingReferrals(outgoingData.data?.referrals || outgoingData.referrals || []);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch referrals:', err);
@@ -183,36 +369,108 @@ export default function ReferralsPage() {
   };
 
   const fetchPatients = async () => {
+    if (!token) {
+      show({
+        title: 'Error',
+        message: 'Authentication token is missing',
+        type: 'error',
+        duration: 4000,
+      });
+      setIsLoadingPatients(false);
+      return;
+    }
     setIsLoadingPatients(true);
     try {
-      const response = await fetch('/api/patients', {
+      const response = await fetch('/api/patients?limit=200', {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
-      const data = await response.json();
-      if (data.success) {
-        setPatients(data.data || []);
+      if (!response.ok) {
+        console.error('Patients API error:', response.status);
+        setPatients([]);
+        setIsLoadingPatients(false);
+        return;
       }
+      const data = await response.json();
+      const patientList = (data.data?.data || data.data || []) as any[];
+      const formatted = patientList.map((p: any) => ({
+        id: p.id,
+        fullName: p.fullName,
+        assessmentCount: 0,
+        hasAssessments: true,
+      }));
+      setPatients(formatted);
     } catch (err) {
       console.error('Failed to fetch patients:', err);
+      show({
+        title: 'Error',
+        message: 'Failed to load patients',
+        type: 'error',
+        duration: 4000,
+      });
     } finally {
       setIsLoadingPatients(false);
     }
   };
 
   const fetchProvidersByProfession = async (profession: string) => {
+    if (!token) {
+      show({
+        title: 'Error',
+        message: 'Authentication token is missing',
+        type: 'error',
+        duration: 4000,
+      });
+      setIsLoadingProviders(false);
+      return;
+    }
     setIsLoadingProviders(true);
     try {
-      const response = await fetch(`/api/providers?profession=${profession}`, {
+      // Use admin endpoint to get service providers by profession
+      const response = await fetch(`/api/admin/providers?profession=${encodeURIComponent(profession)}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
+      if (!response.ok) {
+        console.error('Providers API error:', response.status);
+        setProviders([]);
+        setIsLoadingProviders(false);
+        return;
+      }
       const data = await response.json();
-      if (data.success) {
-        setProviders(data.data || []);
+      if (data.status === "SUCCESS" || data.success) {
+        const allProviders = data.data?.data || data.data || [];
+        // Filter by profession
+        let filteredProviders = (Array.isArray(allProviders) ? allProviders : []).filter((p: any) => {
+          const providerProfession = p.profession || p.user?.profession;
+          return providerProfession === profession;
+        });
+
+        // Add current provider to the list if they match the profession (for self-referral)
+        if (currentProvider && currentProvider.profession === profession) {
+          const isAlreadyInList = filteredProviders.some((p: any) => p.id === currentProvider.id);
+          if (!isAlreadyInList) {
+            filteredProviders = [
+              ...filteredProviders,
+              {
+                id: currentProvider.id,
+                profession: currentProvider.profession,
+                user: { fullName: currentProvider.user.fullName },
+              },
+            ];
+          }
+        }
+
+        setProviders(filteredProviders);
       }
     } catch (err) {
       console.error('Failed to fetch providers:', err);
+      show({
+        title: 'Error',
+        message: 'Failed to load providers',
+        type: 'error',
+        duration: 4000,
+      });
     } finally {
       setIsLoadingProviders(false);
     }
@@ -225,20 +483,63 @@ export default function ReferralsPage() {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
+      if (!response.ok) {
+        console.error('Assessments API error:', response.status);
+        setAssessments([]);
+        setIsLoadingAssessments(false);
+        return;
+      }
       const data = await response.json();
-      if (data.success) {
-        setAssessments(data.data?.assessments || []);
+      if (data.status === "SUCCESS" || data.success) {
+        setAssessments(data.data?.assessments || data.assessments || []);
       }
     } catch (err) {
       console.error('Failed to fetch assessments:', err);
+      setAssessments([]);
     } finally {
       setIsLoadingAssessments(false);
     }
   };
 
-  const handleOpenCreateModal = () => {
-    fetchPatients();
+  const handleOpenCreateModal = async () => {
+    if (!token) {
+      show({
+        title: 'Error',
+        message: 'Authentication token is missing',
+        type: 'error',
+        duration: 4000,
+      });
+      return;
+    }
+    await Promise.all([
+      fetchPatients(),
+      fetchCurrentProvider(),
+      fetchProvidersByProfession(formData.toProfession),
+    ]);
     setIsCreateModalOpen(true);
+  };
+
+  const fetchCurrentProvider = async () => {
+    if (!token || !user?.id) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/providers?userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if ((data.status === "SUCCESS" || data.success) && Array.isArray(data.data?.data) && data.data.data.length > 0) {
+        const providerData = data.data.data[0];
+        setCurrentProvider({
+          id: providerData.id,
+          profession: providerData.profession,
+          user: { fullName: providerData.user?.fullName || user.fullName || '' },
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch current provider:', err);
+    }
   };
 
   const handlePatientChange = (patientId: string) => {
@@ -250,16 +551,20 @@ export default function ReferralsPage() {
     }
   };
 
+  const handleProviderChange = (providerId: string) => {
+    setFormData(prev => ({ ...prev, toProviderId: providerId || undefined }));
+  };
+
   const handleProfessionChange = (profession: string) => {
     setFormData(prev => ({ ...prev, toProfession: profession, toProviderId: undefined }));
     fetchProvidersByProfession(profession);
   };
 
   const handleCreateReferral = async () => {
-    if (!formData.patientId || !formData.toProfession || !formData.reason) {
+    if (!formData.patientId || !formData.toProfession || !formData.toProviderId || !formData.reason) {
       show({
         title: 'Validation Error',
-        message: 'Please fill in all required fields.',
+        message: 'Please fill in all required fields including the provider.',
         type: 'error',
         duration: 3000,
       });
@@ -288,7 +593,7 @@ export default function ReferralsPage() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data.status === "SUCCESS" || data.success) {
         show({
           title: 'Success',
           message: 'Referral created successfully.',
@@ -324,12 +629,24 @@ export default function ReferralsPage() {
       patientId: '',
       toProfession: 'PHYSIOTHERAPIST',
       reason: '',
+      toProviderId: undefined,
+      assessmentId: undefined,
     });
     setProviders([]);
     setAssessments([]);
+    setCurrentProvider(null);
   };
 
   const handleUpdateStatus = async (referralId: string, status: string) => {
+    if (!token) {
+      show({
+        title: 'Error',
+        message: 'Authentication token is missing',
+        type: 'error',
+        duration: 4000,
+      });
+      return;
+    }
     try {
       const response = await fetch(`/api/assessment/referrals/${referralId}/status`, {
         method: 'PATCH',
@@ -343,7 +660,7 @@ export default function ReferralsPage() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data.status === "SUCCESS" || data.success) {
         show({
           title: 'Success',
           message: `Referral ${status.toLowerCase()} successfully.`,
@@ -600,91 +917,114 @@ export default function ReferralsPage() {
           </div>
 
           <div className="space-y-5">
-            {/* Patient Selection */}
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">Patient *</label>
-              <select
-                value={formData.patientId}
-                onChange={(e) => handlePatientChange(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
-                disabled={isLoadingPatients}
-              >
-                <option value="">Select patient</option>
-                {patients.map((patient) => (
-                  <option key={patient.id} value={patient.id}>
-                    {patient.fullName}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700">Patient *</label>
+                <SmallDropdown
+                  value={formData.patientId}
+                  options={patients.map((p) => ({ value: p.id, label: p.fullName }))}
+                  onChange={(value) => {
+                    setFormData((prev) => ({ ...prev, patientId: value }));
+                    fetchPatientAssessments(value);
+                  }}
+                  placeholder="Select a patient"
+                  open={openDropdown === 'patient'}
+                  onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'patient' : null)}
+                  pageSize={4}
+                />
+                {isLoadingPatients && (
+                  <div className="mt-1 flex items-center text-sm text-slate-400">
+                    <div className="h-2 w-2 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent mr-2"></div>
+                    Loading patients...
+                  </div>
+                )}
+              </div>
 
-            {/* Specialty Selection */}
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">Specialty *</label>
-              <select
-                value={formData.toProfession}
-                onChange={(e) => handleProfessionChange(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
-              >
-                {professionOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700">Specialty *</label>
+                <SmallDropdown
+                  value={formData.toProfession}
+                  options={professionOptions}
+                  onChange={(value) => {
+                    setFormData((prev) => ({ ...prev, toProfession: value, toProviderId: undefined }));
+                    fetchProvidersByProfession(value);
+                  }}
+                  placeholder="Select specialty"
+                  open={openDropdown === 'profession'}
+                  onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'profession' : null)}
+                  pageSize={5}
+                />
+              </div>
 
-            {/* Specific Provider (Optional) */}
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">
-                Specific Provider (Optional)
-              </label>
-              <select
-                value={formData.toProviderId || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, toProviderId: e.target.value || undefined }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
-                disabled={isLoadingProviders}
-              >
-                <option value="">Any {formData.toProfession?.replace('_', ' ')}</option>
-                {providers.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.user?.fullName} ({provider.profession?.replace('_', ' ')})
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-slate-400 mt-1">Leave empty to broadcast to all providers of this specialty</p>
-            </div>
+              <div className="space-y-3 md:col-span-2">
+                <label className="text-sm font-medium text-slate-700">
+                  Refer To *
+                </label>
+                <SmallDropdown
+                  value={formData.toProviderId || ''}
+                  options={providers.map((p) => ({
+                    value: p.id,
+                    label: `${p.user?.fullName} (${p.profession?.replace('_', ' ')})`,
+                  }))}
+                  onChange={(value) => {
+                    setFormData((prev) => ({ ...prev, toProviderId: value }));
+                  }}
+                  placeholder="Select provider"
+                  open={openDropdown === 'provider'}
+                  onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'provider' : null)}
+                  pageSize={4}
+                />
+                {isLoadingProviders && (
+                  <div className="mt-1 flex items-center text-sm text-slate-400">
+                    <div className="h-2 w-2 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent mr-2"></div>
+                    Loading providers...
+                  </div>
+                )}
+                <p className="text-[11px] text-slate-400 mt-1">Select a specific provider to refer this patient to</p>
+              </div>
 
-            {/* Assessment (Optional) */}
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">
-                Related Assessment (Optional)
-              </label>
-              <select
-                value={formData.assessmentId || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, assessmentId: e.target.value || undefined }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
-                disabled={!formData.patientId || isLoadingAssessments}
-              >
-                <option value="">No assessment</option>
-                {assessments.map((assessment) => (
-                  <option key={assessment.id} value={assessment.id}>
-                    {assessment.toolCode?.replace(/_/g, ' ')} ({formatDate(assessment.assessedAt)})
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="space-y-3 md:col-span-2">
+                <label className="text-sm font-medium text-slate-700">
+                  Related Assessment (Optional)
+                </label>
+                <SmallDropdown
+                  value={formData.assessmentId || ''}
+                  options={assessments.map((a) => ({
+                    value: a.id,
+                    label: `${a.toolCode?.replace(/_/g, ' ')} (${formatDate(a.assessedAt)})`,
+                  }))}
+                  onChange={(value) => {
+                    setFormData((prev) => ({ ...prev, assessmentId: value || undefined }));
+                  }}
+                  placeholder="No assessment"
+                  open={openDropdown === 'assessment'}
+                  onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'assessment' : null)}
+                  pageSize={4}
+                />
+                {!formData.patientId && (
+                  <p className="text-[11px] text-amber-500 mt-1">Select a patient first to load assessments</p>
+                )}
+                {isLoadingAssessments && (
+                  <div className="mt-1 flex items-center text-sm text-slate-400">
+                    <div className="h-2 w-2 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent mr-2"></div>
+                    Loading assessments...
+                  </div>
+                )}
+                {formData.patientId && !isLoadingAssessments && assessments.length === 0 && (
+                  <p className="text-[11px] text-slate-400 mt-1">No assessments found for this patient</p>
+                )}
+              </div>
 
-            {/* Reason */}
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">Reason for Referral *</label>
-              <textarea
-                value={formData.reason}
-                onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-                rows={4}
-                placeholder="Describe the reason for this referral..."
-                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500 resize-none"
-              />
+              <div className="space-y-3 md:col-span-2">
+                <label className="text-sm font-medium text-slate-700">Reason for Referral *</label>
+                <textarea
+                  value={formData.reason}
+                  onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
+                  rows={4}
+                  placeholder="Describe the reason for this referral..."
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
             </div>
           </div>
 
