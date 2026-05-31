@@ -74,7 +74,11 @@ const nextConfig: NextConfig = {
            source: '/api/admin/patients',
            destination: `${apiBaseUrl}/admin/patients`,
          },
-        ];
+         {
+           source: '/api/user/videos',
+           destination: `${apiBaseUrl}/user/videos`,
+         },
+         ];
   },
 };
 
