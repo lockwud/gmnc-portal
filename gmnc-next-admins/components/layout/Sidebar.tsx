@@ -415,20 +415,21 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                       <span className="flex-1 text-left">{item.label}</span>
                     )}
                     {!collapsed && (
-                      <span className="material-icons text-[12px]" aria-hidden>
-                        {open ? "expand_more" : "chevron_right"}
+                      <span
+                        className="material-icons transition-transform"
+                        aria-hidden
+                      >
+                        {open ? "expand_less" : "expand_more"}
                       </span>
                     )}
                   </button>
-
                   {!collapsed && open && (
                     <div className="mt-1 space-y-1 pl-4">
                       {renderChildrenExpanded(item.children)}
                     </div>
                   )}
-
-                  {collapsed && collapsedOpenGroup === item.label && (
-                    <div className="mt-1 flex flex-col items-center space-y-1">
+                  {collapsed && open && (
+                    <div className="absolute top-0 z-10 w-48 rounded-md border border-slate-200 bg-white py-1 shadow-lg sidebar-shadow">
                       {renderChildrenCollapsed(item.children)}
                     </div>
                   )}
