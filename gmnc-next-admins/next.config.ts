@@ -62,18 +62,18 @@ const nextConfig: NextConfig = {
          source: '/notification/:path*',
          destination: `${apiBaseUrl}/notification/:path*`,
        },
-       {
-         source: '/api/admin/providers/:path*',
-         destination: `${apiBaseUrl}/admin/providers/:path*`,
-       },
-{
-          source: '/api/patients',
-          destination: `${apiBaseUrl}/cp-patient`,
-        },
         {
-          source: '/api/admin/patients',
-          destination: `${apiBaseUrl}/admin/patients`,
+          source: '/api/admin/providers/:path*',
+          destination: `${apiBaseUrl}/admin/providers/:path*`,
         },
+         {
+           source: '/api/providers/:path*',
+           destination: `${apiBaseUrl}/service-provider/:path*`,
+         },
+         {
+           source: '/api/admin/patients',
+           destination: `${apiBaseUrl}/admin/patients`,
+         },
         ];
   },
 };
