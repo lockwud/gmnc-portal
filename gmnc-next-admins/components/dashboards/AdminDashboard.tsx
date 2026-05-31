@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { getSystemMetrics, triggerSystemMetricsComputation, triggerFullMetricsComputation, type SystemMetrics } from '@/lib/api/metrics';
+import AdminDashboardSkeleton from '@/components/layout/skeletons/AdminDashboardSkeleton';
 
 const PIE_DATA = [
   { name: 'Verified', value: 756, color: '#059669' },
@@ -80,6 +81,21 @@ type SystemMetricsCard = {
     note: string;
     color: string;
   }>;
+  activePercentage?: number | string;
+  newUsers?: number | string;
+  criticalTickets?: number | string;
+  slaStatus?: string;
+  adherenceOnTrack?: number | string;
+  adherenceAtRisk?: number | string;
+  activeUsers?: number | string;
+  totalPatients?: number | string;
+  totalProviders?: number | string;
+  totalAssessments?: number | string;
+  totalTasks?: number | string;
+  platformAdherenceRate?: number | string;
+  totalImprovedGrossMotor?: number | string;
+  totalStableGrossMotor?: number | string;
+  totalRegressedGrossMotor?: number | string;
 };
 
 function formatMetric(value: unknown) {
@@ -174,27 +190,46 @@ export function AdminDashboard() {
   const [isComputing, setIsComputing] = useState(false);
   const [metricsError, setMetricsError] = useState<string | null>(null);
 
-  const loadMetrics = useCallback(async () => {
+  const loadMetrics = useCallback(async (filter?: string) => {
     setMetricsError(null);
     setIsLoadingMetrics(true);
 
     try {
-      const data = await getSystemMetrics();
+      const data = await getSystemMetrics(filter);
 
       if (!data || typeof data !== 'object') {
         throw new Error('Invalid metrics response format');
       }
 
+      const snapshotObj = (data && typeof data === 'object' && 'snapshot' in data && data.snapshot)
+        ? (data.snapshot as Record<string, unknown>)
+        : (data as Record<string, unknown>);
+
       setMetrics({
-        totalUsers: findMetric(data, ['totalUsers', 'total_users', 'userCount', 'usersCount'], undefined),
-        verifiedProviders: findMetric(data, ['verifiedProviders', 'verified_providers'], undefined),
-        openSupportTickets: findMetric(data, ['openSupportTickets', 'open_support_tickets', 'ticketsOpen'], undefined),
-        carePlanAdherence: findMetric(data, ['carePlanAdherence', 'care_plan_adherence', 'adherenceRate'], undefined),
-        pendingApprovals: findMetric(data, ['pendingApprovals', 'pending_approvals', 'approvalsPending'], undefined),
-        providerVerification: findMetric(data, ['providerVerification', 'provider_verification'], undefined),
-        improvementTrend: findMetric(data, ['improvementTrend', 'improvement_trend'], undefined),
-        dailyTasks: findMetric(data, ['dailyTasks', 'daily_tasks'], undefined),
-        patientRecovery: findMetric(data, ['patientRecovery', 'patient_recovery'], undefined),
+        totalUsers: findMetric(snapshotObj, ['totalChildrenEnrolled', 'totalUsers', 'total_users', 'userCount', 'usersCount'], undefined),
+        verifiedProviders: findMetric(snapshotObj, ['totalActiveProfessionals', 'totalProviders', 'total_providers', 'verifiedProviders', 'verified_providers'], undefined),
+        openSupportTickets: findMetric(snapshotObj, ['totalAppointments', 'openSupportTickets', 'open_support_tickets', 'ticketsOpen'], undefined),
+        carePlanAdherence: findMetric(snapshotObj, ['platformAdherenceRate', 'platform_adherence_rate', 'carePlanAdherence', 'care_plan_adherence', 'adherenceRate'], undefined),
+        pendingApprovals: findMetric(snapshotObj, ['totalReferralsMade', 'pendingApprovals', 'pending_approvals', 'approvalsPending'], undefined),
+        providerVerification: findMetric(snapshotObj, ['providerVerification', 'provider_verification'], undefined),
+        improvementTrend: findMetric(snapshotObj, ['improvementTrend', 'improvement_trend'], undefined),
+        dailyTasks: findMetric(snapshotObj, ['dailyTasks', 'daily_tasks'], undefined),
+        patientRecovery: findMetric(snapshotObj, ['patientRecovery', 'patient_recovery'], undefined),
+        activePercentage: findMetric(snapshotObj, ['activePercentage', 'active_percentage', 'activePercent', 'active_percent'], undefined),
+        newUsers: findMetric(snapshotObj, ['newChildrenEnrolledPeriod', 'newUsers', 'new_users', 'newUserCount', 'new_user_count'], undefined),
+        criticalTickets: findMetric(snapshotObj, ['criticalTickets', 'critical_tickets', 'criticalTicketsCount'], undefined),
+        slaStatus: findMetric(snapshotObj, ['slaStatus', 'sla_status', 'sla'], undefined),
+        adherenceOnTrack: findMetric(snapshotObj, ['adherenceOnTrack', 'adherence_on_track', 'onTrackAdherence'], undefined),
+        adherenceAtRisk: findMetric(snapshotObj, ['adherenceAtRisk', 'adherence_at_risk', 'atRiskAdherence'], undefined),
+        activeUsers: findMetric(snapshotObj, ['totalActiveEnrollments', 'activeUsers', 'active_users'], undefined),
+        totalPatients: findMetric(snapshotObj, ['totalChildrenEnrolled', 'totalPatients', 'total_patients'], undefined),
+        totalProviders: findMetric(snapshotObj, ['totalActiveProfessionals', 'totalProviders', 'total_providers'], undefined),
+        totalAssessments: findMetric(snapshotObj, ['totalAssessmentsCompleted', 'totalAssessments', 'total_assessments'], undefined),
+        totalTasks: findMetric(snapshotObj, ['totalActivitiesAssigned', 'totalTasks', 'total_tasks'], undefined),
+        platformAdherenceRate: findMetric(snapshotObj, ['platformAdherenceRate', 'platform_adherence_rate'], undefined),
+        totalImprovedGrossMotor: findMetric(snapshotObj, ['totalImprovedGrossMotor'], undefined),
+        totalStableGrossMotor: findMetric(snapshotObj, ['totalStableGrossMotor'], undefined),
+        totalRegressedGrossMotor: findMetric(snapshotObj, ['totalRegressedGrossMotor'], undefined),
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load system metrics';
@@ -222,12 +257,12 @@ export function AdminDashboard() {
       setIsComputing(false);
     }
 
-    await loadMetrics();
+    await loadMetrics(filter);
   }, [loadMetrics]);
 
   useEffect(() => {
-    loadMetrics();
-  }, [loadMetrics]);
+    loadMetrics(activeFilter);
+  }, [loadMetrics, activeFilter]);
 
   const providerVerificationData = metrics?.providerVerification
     ? [
@@ -239,7 +274,20 @@ export function AdminDashboard() {
 
   const improvementTrendData = metrics?.improvementTrend ?? IMPROVEMENT_TREND_DATA;
   const dailyTasksData = metrics?.dailyTasks ?? DAILY_TASKS_DATA;
-  const patientRecoveryData = metrics?.patientRecovery ?? PATIENT_RECOVERY_DATA;
+
+  const totalRecovery = (Number(metrics?.totalImprovedGrossMotor ?? 0) + Number(metrics?.totalStableGrossMotor ?? 0) + Number(metrics?.totalRegressedGrossMotor ?? 0));
+  
+  const patientRecoveryData = totalRecovery > 0 
+    ? [
+        { label: 'Improving', value: `${Math.round((Number(metrics?.totalImprovedGrossMotor ?? 0) / totalRecovery) * 100)}%`, note: 'Steady therapy response', color: 'emerald' },
+        { label: 'Stable', value: `${Math.round((Number(metrics?.totalStableGrossMotor ?? 0) / totalRecovery) * 100)}%`, note: 'Monitoring continues', color: 'blue' },
+        { label: 'Needs attention', value: `${Math.round((Number(metrics?.totalRegressedGrossMotor ?? 0) / totalRecovery) * 100)}%`, note: 'Closer intervention required', color: 'amber' }
+      ]
+    : (metrics?.patientRecovery ?? PATIENT_RECOVERY_DATA);
+
+  if (isLoadingMetrics && !metrics) {
+    return <AdminDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-4 pb-6">
@@ -290,20 +338,28 @@ export function AdminDashboard() {
           icon={<UsersIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Active 98%</span>
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">New +124</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+                Active {metrics?.activeUsers !== undefined && metrics?.totalUsers ? `${Math.round((Number(metrics.activeUsers) / Number(metrics.totalUsers)) * 100)}%` : '98%'}
+              </span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">
+                Count {metrics?.activeUsers !== undefined ? formatMetric(metrics.activeUsers) : '+124'}
+              </span>
             </div>
           }
         />
 
         <CompactStatCard
           title="Verified Providers"
-          value={formatMetric(metrics?.verifiedProviders)}
+          value={formatMetric(metrics?.totalProviders ?? metrics?.verifiedProviders)}
           icon={<UserCheckIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">Pending 82</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Flagged 24</span>
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">
+                Patients {metrics?.totalPatients !== undefined ? formatMetric(metrics.totalPatients) : '82'}
+              </span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+                Flagged {metrics?.providerVerification?.flagged !== undefined ? metrics.providerVerification.flagged : '24'}
+              </span>
             </div>
           }
         />
@@ -314,20 +370,28 @@ export function AdminDashboard() {
           icon={<AlertTriangleIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Critical 3</span>
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">SLA On Track</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+                Assessments {metrics?.totalAssessments !== undefined ? formatMetric(metrics.totalAssessments) : '3'}
+              </span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                {metrics?.slaStatus !== undefined ? String(metrics.slaStatus) : 'SLA On Track'}
+              </span>
             </div>
           }
         />
 
         <CompactStatCard
           title="Care Plan Adherence"
-          value={formatMetric(metrics?.carePlanAdherence)}
+          value={metrics?.platformAdherenceRate !== undefined ? `${metrics.platformAdherenceRate}%` : formatMetric(metrics?.carePlanAdherence)}
           icon={<HeartPulseIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">On Track 68%</span>
-              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">At Risk 16%</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+                Tasks {metrics?.totalTasks !== undefined ? formatMetric(metrics.totalTasks) : '68%'}
+              </span>
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">
+                At Risk {metrics?.adherenceAtRisk !== undefined ? `${metrics.adherenceAtRisk}%` : '16%'}
+              </span>
             </div>
           }
         />
