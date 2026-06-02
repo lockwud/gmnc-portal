@@ -303,12 +303,12 @@ export default function AssessmentCreatePage() {
                 </Button>
 
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 ring-1 ring-slate-200">
-                  Patient: {patientId}
+                  Patient: {patientName || patientId}
                 </span>
               </div>
 
               <p className="mt-2 text-xs text-slate-500">
-                Save locally while working. Backend submit creates the assessment and report immediately.
+                Submit when complete. Scores and clinical notes are generated immediately.
               </p>
             </div>
 
@@ -319,7 +319,7 @@ export default function AssessmentCreatePage() {
                 onClick={handleSaveLocal}
                 className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200"
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden className="text-amber-600">
                   <path
                     d="M5 5h11l3 3v11a1 1 0 01-1 1H6a1 1 0 01-1-1V5z"
                     stroke="currentColor"
@@ -344,7 +344,7 @@ export default function AssessmentCreatePage() {
                 onClick={handleClearLocal}
                 className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200"
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden className="text-red-600">
                   <path
                     d="M3 6h18"
                     stroke="currentColor"

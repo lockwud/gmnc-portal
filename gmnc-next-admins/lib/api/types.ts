@@ -103,6 +103,7 @@ export type AssessmentFormSection = {
   title: string;
   description?: string;
   fields: AssessmentFormField[];
+  sectionCode?: string;
 };
 
 export type AssessmentToolFormResponse = {
