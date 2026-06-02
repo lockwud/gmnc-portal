@@ -134,7 +134,7 @@ export default function TasksPage() {
   const [acceptedReferrals, setAcceptedReferrals] = useState<Referral[]>([]);
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
   const [patientDropdownOpen, setPatientDropdownOpen] = useState(false);
-  const [videos, setVideos] = useState<{ id: string; title: string }[]>([]);
+  const [videos, setVideos] = useState<{ id: string; title: string; videoUrl: string }[]>([]);
   const [videoDropdownOpen, setVideoDropdownOpen] = useState(false);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
 
@@ -260,7 +260,7 @@ const response = await fetch('/api/assessment/referrals/incoming', {
       const data = await res.json();
       const videosWrapper = data?.data?.videos?.videos ?? data?.data?.videos ?? data?.videos ?? [];
       const list = Array.isArray(videosWrapper) ? videosWrapper : [];
-      setVideos(list.map((v: Record<string, string>) => ({ id: v.videoId || v.id || '', title: v.title || '' })));
+      setVideos(list.map((v: Record<string, string>) => ({ id: v.videoId || v.id || '', title: v.title || '', videoUrl: v.videoUrl || v.url || '' })));
     } catch (err) {
       console.error('Failed to fetch videos:', err);
     }
@@ -829,7 +829,7 @@ const data = await response.json();
                   options={Array.isArray(videos) ? videos.map((v) => ({ value: v.id, label: v.title })) : []}
                   onChange={(videoId) => {
                     const video = videos.find((v) => v.id === videoId);
-                    setFormData((prev) => ({ ...prev, videoUrl: video?.videoUrl || video?.url || '' }));
+                    setFormData((prev) => ({ ...prev, videoUrl: video?.videoUrl || '' }));
                   }}
                   placeholder="Select a video..."
                   open={videoDropdownOpen}
