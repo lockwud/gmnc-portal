@@ -129,26 +129,34 @@ function ScoreValue({ value, depth = 0 }: { value: unknown; depth?: number }) {
   if (isRecord(value)) {
     return (
       <div className={depth === 0 ? 'grid gap-2 md:grid-cols-3' : 'space-y-2'}>
-        {Object.entries(value).map(([key, nestedValue]) => (
-          <div
-            key={key}
-            className="rounded-lg border border-slate-200 bg-white p-2.5"
-          >
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                {formatLabel(key)}
-              </span>
-              {!isRecord(nestedValue) && !Array.isArray(nestedValue) ? (
-                <span className="text-sm font-semibold text-purple-700">{formatValue(nestedValue)}</span>
-              ) : null}
+        {Object.entries(value).map(([key, nestedValue]) => {
+          const profileRecord = isRecord(nestedValue) ? nestedValue : null;
+          const profileName = typeof (profileRecord as Record<string, unknown> | null)?.['name'] === 'string'
+            ? (profileRecord as Record<string, unknown>)['name'] as string
+            : null;
+          const label = profileName && /^[A-Z]$/.test(key) ? profileName : formatLabel(key);
+
+          return (
+            <div
+              key={key}
+              className="rounded-lg border border-slate-200 bg-white p-2.5"
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  {label}
+                </span>
+                {!isRecord(nestedValue) && !Array.isArray(nestedValue) ? (
+                  <span className="text-sm font-semibold text-purple-700">{formatValue(nestedValue)}</span>
+                ) : null}
+              </div>
+              {isRecord(nestedValue) || Array.isArray(nestedValue) ? (
+                <ScoreValue value={nestedValue} depth={depth + 1} />
+              ) : (
+                <ScoreMeter value={nestedValue} />
+              )}
             </div>
-            {isRecord(nestedValue) || Array.isArray(nestedValue) ? (
-              <ScoreValue value={nestedValue} depth={depth + 1} />
-            ) : (
-              <ScoreMeter value={nestedValue} />
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
