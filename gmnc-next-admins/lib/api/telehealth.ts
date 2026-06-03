@@ -171,8 +171,8 @@ export async function getNotifications(token?: string | null): Promise<Notificat
 }
 
 export async function getUnreadNotificationCount(token?: string | null): Promise<number> {
-  const res = await apiGet<{ count: number }>('/notification/unread-count', token);
-  return res.count;
+  const res = await apiGet<{ status: boolean; data: { count?: number }; message?: string }>('/notification/unread-count', token);
+  return typeof res.data?.count === 'number' ? res.data.count : 0;
 }
 
 export async function markNotificationAsRead(id: string, token?: string | null): Promise<void> {

@@ -103,6 +103,7 @@ export type AssessmentFormSection = {
   title: string;
   description?: string;
   fields: AssessmentFormField[];
+  sectionCode?: string;
 };
 
 export type AssessmentToolFormResponse = {
@@ -123,6 +124,8 @@ export type AssessmentSubmitPayload = {
   toolVersion?: string;
   responses: Record<string, unknown>;
   status?: 'DRAFT' | 'COMPLETED';
+  isRegularPerformance?: boolean;
+  clinicalNotesComment?: string;
 };
 
 export type AssessmentSubmitResponse = {

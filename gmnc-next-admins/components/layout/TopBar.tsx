@@ -5,6 +5,7 @@ import Link from 'next/link';
 import NotificationsPanel from '@/components/ui/NotificationsPanel';
 import { COLORS } from '@/lib/colors';
 import { useAuth } from '@/lib/context/AuthContext';
+import { getUnreadNotificationCount } from '@/lib/api/telehealth';
 
 type Props = {
   onToggleSidebar: () => void;
@@ -27,14 +28,16 @@ const ToggleIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
-  const { user, logout, selectedRole } = useAuth();
+  const { user, logout, selectedRole, token } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [userOpen, setUserOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const loaded = useRef(false);
 
   const activeBg = (COLORS && (COLORS.activeBg ?? COLORS.primary)) || '#2563EB';
 
@@ -43,6 +46,7 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
   }, [searchOpen]);
 
   useEffect(() => {
+    loaded.current = true;
     function onDocClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setSearchOpen(false);
@@ -51,8 +55,39 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
       }
     }
     document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!token) {
+      setUnreadCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadUnreadCount() {
+      try {
+        const count = await getUnreadNotificationCount(token);
+        if (!cancelled && loaded.current) {
+          setUnreadCount(typeof count === 'number' ? count : 0);
+        }
+      } catch {
+        if (!cancelled && loaded.current) {
+          setUnreadCount(0);
+        }
+      }
+    }
+
+    loadUnreadCount();
+    const interval = setInterval(loadUnreadCount, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [token]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,17 +140,20 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
 
           <button
             onClick={() => {
-              setNotifOpen(true);
+              setNotifOpen((s) => !s);
               setUserOpen(false);
               setSearchOpen(false);
             }}
-            className="p-1 rounded hover:bg-gray-100"
+            className="relative p-1 rounded hover:bg-gray-100"
             title="Notifications"
             aria-haspopup="dialog"
             aria-expanded={notifOpen}
             type="button"
           >
             <span className="material-icons text-xs">notifications</span>
+            <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+              {unreadCount}
+            </span>
           </button>
 
           <div className="relative">
@@ -170,3 +208,4 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
 };
 
 export default TopBar;
+

@@ -19,6 +19,16 @@ export default function AssessmentSection({
   values,
   onFieldChange,
 }: Props) {
+  const isClinicalNotes = section.sectionCode === 'clinical_notes';
+
+  const regularField = isClinicalNotes
+    ? section.fields.find((field) => field.fieldKey === 'isRegularPerformance') ?? null
+    : null;
+
+  const commentField = isClinicalNotes
+    ? section.fields.find((field) => field.fieldKey === 'clinicalNotesComment') ?? null
+    : null;
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
       <div className="mb-4">
@@ -28,24 +38,43 @@ export default function AssessmentSection({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {section.fields.map((field) => {
-          const responseKey = fieldResponseKey(field);
+      {isClinicalNotes && regularField && commentField ? (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <AssessmentFieldRenderer
+              field={regularField}
+              value={values[fieldResponseKey(regularField)]}
+              onChange={(nextValue) => onFieldChange(fieldResponseKey(regularField), nextValue)}
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <AssessmentFieldRenderer
+              field={commentField}
+              value={values[fieldResponseKey(commentField)]}
+              onChange={(nextValue) => onFieldChange(fieldResponseKey(commentField), nextValue)}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {section.fields.map((field) => {
+            const responseKey = fieldResponseKey(field);
 
-          return (
-            <div
-              key={responseKey}
-              className="md:col-span-1"
-            >
-              <AssessmentFieldRenderer
-                field={field}
-                value={values[responseKey]}
-                onChange={(nextValue) => onFieldChange(responseKey, nextValue)}
-              />
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <div
+                key={responseKey}
+                className="md:col-span-1"
+              >
+                <AssessmentFieldRenderer
+                  field={field}
+                  value={values[responseKey]}
+                  onChange={(nextValue) => onFieldChange(responseKey, nextValue)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

@@ -197,11 +197,48 @@ export default function AssessmentCreatePage() {
       setSubmitting(true);
       setSubmitError(null);
 
+      const GMFM_DIMENSIONS = [
+        { code: 'A', start: 1, end: 17 },
+        { code: 'B', start: 18, end: 37 },
+        { code: 'C', start: 38, end: 51 },
+        { code: 'D', start: 52, end: 64 },
+        { code: 'E', start: 65, end: 88 },
+      ];
+
+      const allGMFMKeys: string[] = [];
+      GMFM_DIMENSIONS.forEach(({ code, start, end }) => {
+        for (let i = start; i <= end; i++) {
+          allGMFMKeys.push(`${code}${i}`);
+        }
+      });
+
+      const existingResponses = (values as Record<string, string | number | boolean>);
+      const sanitizedResponses: Record<string, string | number> = {};
+      allGMFMKeys.forEach((key) => {
+        const raw = existingResponses[key];
+        if (raw === undefined || raw === null || raw === '') {
+          sanitizedResponses[key] = '';
+        } else if (raw === 'NT' || raw === 'nt') {
+          sanitizedResponses[key] = 'NT';
+        } else {
+          const num = typeof raw === 'number' ? raw : Number(raw);
+          sanitizedResponses[key] = Number.isNaN(num) ? '' : num;
+        }
+      });
+
+      const isRegularPerformance = existingResponses['isRegularPerformance'] as boolean | undefined;
+      const clinicalNotesComment =
+        (existingResponses['clinicalNotesComment'] as string | undefined) ??
+        (existingResponses['clinical_notes_comment'] as string | undefined) ??
+        '';
+
       const result = await submitAssessment({
         patientId,
         toolCode: selectedTool.toolCode,
-        responses: values,
         status: 'COMPLETED',
+        responses: sanitizedResponses,
+        isRegularPerformance,
+        clinicalNotesComment,
       });
 
       window.localStorage.removeItem(draftStorageKey(patientId, selectedTool.toolCode));
@@ -303,12 +340,12 @@ export default function AssessmentCreatePage() {
                 </Button>
 
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 ring-1 ring-slate-200">
-                  Patient: {patientId}
+                  Patient: {patientName || patientId}
                 </span>
               </div>
 
               <p className="mt-2 text-xs text-slate-500">
-                Save locally while working. Backend submit creates the assessment and report immediately.
+                Submit when complete. Scores and clinical notes are generated immediately.
               </p>
             </div>
 
@@ -319,7 +356,7 @@ export default function AssessmentCreatePage() {
                 onClick={handleSaveLocal}
                 className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200"
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden className="text-amber-600">
                   <path
                     d="M5 5h11l3 3v11a1 1 0 01-1 1H6a1 1 0 01-1-1V5z"
                     stroke="currentColor"
@@ -344,7 +381,7 @@ export default function AssessmentCreatePage() {
                 onClick={handleClearLocal}
                 className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200"
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden className="text-red-600">
                   <path
                     d="M3 6h18"
                     stroke="currentColor"

@@ -37,7 +37,7 @@ function normalizeOptions(options?: FieldOption[]) {
 
     return {
       label: option.label,
-      value: option.value,
+      value: String(option.value),
     };
   });
 }
@@ -81,12 +81,42 @@ export default function AssessmentFieldRenderer({
     };
   }, [open]);
 
+  if (format === 'BOOLEAN') {
+    return (
+      <div className="space-y-2">
+        <span className="block text-sm font-medium text-slate-800">{label}</span>
+        <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+          {[
+            { label: 'Yes', value: true },
+            { label: 'No', value: false },
+          ].map((option) => {
+            const active = value === option.value;
+            return (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => onChange(option.value)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  active
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   if (hasOptions) {
     const selectedValue = String(value ?? '');
     const selectedOption = normalizedOptions.find((option) => option.value === selectedValue);
 
     return (
-      <div className="max-w-[320px] space-y-2">
+      <div className="max-w-[220px] space-y-2">
         <label htmlFor={id} className="block text-sm font-medium text-slate-800">
           {label}
         </label>
@@ -96,7 +126,7 @@ export default function AssessmentFieldRenderer({
             id={id}
             type="button"
             onClick={() => setOpen((prev) => !prev)}
-            className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left text-sm transition outline-none ${
+            className={`flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left text-xs transition outline-none ${
               open
                 ? 'border-emerald-300 bg-emerald-50/50'
                 : 'border-slate-200 bg-white hover:border-slate-300'
@@ -108,10 +138,10 @@ export default function AssessmentFieldRenderer({
               {selectedOption ? selectedOption.label : 'Select'}
             </span>
 
-            <span className="ml-3 flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+            <span className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
               <svg
-                width="12"
-                height="12"
+                width="10"
+                height="10"
                 viewBox="0 0 24 24"
                 fill="none"
                 aria-hidden
@@ -131,16 +161,16 @@ export default function AssessmentFieldRenderer({
           {open && (
             <div
               role="listbox"
-              className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 rounded-3xl border border-slate-200 bg-white p-2 shadow-xl"
+              className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-60 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-xl"
             >
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <button
                   type="button"
                   onClick={() => {
                     onChange('');
                     setOpen(false);
                   }}
-                  className={`w-full rounded-2xl px-3 py-2 text-left text-sm transition ${
+                  className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-[11px] transition ${
                     selectedValue === ''
                       ? 'bg-emerald-50 text-emerald-700'
                       : 'text-slate-700 hover:bg-slate-50'
@@ -151,6 +181,7 @@ export default function AssessmentFieldRenderer({
 
                 {normalizedOptions.map((option) => {
                   const selected = selectedValue === option.value;
+                  const showBadge = ['0', '1', '2', '3', 'NT'].includes(option.value);
 
                   return (
                     <button
@@ -160,13 +191,20 @@ export default function AssessmentFieldRenderer({
                         onChange(option.value);
                         setOpen(false);
                       }}
-                      className={`w-full rounded-2xl px-3 py-2 text-left text-sm transition ${
+                      className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-[11px] transition ${
                         selected
                           ? 'bg-emerald-50 text-emerald-700'
                           : 'text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      {option.label}
+                      {showBadge ? (
+                        <span className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${
+                          option.value === 'NT' ? 'bg-slate-400 text-white' : 'bg-slate-900 text-white'
+                        }`}>
+                          {option.value}
+                        </span>
+                      ) : null}
+                      <span className="truncate leading-tight">{option.label}</span>
                     </button>
                   );
                 })}
@@ -174,10 +212,6 @@ export default function AssessmentFieldRenderer({
             </div>
           )}
         </div>
-
-        {field.helperText ? (
-          <p className="text-xs text-slate-500">{field.helperText}</p>
-        ) : null}
       </div>
     );
   }
@@ -262,6 +296,9 @@ export default function AssessmentFieldRenderer({
             NT
           </button>
         </div>
+        {field.helperText ? (
+          <p className="text-xs text-slate-500">{field.helperText}</p>
+        ) : null}
       </div>
     );
   }
@@ -296,7 +333,7 @@ export default function AssessmentFieldRenderer({
         </label>
         <textarea
           id={id}
-          rows={4}
+          rows={8}
           value={String(value ?? '')}
           onChange={(e) => onChange(e.target.value)}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-emerald-500"
