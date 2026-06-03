@@ -219,36 +219,52 @@ const fetchPatients = async () => {
      }
    };
 
-   const fetchAcceptedReferrals = async () => {
-     if (!token) {
-       show({
-         title: 'Error',
-         message: 'Authentication token is missing',
-         type: 'error',
-         duration: 4000,
-       });
-       setIsLoadingReferrals(false);
-       return;
-     }
-     setIsLoadingReferrals(true);
-     try {
-const response = await fetch('/api/assessment/referrals/incoming', {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
+    const fetchAcceptedReferrals = async () => {
+      if (!token) {
+        show({
+          title: 'Error',
+          message: 'Authentication token is missing',
+          type: 'error',
+          duration: 4000,
         });
-        const data = await response.json();
+        setIsLoadingReferrals(false);
+        return;
+      }
+      setIsLoadingReferrals(true);
+      try {
+        const [incomingRes, outgoingRes] = await Promise.all([
+          fetch('/api/assessment/referrals/incoming', {
+            headers: { Authorization: `Bearer ${token}` },
+            credentials: 'include',
+          }),
+          fetch('/api/assessment/referrals/outgoing', {
+            headers: { Authorization: `Bearer ${token}` },
+            credentials: 'include',
+          }),
+        ]);
 
-        if (data.status === "SUCCESS" || data.success) {
-          const allReferrals = data.data?.referrals || data.referrals || [];
-          const accepted = allReferrals.filter((r: Referral) => r.status === 'ACCEPTED');
-          setAcceptedReferrals(accepted);
-        }
-     } catch (err) {
-       console.error('Failed to fetch referrals:', err);
-     } finally {
-    setIsLoadingReferrals(false);
+        const [incomingData, outgoingData] = await Promise.all([
+          incomingRes.json(),
+          outgoingRes.json(),
+        ]);
+
+        const incomingList = (incomingData.data?.referrals || incomingData.referrals || []) as Referral[];
+        const outgoingList = (outgoingData.data?.referrals || outgoingData.referrals || []) as Referral[];
+        const merged = [...incomingList, ...outgoingList];
+        const accepted = merged.filter((r) => r.status === 'ACCEPTED');
+        const byId = new Map<string, Referral>();
+        accepted.forEach((r) => {
+          if (!byId.has(r.id)) {
+            byId.set(r.id, r);
+          }
+        });
+        setAcceptedReferrals(Array.from(byId.values()));
+      } catch (err) {
+        console.error('Failed to fetch referrals:', err);
+      } finally {
+        setIsLoadingReferrals(false);
+      }
     };
-  };
 
   const fetchVideos = async () => {
     if (!token) return;
@@ -332,7 +348,7 @@ const response = await fetch('/api/assessment/referrals/incoming', {
     }
   };
 
-   const handleCreateTask = async () => {
+  const handleCreateTask = async () => {
      if (!token) {
        show({
          title: 'Error',
@@ -364,7 +380,7 @@ const response = await fetch('/api/assessment/referrals/incoming', {
          credentials: 'include',
        });
 
-const data = await response.json();
+      const data = await response.json();
 
         if (data.status === "SUCCESS" || data.success) {
           show({

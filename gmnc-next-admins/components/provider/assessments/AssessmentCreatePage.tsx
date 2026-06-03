@@ -197,11 +197,48 @@ export default function AssessmentCreatePage() {
       setSubmitting(true);
       setSubmitError(null);
 
+      const GMFM_DIMENSIONS = [
+        { code: 'A', start: 1, end: 17 },
+        { code: 'B', start: 18, end: 37 },
+        { code: 'C', start: 38, end: 51 },
+        { code: 'D', start: 52, end: 64 },
+        { code: 'E', start: 65, end: 88 },
+      ];
+
+      const allGMFMKeys: string[] = [];
+      GMFM_DIMENSIONS.forEach(({ code, start, end }) => {
+        for (let i = start; i <= end; i++) {
+          allGMFMKeys.push(`${code}${i}`);
+        }
+      });
+
+      const existingResponses = (values as Record<string, string | number | boolean>);
+      const sanitizedResponses: Record<string, string | number> = {};
+      allGMFMKeys.forEach((key) => {
+        const raw = existingResponses[key];
+        if (raw === undefined || raw === null || raw === '') {
+          sanitizedResponses[key] = '';
+        } else if (raw === 'NT' || raw === 'nt') {
+          sanitizedResponses[key] = 'NT';
+        } else {
+          const num = typeof raw === 'number' ? raw : Number(raw);
+          sanitizedResponses[key] = Number.isNaN(num) ? '' : num;
+        }
+      });
+
+      const isRegularPerformance = existingResponses['isRegularPerformance'] as boolean | undefined;
+      const clinicalNotesComment =
+        (existingResponses['clinicalNotesComment'] as string | undefined) ??
+        (existingResponses['clinical_notes_comment'] as string | undefined) ??
+        '';
+
       const result = await submitAssessment({
         patientId,
         toolCode: selectedTool.toolCode,
-        responses: values,
         status: 'COMPLETED',
+        responses: sanitizedResponses,
+        isRegularPerformance,
+        clinicalNotesComment,
       });
 
       window.localStorage.removeItem(draftStorageKey(patientId, selectedTool.toolCode));
