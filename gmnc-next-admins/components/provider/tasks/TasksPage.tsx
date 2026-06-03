@@ -160,24 +160,31 @@ const fetchTasks = async () => {
        return;
      }
      setIsLoading(true);
-     try {
-       const response = await fetch('/api/assessment/tasks/my', {
-         headers: { Authorization: `Bearer ${token}` },
-         credentials: 'include',
-       });
-       const data = await response.json();
+      try {
+        const response = await fetch('/api/assessment/tasks/my', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
+        let data: unknown;
+        try {
+          data = await response.json();
+        } catch {
+          const text = await response.text();
+          throw new Error(`Server error: ${text.slice(0, 200) || response.statusText}`);
+        }
 
-       if (data.status === "SUCCESS" || data.success) {
-         setTasks(data.data?.tasks || data.tasks || []);
-       } else {
-         show({
-           title: 'Error',
-           message: data.message || 'Failed to load tasks',
-           type: 'error',
-           duration: 4000,
-         });
-       }
-     } catch (err) {
+        if (data && typeof data === 'object' && (data as Record<string, unknown>).status === 'SUCCESS' || (data as Record<string, unknown>).success) {
+          const resolved = data as { data?: { tasks?: RehabTask[] }; tasks?: RehabTask[] };
+          setTasks(resolved.data?.tasks || resolved.tasks || []);
+        } else {
+          show({
+            title: 'Error',
+            message: (data && typeof data === 'object' && (data as Record<string, unknown>).message ? (data as Record<string, unknown>).message as string : 'Failed to load tasks') || 'Failed to load tasks',
+            type: 'error',
+            duration: 4000,
+          });
+        }
+      } catch (err) {
        console.error('Failed to fetch tasks:', err);
        show({
          title: 'Error',
