@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Badge from '@/components/ui/Badge';
 import {
   InboxIcon,
@@ -13,160 +13,49 @@ import {
   ActivityIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSupportAnalytics, type SupportDashboardAnalytics, type SupportTicketMeta } from '@/lib/api/analytics';
 
-const SUPPORT_BOARD = [
-  {
-    title: 'New Requests',
-    count: 11,
-    items: [
-      {
-        id: 'SUP-001',
-        time: 'Mon, Jan 15 • 08:32 AM',
-        tag: 'ACCESS ISSUE',
-        title: 'Provider unable to access patient report',
-        subtitle: 'Report export action disabled',
-        assignees: ['AM', 'JO'],
-        more: '+3',
-        ref: 'SR102',
-        priority: 'High',
-      },
-      {
-        id: 'SUP-002',
-        time: 'Mon, Jan 15 • 09:05 AM',
-        tag: 'LOGIN',
-        title: 'Session timeout during clinical review',
-        subtitle: 'User signed out after 5 minutes',
-        assignees: ['DE', 'LS'],
-        more: '+2',
-        ref: 'SR108',
-        priority: 'Critical',
-      },
-    ],
-  },
-  {
-    title: 'In Progress',
-    count: 18,
-    items: [
-      {
-        id: 'SUP-004',
-        time: 'Mon, Jan 15 • 10:40 AM',
-        tag: 'TELEHEALTH',
-        title: 'Video session audio inconsistency',
-        subtitle: 'Intermittent dropout reported',
-        assignees: ['DA', 'EO', 'BK'],
-        more: '+4',
-        ref: 'SR120',
-        priority: 'High',
-      },
-      {
-        id: 'SUP-005',
-        time: 'Mon, Jan 15 • 11:12 AM',
-        tag: 'PROFILE',
-        title: 'Therapist profile image not rendering',
-        subtitle: 'Broken image on provider listing',
-        assignees: ['LS', 'AN'],
-        more: '+2',
-        ref: 'SR123',
-        priority: 'Low',
-      },
-      {
-        id: 'SUP-006',
-        time: 'Mon, Jan 15 • 11:51 AM',
-        tag: 'APP FREEZE',
-        title: 'Tablet app freezes on patient switch',
-        subtitle: 'Occurs when navigating between children',
-        assignees: ['GI', 'PO'],
-        more: '+3',
-        ref: 'SR127',
-        priority: 'Medium',
-      },
-    ],
-  },
-  {
-    title: 'Escalated',
-    count: 5,
-    items: [
-      {
-        id: 'SUP-007',
-        time: 'Mon, Jan 15 • 12:21 PM',
-        tag: 'SECURITY',
-        title: 'Role access mismatch for provider account',
-        subtitle: 'Unexpected admin privilege exposure',
-        assignees: ['AD', 'SE'],
-        more: '+5',
-        ref: 'SR131',
-        priority: 'Critical',
-      },
-      {
-        id: 'SUP-008',
-        time: 'Mon, Jan 15 • 01:02 PM',
-        tag: 'DATA',
-        title: 'Patient progress chart not syncing',
-        subtitle: 'Latest adherence data missing',
-        assignees: ['QA', 'MX'],
-        more: '+2',
-        ref: 'SR135',
-        priority: 'High',
-      },
-    ],
-  },
-  {
-    title: 'Awaiting User',
-    count: 7,
-    items: [
-      {
-        id: 'SUP-009',
-        time: 'Mon, Jan 15 • 01:18 PM',
-        tag: 'FOLLOW-UP',
-        title: 'Requested browser and device details',
-        subtitle: 'Awaiting response from caregiver',
-        assignees: ['LI', 'OM'],
-        more: '+1',
-        ref: 'SR140',
-        priority: 'Low',
-      },
-      {
-        id: 'SUP-010',
-        time: 'Mon, Jan 15 • 01:48 PM',
-        tag: 'VERIFICATION',
-        title: 'Need provider confirmation on issue scope',
-        subtitle: 'Pending workflow reproduction details',
-        assignees: ['TR', 'FE'],
-        more: '+1',
-        ref: 'SR142',
-        priority: 'Medium',
-      },
-    ],
-  },
-  {
-    title: 'Resolved',
-    count: 24,
-    items: [
-      {
-        id: 'SUP-011',
-        time: 'Mon, Jan 15 • 02:15 PM',
-        tag: 'RESOLVED',
-        title: 'Report export restored successfully',
-        subtitle: 'Permission mapping corrected',
-        assignees: ['AM', 'JO'],
-        more: '+2',
-        ref: 'SR147',
-        priority: 'High',
-      },
-      {
-        id: 'SUP-012',
-        time: 'Mon, Jan 15 • 02:42 PM',
-        tag: 'RESOLVED',
-        title: 'Login timeout issue updated',
-        subtitle: 'Session policy aligned with expected duration',
-        assignees: ['DE', 'LS'],
-        more: '+2',
-        ref: 'SR151',
-        priority: 'Critical',
-      },
-    ],
-  },
-];
+type SupportBoardItem = {
+  id: string;
+  time: string;
+  tag: string;
+  title: string;
+  subtitle: string;
+  assignees: string[];
+  more: string;
+  ref: string;
+  priority: string;
+};
+
+type SupportBoardColumn = {
+  title: string;
+  count: number;
+  items: SupportBoardItem[];
+};
+
+function buildSupportBoard(data: SupportDashboardAnalytics | null): SupportBoardColumn[] {
+  if (!data) {
+    return [];
+  }
+
+  return [
+    {
+      title: 'New Requests',
+      count: data.kpis.openQueue.new,
+      items: data.queues.newRequests.map(mapTicket),
+    },
+    {
+      title: 'In Progress',
+      count: data.kpis.openQueue.inProgress,
+      items: data.queues.inProgress.map(mapTicket),
+    },
+    {
+      title: 'Escalated',
+      count: data.kpis.criticalEscalations.count,
+      items: data.queues.escalated.map(mapTicket),
+    },
+  ];
+}
 
 type CompactStatCardProps = {
   title: string;
@@ -245,17 +134,7 @@ function AvatarPill({ text, color }: { text: string; color: string }) {
 function SupportCard({
   item,
 }: {
-  item: {
-    id: string;
-    time: string;
-    tag: string;
-    title: string;
-    subtitle: string;
-    assignees: string[];
-    more: string;
-    ref: string;
-    priority: string;
-  };
+  item: SupportBoardItem;
 }) {
   const priorityClass =
     item.priority === 'Critical'
@@ -310,16 +189,108 @@ function SupportCard({
   );
 }
 
+function formatNumber(value: unknown) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  if (typeof value === 'number') {
+    return value.toLocaleString();
+  }
+
+  return String(value);
+}
+
+function formatTicketTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return 'NA';
+  }
+
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
+}
+
+function mapTicket(ticket: SupportTicketMeta): SupportBoardItem {
+  const assignees = ticket.usersInvolved.length > 0
+    ? ticket.usersInvolved.map(getInitials)
+    : ['NA'];
+
+  return {
+    id: ticket.ticketId,
+    time: formatTicketTime(ticket.time),
+    tag: ticket.issueType || 'SUPPORT',
+    title: ticket.description || 'Support request',
+    subtitle: ticket.issueType || 'Queue item',
+    assignees: assignees.slice(0, 3),
+    more: assignees.length > 3 ? `+${assignees.length - 3}` : '+0',
+    ref: ticket.ticketId,
+    priority: ticket.priority || 'Medium',
+  };
+}
+
 export function SupportDashboard() {
   const [activeFilter, setActiveFilter] = useState('This Week');
+  const [analytics, setAnalytics] = useState<SupportDashboardAnalytics | null>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
+  const loadAnalytics = useCallback(async (filter?: string) => {
+    setAnalyticsError(null);
+    setIsLoadingAnalytics(true);
+
+    try {
+      const data = await getSupportAnalytics(filter);
+      setAnalytics(data);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load support analytics';
+      console.error('Failed to load support dashboard analytics:', errorMessage, error);
+      setAnalyticsError(errorMessage);
+    } finally {
+      setIsLoadingAnalytics(false);
+    }
+  }, []);
+
+  const handleRefresh = useCallback((filter: string) => {
+    setActiveFilter(filter);
+    if (filter === activeFilter) {
+      void loadAnalytics(filter);
+    }
+  }, [activeFilter, loadAnalytics]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadAnalytics(activeFilter);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeFilter, loadAnalytics]);
+
+  const supportBoard = useMemo(() => buildSupportBoard(analytics), [analytics]);
 
   const totalOpen = useMemo(
     () =>
-      SUPPORT_BOARD.filter((col) => col.title !== 'Resolved').reduce(
+      supportBoard.filter((col) => col.title !== 'Resolved').reduce(
         (sum, col) => sum + col.count,
         0
       ),
-    []
+    [supportBoard]
   );
 
   return (
@@ -332,22 +303,33 @@ export function SupportDashboard() {
           <p className="mt-1 flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">
             Service queues, escalations, SLA health 
           </p>
+          {analyticsError ? (
+            <p className="mt-2 text-xs text-rose-600">{analyticsError}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {['Today', 'This Week', 'This Month', 'All Time'].map((filter) => (
             <button
               key={filter}
-              onClick={() => setActiveFilter(filter)}
+              onClick={() => handleRefresh(filter)}
+              disabled={isLoadingAnalytics}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[9px] font-medium transition-all',
                 activeFilter === filter
                   ? 'border-slate-300 bg-slate-100 text-slate-900'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+                isLoadingAnalytics && 'pointer-events-none opacity-50'
               )}
             >
-              <RefreshCwIcon size={10} className="shrink-0" />
-              <span>{filter}</span>
+              <RefreshCwIcon
+                size={10}
+                className={cn(
+                  'shrink-0',
+                  isLoadingAnalytics && activeFilter === filter && 'animate-spin'
+                )}
+              />
+              <span>{isLoadingAnalytics && activeFilter === filter ? 'Refreshing...' : filter}</span>
             </button>
           ))}
         </div>
@@ -360,15 +342,15 @@ export function SupportDashboard() {
           icon={<InboxIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">New 11</span>
-              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">In Progress 18</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">New {formatNumber(analytics?.kpis.openQueue.new)}</span>
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">In Progress {formatNumber(analytics?.kpis.openQueue.inProgress)}</span>
             </div>
           }
         />
 
         <CompactStatCard
           title="Critical Escalations"
-          value="5"
+          value={formatNumber(analytics?.kpis.criticalEscalations.count)}
           icon={<ShieldAlertIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
@@ -379,31 +361,31 @@ export function SupportDashboard() {
 
         <CompactStatCard
           title="Avg Response Time"
-          value="14m"
+          value={formatNumber(analytics?.kpis.avgResponseTime.actual)}
           icon={<Clock3Icon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Goal &lt; 15m</span>
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">SLA Healthy</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Goal {formatNumber(analytics?.kpis.avgResponseTime.goal)}</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{formatNumber(analytics?.kpis.avgResponseTime.slaHealth)}</span>
             </div>
           }
         />
 
         <CompactStatCard
           title="Resolved Today"
-          value="24"
+          value={formatNumber(analytics?.kpis.resolvedToday.efficiencyPercentage)}
           icon={<CheckCircle2Icon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Efficiency 94%</span>
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">Backlog 3</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">Efficiency {analytics?.kpis.resolvedToday.efficiencyPercentage !== undefined ? `${analytics.kpis.resolvedToday.efficiencyPercentage}%` : '—'}</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">Backlog {formatNumber(analytics?.kpis.resolvedToday.backlogCount)}</span>
             </div>
           }
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        {SUPPORT_BOARD.map((column) => (
+        {supportBoard.map((column) => (
           <div
             key={column.title}
             className="flex h-[620px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/70 p-3"

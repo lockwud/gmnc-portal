@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import Badge from '@/components/ui/Badge';
 import {
   CheckCircleIcon,
   ActivityIcon,
   HeartPulseIcon,
-  Clock3Icon,
   RefreshCwIcon,
   TrendingUpIcon,
   GitPullRequestArrowIcon,
@@ -26,7 +24,7 @@ import {
   Bar,
 } from 'recharts';
 import { cn } from '@/lib/utils';
-import { getProviderMetrics, triggerProviderMetricsComputation } from '@/lib/api/metrics';
+import { getProviderAnalytics } from '@/lib/api/analytics';
 import ProviderDashboardSkeleton from '@/components/layout/skeletons/ProviderDashboardSkeleton';
 
 const FALLBACK_IMPROVEMENT_DATA = [
@@ -156,38 +154,36 @@ function formatMetric(value: unknown) {
   return String(value);
 }
 
-function findMetric<T>(metrics: unknown, keys: string[], fallback: T): T {
-  const metricObject = metrics as Record<string, unknown> | null;
-  if (!metricObject) {
-    return fallback;
-  }
-
-  for (const key of keys) {
-    const value = metricObject[key];
-    if (value !== undefined && value !== null) {
-      return value as T;
-    }
-  }
-
-  return fallback;
-}
-
 type ProviderMetricsCard = {
-  totalPatients?: number | string;
-  activePatients?: number | string;
-  totalAssessments?: number | string;
-  completedAssessments?: number | string;
+  sessionsCompleted?: number | string;
+  averageRating?: number | string;
   totalReferrals?: number | string;
+  pendingReferrals?: number | string;
+  approvedReferrals?: number | string;
+  declinedReferrals?: number | string;
   totalTasks?: number | string;
   completedTasks?: number | string;
+  openTasks?: number | string;
   adherenceRate?: number | string;
+  adherenceAtRisk?: number | string;
+  pendingApprovals?: number | string;
+  approvedApprovals?: number | string;
+  rejectedApprovals?: number | string;
+  improvementTrend?: Array<{ name: string; value: number }>;
+  adherenceTrend?: Array<{ name: string; value: number }>;
+  dailyTasks?: Array<{ name: string; assigned: number }>;
+  patientRecovery?: Array<{
+    label: string;
+    value: string;
+    note: string;
+    color: string;
+  }>;
 };
 
 export function ProviderDashboard() {
   const [activeFilter, setActiveFilter] = useState('This Week');
   const [metrics, setMetrics] = useState<ProviderMetricsCard | null>(null);
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
-  const [isComputing, setIsComputing] = useState(false);
   const [metricsError, setMetricsError] = useState<string | null>(null);
 
   const loadMetrics = useCallback(async (filter?: string) => {
@@ -195,29 +191,55 @@ export function ProviderDashboard() {
     setIsLoadingMetrics(true);
 
     try {
-      const data = await getProviderMetrics(filter);
+      const data = await getProviderAnalytics(filter);
 
       if (!data || typeof data !== 'object') {
-        throw new Error('Invalid metrics response format');
+        throw new Error('Invalid analytics response format');
       }
 
-      const snapshotObj = (data && typeof data === 'object' && 'snapshot' in data && data.snapshot)
-        ? (data.snapshot as Record<string, unknown>)
-        : (data as Record<string, unknown>);
+      const referrals = data.kpis.referrals;
+      const assignedTasks = data.kpis.assignedTasks;
+      const adherence = data.kpis.carePlanAdherence;
+      const totalReferrals = referrals.pending + referrals.approved + referrals.declined;
+      const totalTasks = assignedTasks.open + assignedTasks.done;
+      const recovery = data.charts.patientRecovery;
 
       setMetrics({
-        totalPatients: findMetric(snapshotObj, ['totalPatients', 'total_patients'], undefined),
-        activePatients: findMetric(snapshotObj, ['activePatients', 'active_patients'], undefined),
-        totalAssessments: findMetric(snapshotObj, ['totalAssessments', 'total_assessments'], undefined),
-        completedAssessments: findMetric(snapshotObj, ['completedAssessments', 'completed_assessments'], undefined),
-        totalReferrals: findMetric(snapshotObj, ['totalReferrals', 'total_referrals'], undefined),
-        totalTasks: findMetric(snapshotObj, ['totalTasks', 'total_tasks'], undefined),
-        completedTasks: findMetric(snapshotObj, ['completedTasks', 'completed_tasks'], undefined),
-        adherenceRate: findMetric(snapshotObj, ['adherenceRate', 'adherence_rate'], undefined),
+        sessionsCompleted: data.kpis.sessionsCompleted.count,
+        averageRating: data.kpis.sessionsCompleted.averageRating,
+        totalReferrals,
+        pendingReferrals: referrals.pending,
+        approvedReferrals: referrals.approved,
+        declinedReferrals: referrals.declined,
+        totalTasks,
+        completedTasks: assignedTasks.done,
+        openTasks: assignedTasks.open,
+        adherenceRate: adherence.onTrackPercentage,
+        adherenceAtRisk: adherence.atRiskPercentage,
+        pendingApprovals: data.kpis.approvals.pending,
+        approvedApprovals: data.kpis.approvals.approved,
+        rejectedApprovals: data.kpis.approvals.rejected,
+        improvementTrend: data.charts.patientProgress?.map((point) => ({
+          name: point.day,
+          value: point.value,
+        })),
+        adherenceTrend: data.charts.adherenceTrend?.map((point) => ({
+          name: point.day,
+          value: point.value,
+        })),
+        dailyTasks: data.charts.assignedDailyTasks?.map((point) => ({
+          name: point.day,
+          assigned: point.value,
+        })),
+        patientRecovery: [
+          { label: 'Improving Patients', value: String(recovery.improved), note: 'Responding well to therapy', color: 'emerald' },
+          { label: 'Stable Cases', value: String(recovery.stable), note: 'Routine monitoring ongoing', color: 'blue' },
+          { label: 'Needs Review', value: String(recovery.regressed), note: 'Closer clinical attention', color: 'amber' },
+        ],
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load provider metrics';
-      console.error('Failed to load provider dashboard metrics:', errorMessage, error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load provider analytics';
+      console.error('Failed to load provider dashboard analytics:', errorMessage, error);
       setMetricsError(errorMessage);
     } finally {
       setIsLoadingMetrics(false);
@@ -226,28 +248,23 @@ export function ProviderDashboard() {
 
   const handleRefresh = useCallback(async (filter: string) => {
     setActiveFilter(filter);
-    setIsComputing(true);
-    setMetricsError(null);
-
-    try {
-      await triggerProviderMetricsComputation();
-    } catch (error) {
-      console.error('Provider metrics computation failed:', error);
-    } finally {
-      setIsComputing(false);
+    if (filter === activeFilter) {
+      await loadMetrics(filter);
     }
-
-    await loadMetrics(filter);
-  }, [loadMetrics]);
+  }, [activeFilter, loadMetrics]);
 
   useEffect(() => {
-    loadMetrics(activeFilter);
+    const timeoutId = setTimeout(() => {
+      void loadMetrics(activeFilter);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [loadMetrics, activeFilter]);
 
-  const improvementTrendData = FALLBACK_IMPROVEMENT_DATA;
-  const adherenceTrendData = FALLBACK_ADHERENCE_DATA;
-  const dailyTasksData = FALLBACK_TASK_DATA;
-  const patientRecoveryData = FALLBACK_RECOVERY_DATA;
+  const improvementTrendData = metrics?.improvementTrend ?? FALLBACK_IMPROVEMENT_DATA;
+  const adherenceTrendData = metrics?.adherenceTrend ?? FALLBACK_ADHERENCE_DATA;
+  const dailyTasksData = metrics?.dailyTasks ?? FALLBACK_TASK_DATA;
+  const patientRecoveryData = metrics?.patientRecovery ?? FALLBACK_RECOVERY_DATA;
 
   if (isLoadingMetrics && !metrics) {
     return <ProviderDashboardSkeleton />;
@@ -273,23 +290,23 @@ export function ProviderDashboard() {
             <button
               key={filter}
               onClick={() => handleRefresh(filter)}
-              disabled={isComputing}
+              disabled={isLoadingMetrics}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[9px] font-medium transition-all',
                 activeFilter === filter
                   ? 'border-slate-300 bg-slate-100 text-slate-900'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
-                isComputing && 'pointer-events-none opacity-50'
+                isLoadingMetrics && 'pointer-events-none opacity-50'
               )}
             >
               <RefreshCwIcon
                 size={10}
                 className={cn(
                   'shrink-0',
-                  isComputing && activeFilter === filter && 'animate-spin'
+                  isLoadingMetrics && activeFilter === filter && 'animate-spin'
                 )}
               />
-              <span>{isComputing && activeFilter === filter ? 'Computing...' : filter}</span>
+              <span>{isLoadingMetrics && activeFilter === filter ? 'Refreshing...' : filter}</span>
             </button>
           ))}
         </div>
@@ -297,13 +314,13 @@ export function ProviderDashboard() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <CompactStatCard
-          title="Completed Assessments"
-          value={formatMetric(metrics?.completedAssessments)}
+          title="Completed Sessions"
+          value={formatMetric(metrics?.sessionsCompleted)}
           icon={<CheckCircleIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">
-                Total {metrics?.totalAssessments !== undefined ? formatMetric(metrics.totalAssessments) : '—'}
+                Rating {metrics?.averageRating !== undefined ? formatMetric(metrics.averageRating) : '—'}
               </span>
             </div>
           }
@@ -316,10 +333,10 @@ export function ProviderDashboard() {
           footer={
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-600">
-                Patients {metrics?.totalPatients !== undefined ? formatMetric(metrics.totalPatients) : '—'}
+                Pending {metrics?.pendingReferrals !== undefined ? formatMetric(metrics.pendingReferrals) : '—'}
               </span>
               <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
-                Active {metrics?.activePatients !== undefined ? formatMetric(metrics.activePatients) : '—'}
+                Approved {metrics?.approvedReferrals !== undefined ? formatMetric(metrics.approvedReferrals) : '—'}
               </span>
             </div>
           }
@@ -332,7 +349,10 @@ export function ProviderDashboard() {
           footer={
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full bg-green-50 px-2 py-1 text-green-600">
-                Active patients {metrics?.activePatients !== undefined ? formatMetric(metrics.activePatients) : '—'}
+                On Track {metrics?.adherenceRate !== undefined ? `${metrics.adherenceRate}%` : '—'}
+              </span>
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">
+                At Risk {metrics?.adherenceAtRisk !== undefined ? `${metrics.adherenceAtRisk}%` : '—'}
               </span>
             </div>
           }
@@ -348,20 +368,23 @@ export function ProviderDashboard() {
                 Done {metrics?.completedTasks !== undefined ? formatMetric(metrics.completedTasks) : '—'}
               </span>
               <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-                Total {metrics?.totalTasks !== undefined ? formatMetric(metrics.totalTasks) : '—'}
+                Open {metrics?.openTasks !== undefined ? formatMetric(metrics.openTasks) : '—'}
               </span>
             </div>
           }
         />
 
         <CompactStatCard
-          title="Total Patients"
-          value={formatMetric(metrics?.totalPatients)}
+          title="Approvals"
+          value={formatMetric(metrics?.pendingApprovals)}
           icon={<ClipboardCheckIcon size={14} />}
           footer={
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
-                Active {metrics?.activePatients !== undefined ? formatMetric(metrics.activePatients) : '—'}
+                Approved {metrics?.approvedApprovals !== undefined ? formatMetric(metrics.approvedApprovals) : '—'}
+              </span>
+              <span className="rounded-full bg-rose-50 px-2 py-1 text-rose-600">
+                Rejected {metrics?.rejectedApprovals !== undefined ? formatMetric(metrics.rejectedApprovals) : '—'}
               </span>
             </div>
           }

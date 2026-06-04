@@ -11,4 +11,4 @@ export * from './assessments';
 export * from './resources';
 export * from './notifications';
 export * from './approvals';
-export * from './metrics';
+export * from './analytics';
