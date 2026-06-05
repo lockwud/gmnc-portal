@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Calendar, Clock, User, FileText } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Calendar, Clock, User, FileText, ChevronDown, Search } from 'lucide-react';
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -65,6 +65,26 @@ export default function AppointmentModal({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [patientDropdownOpen, setPatientDropdownOpen] = useState(false);
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [patientCurrentPage, setPatientCurrentPage] = useState(1);
+  const patientDropdownRef = useRef<HTMLDivElement>(null);
+
+  const PATIENTS_PER_PAGE = 3;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        patientDropdownRef.current &&
+        !patientDropdownRef.current.contains(event.target as Node)
+      ) {
+        setPatientDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -148,27 +168,161 @@ export default function AppointmentModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Patient Selection */}
-          <div>
+          {/* Patient Selection - Custom Dropdown */}
+          <div ref={patientDropdownRef} className="relative">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               <User size={16} className="inline mr-2" />
               Patient
             </label>
-            <select
-              name="patientId"
-              value={formData.patientId}
-              onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.patientId ? 'border-red-500' : 'border-gray-300'
+
+            {/* Dropdown Button */}
+            <button
+              type="button"
+              onClick={() => setPatientDropdownOpen(!patientDropdownOpen)}
+              className={`w-full px-4 py-3 border rounded-xl text-left flex items-center justify-between transition ${
+                errors.patientId
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
               }`}
             >
-              <option value="">Select a patient</option>
-              {DUMMY_PATIENTS.map((patient) => (
-                <option key={patient.id} value={patient.id}>
-                  {patient.fullName}
-                </option>
-              ))}
-            </select>
+              <span className="text-slate-700">
+                {formData.patientId
+                  ? DUMMY_PATIENTS.find((p) => p.id === formData.patientId)
+                      ?.fullName
+                  : 'Select a patient'}
+              </span>
+              <ChevronDown
+                size={18}
+                className={`text-slate-400 transition ${
+                  patientDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {patientDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
+                {/* Search Input */}
+                <div className="border-b border-slate-200 p-3">
+                  <div className="relative">
+                    <Search
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={patientSearchTerm}
+                      onChange={(e) => {
+                        setPatientSearchTerm(e.target.value);
+                        setPatientCurrentPage(1);
+                      }}
+                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Patient List */}
+                <div className="max-h-56 overflow-y-auto">
+                  {(() => {
+                    const filtered = DUMMY_PATIENTS.filter((p) =>
+                      p.fullName
+                        .toLowerCase()
+                        .includes(patientSearchTerm.toLowerCase())
+                    );
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="p-4 text-center text-sm text-slate-500">
+                          No patients found
+                        </div>
+                      );
+                    }
+
+                    const totalPages = Math.ceil(
+                      filtered.length / PATIENTS_PER_PAGE
+                    );
+                    const startIndex =
+                      (patientCurrentPage - 1) * PATIENTS_PER_PAGE;
+                    const paginatedPatients = filtered.slice(
+                      startIndex,
+                      startIndex + PATIENTS_PER_PAGE
+                    );
+
+                    return (
+                      <>
+                        <div className="divide-y divide-slate-100">
+                          {paginatedPatients.map((patient) => (
+                            <button
+                              key={patient.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  patientId: patient.id,
+                                }));
+                                setPatientDropdownOpen(false);
+                                setPatientSearchTerm('');
+                                setPatientCurrentPage(1);
+                                if (errors.patientId) {
+                                  setErrors((prev) => ({
+                                    ...prev,
+                                    patientId: '',
+                                  }));
+                                }
+                              }}
+                              className={`w-full text-left px-4 py-3 text-sm transition hover:bg-slate-50 ${
+                                formData.patientId === patient.id
+                                  ? 'bg-emerald-50 text-emerald-700 font-medium'
+                                  : 'text-slate-700'
+                              }`}
+                            >
+                              {patient.fullName}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                          <div className="border-t border-slate-200 px-4 py-3 flex items-center justify-between text-xs text-slate-600">
+                            <span>
+                              Page {patientCurrentPage} of {totalPages}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPatientCurrentPage((p) =>
+                                    Math.max(1, p - 1)
+                                  )
+                                }
+                                disabled={patientCurrentPage === 1}
+                                className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                              >
+                                Prev
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPatientCurrentPage((p) =>
+                                    Math.min(totalPages, p + 1)
+                                  )
+                                }
+                                disabled={patientCurrentPage === totalPages}
+                                className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
             {errors.patientId && (
               <p className="text-red-500 text-sm mt-1">{errors.patientId}</p>
             )}
@@ -220,7 +374,7 @@ export default function AppointmentModal({
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
                 <Calendar size={16} className="inline mr-2" />
                 Date
               </label>
@@ -229,11 +383,12 @@ export default function AppointmentModal({
                 name="appointmentDate"
                 value={formData.appointmentDate}
                 onChange={handleChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-3 py-1.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition ${
                   errors.appointmentDate
-                    ? 'border-red-500'
-                    : 'border-gray-300'
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-slate-200 bg-white'
                 }`}
+                required
               />
               {errors.appointmentDate && (
                 <p className="text-red-500 text-sm mt-1">
@@ -243,7 +398,7 @@ export default function AppointmentModal({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
                 <Clock size={16} className="inline mr-2" />
                 Time
               </label>
@@ -252,11 +407,12 @@ export default function AppointmentModal({
                 name="appointmentTime"
                 value={formData.appointmentTime}
                 onChange={handleChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-3 py-1.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition ${
                   errors.appointmentTime
-                    ? 'border-red-500'
-                    : 'border-gray-300'
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-slate-200 bg-white'
                 }`}
+                required
               />
               {errors.appointmentTime && (
                 <p className="text-red-500 text-sm mt-1">

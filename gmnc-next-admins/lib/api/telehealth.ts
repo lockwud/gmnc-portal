@@ -3,11 +3,20 @@ import type {
   TelehealthRoomType,
   NotificationItem,
   NotificationListResponse,
-  PushTokenRegisterPayload,
 } from './types';
 import { env } from '@/lib/env';
 
 const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
+
+class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+  }
+}
 
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);
@@ -17,7 +26,7 @@ async function parseJson<T>(res: Response): Promise<T> {
       json?.message ||
       json?.error ||
       `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw new ApiRequestError(message, res.status);
   }
 
   return json as T;
@@ -89,6 +98,36 @@ async function apiDelete<T>(path: string, token?: string | null): Promise<T> {
   return parseJson<T>(res);
 }
 
+async function localApiGet<T>(path: string, token?: string | null): Promise<T> {
+  const authToken = token ?? getToken();
+  const res = await fetch(path, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    cache: 'no-store',
+  });
+
+  return parseJson<T>(res);
+}
+
+async function localApiPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+  const authToken = token ?? getToken();
+  const res = await fetch(path, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  return parseJson<T>(res);
+}
+
 export async function getTelehealthSettings(token?: string | null): Promise<TelehealthSettingsType> {
   const res = await apiGet<{
     status: boolean;
@@ -153,32 +192,46 @@ export async function cancelTelehealthRoom(id: string, token?: string | null): P
 }
 
 export async function getNotifications(token?: string | null): Promise<NotificationListResponse> {
-  const res = await apiGet<{
+  const res = await localApiGet<{
     status: boolean;
     message?: string;
-    data: NotificationItem[];
-    total: number;
+    data: NotificationItem[] | {
+      data?: NotificationItem[];
+      pagination?: {
+        total?: number;
+        page?: number;
+        limit?: number;
+      };
+    };
+    total?: number;
     page?: number;
     pageSize?: number;
-  }>('/notification', token);
+  }>('/api/notification?limit=50', token);
+
+  const nestedData = typeof res.data === 'object' && !Array.isArray(res.data)
+    ? res.data
+    : null;
+  const notifications = Array.isArray(res.data)
+    ? res.data
+    : nestedData?.data ?? [];
 
   return {
-    notifications: res.data || [],
-    total: res.total || 0,
-    page: res.page,
-    pageSize: res.pageSize,
+    notifications,
+    total: res.total || nestedData?.pagination?.total || notifications.length,
+    page: res.page || nestedData?.pagination?.page,
+    pageSize: res.pageSize || nestedData?.pagination?.limit,
   };
 }
 
 export async function getUnreadNotificationCount(token?: string | null): Promise<number> {
-  const res = await apiGet<{ status: boolean; data: { count?: number }; message?: string }>('/notification/unread-count', token);
+  const res = await localApiGet<{ status: boolean; data: { count?: number }; message?: string }>('/api/notification/unread-count', token);
   return typeof res.data?.count === 'number' ? res.data.count : 0;
 }
 
 export async function markNotificationAsRead(id: string, token?: string | null): Promise<void> {
-  await apiPut(`/notification/${id}/read`, {}, token);
+  await localApiPut(`/api/notification/${id}/read`, {}, token);
 }
 
 export async function markAllNotificationsAsRead(token?: string | null): Promise<void> {
-  await apiPut('/notification/read-all', {}, token);
+  await localApiPut('/api/notification/read-all', {}, token);
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Pagination from '@/components/ui/Pagination';
 import Button from '@/components/ui/Button';
@@ -16,7 +16,8 @@ import {
   XCircle,
   Clock,
   Plus,
-  ChevronDown,
+  MoreHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 
 interface Patient {
@@ -48,7 +49,7 @@ interface Referral {
   toProviderId: string | null;
   toProfession: string;
   reason: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REJECTED' | 'COMPLETED';
   createdAt: string;
   updatedAt: string;
   patient?: Patient;
@@ -105,6 +106,12 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
     text: 'text-rose-700',
     icon: <XCircle size={12} />,
   },
+  DECLINED: {
+    label: 'Declined',
+    bg: 'bg-rose-50',
+    text: 'text-rose-700',
+    icon: <XCircle size={12} />,
+  },
   COMPLETED: {
     label: 'Completed',
     bg: 'bg-blue-50',
@@ -112,6 +119,115 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
     icon: <CheckCircle2 size={12} />,
   },
 };
+
+type ReferralActionsDropdownProps = {
+  referral: Referral;
+  canAccept: boolean;
+  canReject: boolean;
+  canReassign: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+  onReassign: () => void;
+};
+
+function ReferralActionsDropdown({
+  referral,
+  canAccept,
+  canReject,
+  canReassign,
+  onAccept,
+  onReject,
+  onReassign,
+}: ReferralActionsDropdownProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+
+    if (open) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [open]);
+
+  const actions = [
+    {
+      label: 'Reassign',
+      icon: <RotateCcw size={13} />,
+      disabled: !canReassign,
+      onClick: onReassign,
+    },
+    {
+      label: 'Reject',
+      icon: <XCircle size={13} />,
+      disabled: !canReject,
+      onClick: onReject,
+      className: 'hover:text-rose-700',
+    },
+    {
+      label: 'Accept',
+      icon: <CheckCircle2 size={13} />,
+      disabled: !canAccept,
+      onClick: onAccept,
+      className: 'hover:text-emerald-700',
+    },
+  ];
+
+  return (
+    <div ref={rootRef} className="relative inline-flex" onClick={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label={`Actions for referral ${referral.id}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-700"
+      >
+        <MoreHorizontal size={15} />
+      </button>
+
+      {open ? (
+        <div className="absolute right-0 top-8 z-50 w-36 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              role="menuitem"
+              disabled={action.disabled}
+              onClick={() => {
+                if (action.disabled) return;
+                setOpen(false);
+                action.onClick();
+              }}
+              className={`flex h-8 w-full items-center gap-2 px-3 text-[11px] font-medium text-slate-600 transition ${action.className ?? 'hover:text-slate-800'} ${
+                action.disabled
+                  ? 'cursor-not-allowed opacity-40'
+                  : 'hover:bg-slate-50'
+              }`}
+            >
+              <span className="text-slate-400">{action.icon}</span>
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function ReferralsPage() {
   const router = useRouter();
@@ -521,6 +637,39 @@ export default function ReferralsPage() {
     }
   };
 
+  const handleReassignReferral = async (referral: Referral) => {
+    if (!token) {
+      show({
+        title: 'Error',
+        message: 'Authentication token is missing',
+        type: 'error',
+        duration: 4000,
+      });
+      return;
+    }
+
+    const nextProfession = referral.toProfession || 'PHYSIOTHERAPIST';
+
+    setProviders([]);
+    setAssessments([]);
+    setFormData({
+      patientId: referral.patientId,
+      toProfession: nextProfession,
+      reason: referral.reason || '',
+      toProviderId: undefined,
+      assessmentId: referral.relatedAssessment?.id,
+    });
+
+    await Promise.all([
+      fetchPatients(),
+      fetchCurrentProvider(),
+      referral.patientId ? fetchPatientAssessments(referral.patientId) : Promise.resolve(),
+      fetchProvidersByProfession(nextProfession),
+    ]);
+
+    setIsCreateModalOpen(true);
+  };
+
   const getCurrentReferrals = () => {
     const referrals = activeTab === 'incoming' ? incomingReferrals : outgoingReferrals;
     const startIndex = (currentPage - 1) * pageSize;
@@ -544,6 +693,10 @@ export default function ReferralsPage() {
 
   const renderReferralRow = (referral: Referral) => {
     const status = statusConfig[referral.status] || statusConfig.PENDING;
+    const isPending = referral.status === 'PENDING';
+    const canAccept = activeTab === 'incoming' && isPending;
+    const canReject = isPending;
+    const canReassign = activeTab === 'outgoing' && isPending;
     
     return (
       <tr
@@ -580,30 +733,15 @@ export default function ReferralsPage() {
           {formatDate(referral.createdAt)}
         </td>
         <td className="border-b border-slate-100 px-4 py-3 text-center">
-          {activeTab === 'incoming' && referral.status === 'PENDING' && (
-            <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => handleUpdateStatus(referral.id, 'ACCEPTED')}
-                className="inline-flex h-7 items-center gap-1 rounded-full bg-emerald-50 px-3 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
-              >
-                <CheckCircle2 size={12} />
-                Accept
-              </button>
-              <button
-                onClick={() => handleUpdateStatus(referral.id, 'REJECTED')}
-                className="inline-flex h-7 items-center gap-1 rounded-full bg-rose-50 px-3 text-[11px] font-medium text-rose-700 hover:bg-rose-100"
-              >
-                <XCircle size={12} />
-                Reject
-              </button>
-            </div>
-          )}
-          {activeTab === 'outgoing' && referral.status === 'PENDING' && (
-            <span className="text-[11px] text-amber-600">Waiting for response</span>
-          )}
-          {referral.status === 'ACCEPTED' && (
-            <span className="text-[11px] text-emerald-600">Awaiting task assignment</span>
-          )}
+          <ReferralActionsDropdown
+            referral={referral}
+            canAccept={canAccept}
+            canReject={canReject}
+            canReassign={canReassign}
+            onAccept={() => handleUpdateStatus(referral.id, 'ACCEPTED')}
+            onReject={() => handleUpdateStatus(referral.id, 'DECLINED')}
+            onReassign={() => handleReassignReferral(referral)}
+          />
         </td>
       </tr>
     );

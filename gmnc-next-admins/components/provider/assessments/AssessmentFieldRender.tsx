@@ -314,7 +314,7 @@ export default function AssessmentFieldRenderer({
           type="date"
           value={String(value ?? '')}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-emerald-500"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
         />
       </div>
     );

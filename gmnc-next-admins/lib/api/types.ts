@@ -149,6 +149,49 @@ export type AssessmentSubmitResponse = {
   };
 };
 
+// games
+
+export type GameSource = 'UPLOADED' | 'YOUTUBE' | 'EXTERNAL';
+
+export type GameResource = {
+  id: string;
+  title: string;
+  description?: string | null;
+  source: GameSource;
+  externalProvider?: string | null;
+  externalId?: string | null;
+  files?: string[];
+  thumbnail?: string | null;
+  tags?: string[];
+  isPublished: boolean;
+  publishedAt?: string | null;
+  embedUrl?: string | null;
+  metadata?: Record<string, unknown>;
+  uploaderUserId?: string;
+  uploaderProviderId?: string | null;
+  allowedRoleSlugs?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type GameListResponse = {
+  games: GameResource[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export type UpdateGamePayload = {
+  title?: string;
+  description?: string;
+  tags?: string[];
+  thumbnail?: string;
+  allowedRoleSlugs?: string[];
+};
+
 
 //role  access management
 export type AssignmentScopeType =
@@ -368,6 +411,7 @@ export type ResourceType = {
   type?: string;
   url?: string;
   fileUrl?: string;
+  resourceUrl?: string;
   createdAt?: string;
   updatedAt?: string;
 };
