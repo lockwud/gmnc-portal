@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/context/AuthContext";
+import { hasWorkspaceAccess, type Role } from "@/lib/rbac";
 
 type MenuItem = {
   label: string;
@@ -11,6 +13,7 @@ type MenuItem = {
   icon?: string;
   children?: MenuItem[];
   collapsible?: boolean;
+  requiredRole?: Role;
 };
 
 const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
@@ -22,24 +25,28 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         path: "/dashboard",
         icon: "dashboard",
         collapsible: false,
+        requiredRole: "tester",
       },
       {
         label: "Admin Dashboard",
         path: "/admin",
         icon: "admin_panel_settings",
         collapsible: false,
+        requiredRole: "admin",
       },
       {
         label: "Provider Dashboard",
         path: "/provider",
         icon: "medical_services",
         collapsible: false,
+        requiredRole: "provider",
       },
       {
         label: "Support Dashboard",
         path: "/support",
         icon: "support_agent",
         collapsible: false,
+        requiredRole: "support",
       },
     ],
   },
@@ -50,6 +57,7 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         label: "Admin",
         icon: "shield",
         collapsible: true,
+        requiredRole: "admin",
         children: [
           {
             label: "Approvals",
@@ -85,6 +93,7 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         label: "Provider",
         icon: "medical_services",
         collapsible: true,
+        requiredRole: "provider",
         children: [
           {
             label: "Patients",
@@ -166,6 +175,7 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         label: "Support",
         icon: "support_agent",
         collapsible: true,
+        requiredRole: "support",
         children: [
           {
             label: "FAQ Database",
@@ -187,6 +197,7 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
         path: "/reports",
         icon: "assessment",
         collapsible: false,
+        requiredRole: "admin",
       },
 
       {
@@ -194,6 +205,7 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
         path: "/settings",
         icon: "settings",
         collapsible: false,
+        requiredRole: "admin",
       },
     ],
   },
@@ -205,8 +217,34 @@ type Props = {
 
 const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const pathname = usePathname();
+  const { user } = useAuth();
 
-  const [collapsedOpenGroup, setCollapsedOpenGroup] = useState<string | null>(null);
+  const canViewMenuItem = React.useCallback((item: MenuItem): boolean => {
+    if (!user) return false;
+    if (item.requiredRole && !hasWorkspaceAccess(user, item.requiredRole)) return false;
+    return true;
+  }, [user]);
+
+  const visibleTopSidebarSections = useMemo(
+    () => topSidebarSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter(canViewMenuItem),
+      }))
+      .filter((section) => section.items.length > 0),
+    [canViewMenuItem],
+  );
+
+  const visibleBottomSidebarSections = useMemo(
+    () => bottomSidebarSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter(canViewMenuItem),
+      }))
+      .filter((section) => section.items.length > 0),
+    [canViewMenuItem],
+  );
+
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
@@ -246,9 +284,6 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
       [key]: !prev[key],
     }));
     setSelectedKey(`group:${item.label}`);
-    if (collapsed) {
-      setCollapsedOpenGroup((p) => (p === item.label ? null : item.label));
-    }
   };
 
   // Helper: handleLeafClick
@@ -474,14 +509,14 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
         <nav
           className="no-scrollbar flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-1 py-2"
         >
-          {topSidebarSections.map((section, idx) =>
+          {visibleTopSidebarSections.map((section, idx) =>
             renderSection(section, `top-${idx}`),
           )}
         </nav>
 
         <div className="border-t border-slate-100 px-1 pt-1.5 pb-1">
           <div className="space-y-2">
-            {bottomSidebarSections.map((section, idx) =>
+            {visibleBottomSidebarSections.map((section, idx) =>
               renderSection(section, `bottom-${idx}`)
             )}
           </div>

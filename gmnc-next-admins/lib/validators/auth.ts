@@ -1,7 +1,7 @@
-import { profile } from 'console';
 import { z } from 'zod';
 
 export const roleSchema = z.enum(['admin', 'provider', 'support', 'tester', 'caregiver']);
+export const userTypeSchema = z.enum(['SERVICE_PROVIDER', 'CAREGIVER', 'ADMIN']);
 
 export const sessionUserSchema = z.object({
   id: z.string().min(1),
@@ -9,6 +9,7 @@ export const sessionUserSchema = z.object({
   name: z.string().min(1),
   roles: z.array(roleSchema).default([]),
   permissions: z.array(z.string()).default([]),
+  userType: userTypeSchema.optional(),
   avatar: z.string().nullable().optional().transform((value) => value ?? null),
 });
 
@@ -27,7 +28,6 @@ export const resetPasswordSchema = z.object({
 });
 
 export const genderSchema = z.enum(['MALE', 'FEMALE']);
-export const userTypeSchema = z.enum(['SERVICE_PROVIDER', 'CAREGIVER', 'ADMIN']);
 export const otpChannelSchema = z.enum(['sms', 'email']);
 
 export const registerSchema = z.object({

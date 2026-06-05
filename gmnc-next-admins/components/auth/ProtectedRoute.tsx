@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
-import type { Permission, Role } from '@/lib/rbac';
+import { hasPermission, hasRole, type Permission, type Role } from '@/lib/rbac';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,6 +14,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({
   children,
   requiredRole,
+  requiredPermission,
 }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
@@ -43,23 +44,11 @@ export default function ProtectedRoute({
       return;
     }
 
-    // ROLE CHECK
-    if (requiredRole) {
-      const roles = Array.isArray(
-        user.roles,
-      )
-        ? user.roles.map((r) =>
-            String(r).toLowerCase(),
-          )
-        : [];
+    const roleAllowed = !requiredRole || hasRole(user, requiredRole);
+    const permissionAllowed = !requiredPermission || hasPermission(user, requiredPermission);
 
-      const hasRole = roles.includes(
-        requiredRole.toLowerCase(),
-      );
-
-      if (!hasRole) {
-        router.replace('/access-denied');
-      }
+    if (!roleAllowed || !permissionAllowed) {
+      router.replace('/access-denied');
     }
   }, [
     user,
@@ -67,6 +56,7 @@ export default function ProtectedRoute({
     router,
     pathname,
     requiredRole,
+    requiredPermission,
   ]);
 
   // LOADING
@@ -88,21 +78,11 @@ export default function ProtectedRoute({
     return null;
   }
 
-  // SAFE ROLE CHECK
-  if (requiredRole) {
-    const roles = Array.isArray(user.roles)
-      ? user.roles.map((r) =>
-          String(r).toLowerCase(),
-        )
-      : [];
+  const roleAllowed = !requiredRole || hasRole(user, requiredRole);
+  const permissionAllowed = !requiredPermission || hasPermission(user, requiredPermission);
 
-    const hasRole = roles.includes(
-      requiredRole.toLowerCase(),
-    );
-
-    if (!hasRole) {
-      return null;
-    }
+  if (!roleAllowed || !permissionAllowed) {
+    return null;
   }
 
   return <>{children}</>;

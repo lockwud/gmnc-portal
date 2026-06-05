@@ -144,10 +144,27 @@ function getRawUser(payload: BackendLoginResponse) {
   return payload as unknown as Record<string, unknown>;
 }
 
-function normalizeUser(payload: BackendLoginResponse) {
+function getTokenUserType(accessToken?: string | null) {
+  if (!accessToken) return undefined;
+
+  try {
+    const payloadPart = accessToken.split('.')[1];
+    if (!payloadPart) return undefined;
+
+    const payload = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8')) as Record<string, unknown>;
+    return typeof payload.userType === 'string' ? payload.userType : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeUser(payload: BackendLoginResponse, accessToken?: string | null) {
   const rawUser = getRawUser(payload);
   const rawRoles = collectRoleValues(rawUser);
   const email = typeof rawUser.email === 'string' ? rawUser.email : null;
+  const userType = typeof rawUser.userType === 'string'
+    ? rawUser.userType
+    : getTokenUserType(accessToken);
 
   const normalizedRoles = [
     ...new Set(
@@ -170,6 +187,7 @@ function normalizeUser(payload: BackendLoginResponse) {
             : 'User',
     roles: normalizedRoles,
     permissions: collectPermissionValues(rawUser),
+    userType,
     avatar:
       typeof rawUser.avatar === 'string'
         ? rawUser.avatar
@@ -193,7 +211,7 @@ export async function loginRequest(payload: LoginRequest): Promise<LoginResult> 
 
   return {
     accessToken,
-    user: normalizeUser(response.data),
+    user: normalizeUser(response.data, accessToken),
     raw: response.data,
   };
 }
@@ -219,7 +237,7 @@ export async function getProfileRequest(token: string) {
   });
 
   console.log('[AUTH/GET_PROFILE] Backend response data:', JSON.stringify(response.data, null, 2));
-  return normalizeUser(response.data);
+  return normalizeUser(response.data, token);
 }
 
 export async function updateProfileRequest(payload: any, token: string) {
@@ -229,7 +247,7 @@ export async function updateProfileRequest(payload: any, token: string) {
     token,
   });
 
-  return normalizeUser(response.data);
+  return normalizeUser(response.data, token);
 }
 
 export async function changePasswordRequest(payload: any, token: string) {

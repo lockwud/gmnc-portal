@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getDashboardRoute } from '../rbac';
+import { getDashboardRoute, getDefaultRoleForUserType, getEffectiveRoles } from '../rbac';
 import { useRouter } from 'next/navigation';
 
 // =========================================
@@ -56,7 +56,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * Normalise the raw API user object so that both `name` and `fullName`
  * are always present, matching what the rest of the app expects.
  */
-function normaliseUser(raw: Record<string, unknown>): User {
+function getTokenUserType(token?: string | null): string | undefined {
+  if (!token) return undefined;
+
+  try {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return undefined;
+
+    const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded)) as Record<string, unknown>;
+    return typeof payload.userType === 'string' ? payload.userType : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function normaliseUser(raw: Record<string, unknown>, token?: string | null): User {
   const name = (raw.name as string | undefined) ?? (raw.fullName as string | undefined) ?? '';
   return {
     ...((raw as unknown) as User),
@@ -64,7 +80,7 @@ function normaliseUser(raw: Record<string, unknown>): User {
     fullName: name,
     roles: Array.isArray(raw.roles) ? (raw.roles as string[]) : [],
     permissions: Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [],
-    userType: raw.userType as string | undefined,
+    userType: (raw.userType as string | undefined) ?? getTokenUserType(token),
   };
 }
 
@@ -104,11 +120,13 @@ function clearAuth() {
 }
 
 function resolveSelectedRole(user: User, storedRole?: string | null): Role | null {
-  if (storedRole && user.roles.includes(storedRole)) {
+  const effectiveRoles = getEffectiveRoles(user);
+
+  if (storedRole && effectiveRoles.includes(storedRole as Role)) {
     return storedRole as Role;
   }
-  if (user.roles.includes('admin')) return 'admin';
-  return (user.roles[0] as Role) ?? null;
+  if (effectiveRoles.includes('admin')) return 'admin';
+  return (user.roles[0] as Role) ?? getDefaultRoleForUserType(user.userType);
 }
 
 // =========================================
@@ -154,8 +172,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!isMounted || !data.user) return;
 
-        const normalisedUser = normaliseUser(data.user);
         const accessToken = data.accessToken ?? '';
+        const normalisedUser = normaliseUser(data.user, accessToken);
         const storedRole = localStorage.getItem('gmnc_selected_role');
 
         setUser(normalisedUser);
@@ -204,8 +222,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const normalisedUser = normaliseUser(data.user);
       const accessToken = data.accessToken ?? '';
+      const normalisedUser = normaliseUser(data.user, accessToken);
       const role = resolveSelectedRole(normalisedUser);
 
       setUser(normalisedUser);
