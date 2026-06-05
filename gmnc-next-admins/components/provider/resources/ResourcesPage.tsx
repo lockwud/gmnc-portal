@@ -1,13 +1,69 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, FileUp, Link as LinkIcon } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ChevronDown,
+  ExternalLink,
+  FileText,
+  FileUp,
+  Link as LinkIcon,
+  Loader2,
+  Plus,
+  Edit,
+  Trash2,
+  Video,
+} from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getResources, createResource, updateResource, deleteResource } from '@/lib/api/resources';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ResourceType } from '@/lib/api/types';
+
+type ResourceKind = '' | 'document' | 'video' | 'link';
+
+const RESOURCE_TYPE_OPTIONS: {
+  value: Exclude<ResourceKind, ''>;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { value: 'document', label: 'Document', icon: FileText },
+  { value: 'video', label: 'Video', icon: Video },
+  { value: 'link', label: 'Link', icon: LinkIcon },
+];
+
+function normalizeResourceType(type?: string | null): ResourceKind {
+  const normalized = (type ?? '').trim().toLowerCase();
+  if (normalized === 'document' || normalized === 'pdf') return 'document';
+  if (normalized === 'video') return 'video';
+  if (normalized === 'link' || normalized === 'url') return 'link';
+  return '';
+}
+
+function getResourceUrl(resource: ResourceType): string {
+  return resource.resourceUrl || resource.fileUrl || resource.url || '';
+}
+
+function getResourceKind(resource: ResourceType): ResourceKind {
+  const kind = normalizeResourceType(resource.type);
+  if (kind) return kind;
+
+  const url = getResourceUrl(resource).toLowerCase();
+  if (url.endsWith('.pdf')) return 'document';
+  if (/\.(mp4|webm|ogg|mov|m4v)(\?|$)/.test(url)) return 'video';
+  return url ? 'link' : '';
+}
+
+function getTypeLabel(resource: ResourceType) {
+  const kind = getResourceKind(resource);
+  return RESOURCE_TYPE_OPTIONS.find((option) => option.value === kind)?.label ?? resource.type ?? 'Resource';
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function ResourcesSkeleton() {
   return (
@@ -23,6 +79,215 @@ function ResourcesSkeleton() {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ResourcePreview({ resource }: { resource: ResourceType }) {
+  const url = getResourceUrl(resource);
+  const kind = getResourceKind(resource);
+  const title = resource.title || resource.name || 'Resource preview';
+
+  if (!url) {
+    return (
+      <div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-[11px] text-slate-400">
+        No file attached
+      </div>
+    );
+  }
+
+  if (kind === 'video') {
+    return (
+      <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-950">
+        <video
+          src={url}
+          controls
+          preload="metadata"
+          className="h-44 w-full bg-slate-950 object-contain"
+        >
+          <track kind="captions" />
+        </video>
+      </div>
+    );
+  }
+
+  if (kind === 'document') {
+    return (
+      <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+        <iframe
+          src={url}
+          title={title}
+          className="h-56 w-full bg-white"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-medium text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+    >
+      <span className="truncate">{url}</span>
+      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+    </a>
+  );
+}
+
+function ResourceTypeDropdown({
+  value,
+  onChange,
+}: {
+  value: ResourceKind;
+  onChange: (value: ResourceKind) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selected = RESOURCE_TYPE_OPTIONS.find((option) => option.value === value);
+  const SelectedIcon = selected?.icon;
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <input type="hidden" name="type" value={value} />
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={`flex h-9 w-full items-center justify-between rounded-xl border bg-white px-3 text-[11px] font-medium transition ${
+          open || selected
+            ? 'border-emerald-300 text-slate-700 ring-2 ring-emerald-50'
+            : 'border-slate-200 text-slate-400'
+        }`}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          {SelectedIcon ? (
+            <SelectedIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+          ) : null}
+          <span className="truncate">{selected?.label ?? 'Select'}</span>
+        </span>
+        <span className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400">
+          <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+          <div className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[10px] font-medium text-emerald-700">
+            Select
+          </div>
+          {RESOURCE_TYPE_OPTIONS.map((option) => {
+            const Icon = option.icon;
+            const active = option.value === value;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition ${
+                  active
+                    ? 'bg-slate-100 font-semibold text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-300 text-slate-500">
+                  <Icon className="h-2.5 w-2.5" />
+                </span>
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FileUploadField({
+  inputId,
+  kind,
+  loading,
+  selectedFile,
+  onFileChange,
+  existingUrl,
+}: {
+  inputId: string;
+  kind: Exclude<ResourceKind, '' | 'link'>;
+  loading: boolean;
+  selectedFile: File | null;
+  onFileChange: (file: File | null) => void;
+  existingUrl?: string;
+}) {
+  const isDocument = kind === 'document';
+  const accept = isDocument ? '.pdf,application/pdf' : 'video/*';
+  const label = isDocument ? 'File (PDF)' : 'File (Video)';
+  const helper = isDocument ? 'Click to upload PDF' : 'Click to upload video';
+
+  return (
+    <div>
+      <label className="mb-1 block text-[11px] font-medium text-slate-700">{label}</label>
+      <div className={`rounded-xl border border-dashed p-4 text-center transition ${
+        selectedFile
+          ? 'border-emerald-200 bg-emerald-50/60'
+          : 'border-slate-300 bg-white'
+      }`}>
+        <input
+          id={inputId}
+          type="file"
+          name="file"
+          accept={accept}
+          className="hidden"
+          onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+        />
+        <label htmlFor={inputId} className="flex cursor-pointer flex-col items-center gap-2">
+          {loading && selectedFile ? (
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+          ) : (
+            <FileUp className="h-6 w-6 text-slate-400" />
+          )}
+          <span className="max-w-full truncate text-[11px] font-medium text-slate-600">
+            {selectedFile ? selectedFile.name : helper}
+          </span>
+          {selectedFile ? (
+            <span className="text-[10px] text-slate-400">
+              {loading ? 'Uploading...' : formatFileSize(selectedFile.size)}
+            </span>
+          ) : existingUrl ? (
+            <span className="max-w-full truncate text-[10px] text-slate-400">
+              Existing file attached
+            </span>
+          ) : null}
+        </label>
       </div>
     </div>
   );
@@ -170,9 +435,11 @@ export default function ResourcesPage() {
                   <p className="mt-2 text-[11px] text-slate-500 line-clamp-2">{resource.description}</p>
                 )}
 
+                <ResourcePreview resource={resource} />
+
                 {resource.type && (
                   <span className="inline-block mt-2 text-[10px] px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-                    {resource.type}
+                    {getTypeLabel(resource)}
                   </span>
                 )}
               </div>
@@ -181,6 +448,7 @@ export default function ResourcesPage() {
       )}
 
       <CreateResourceModal 
+        key={showCreateModal ? 'create-open' : 'create-closed'}
         isOpen={showCreateModal} 
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
@@ -188,6 +456,7 @@ export default function ResourcesPage() {
       />
 
       <EditResourceModal 
+        key={`${editingResource?.id ?? 'no-resource'}-${showEditModal ? 'open' : 'closed'}`}
         isOpen={showEditModal} 
         onClose={() => { setShowEditModal(false); setEditingResource(null); }}
         onSubmit={handleEdit}
@@ -209,10 +478,17 @@ function CreateResourceModal({
   onSubmit: (formData: FormData) => void;
   loading: boolean;
 }) {
-  const [type, setType] = useState('');
+  const [type, setType] = useState<ResourceKind>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleTypeChange = (nextType: ResourceKind) => {
+    setType(nextType);
+    setSelectedFile(null);
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
     const formData = new FormData(e.currentTarget);
     onSubmit(formData);
   };
@@ -250,52 +526,25 @@ function CreateResourceModal({
           </div>
           <div>
             <label className="block text-[11px] font-medium text-slate-700 mb-1">Type</label>
-            <select 
-              name="type" 
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none"
-              onChange={(e) => setType(e.target.value)}
-            >
-              <option value="">Select type</option>
-              <option value="document">Document</option>
-              <option value="video">Video</option>
-              <option value="link">Link</option>
-            </select>
+            <ResourceTypeDropdown value={type} onChange={handleTypeChange} />
           </div>
           {type === 'document' && (
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 mb-1">File (PDF)</label>
-              <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center">
-                <input
-                  type="file"
-                  name="file"
-                  accept=".pdf"
-                  className="hidden"
-                  id="file-input-create"
-                />
-                <label htmlFor="file-input-create" className="cursor-pointer flex flex-col items-center gap-2">
-                  <FileUp className="h-6 w-6 text-slate-400" />
-                  <span className="text-[11px] text-slate-500">Click to upload PDF</span>
-                </label>
-              </div>
-            </div>
+            <FileUploadField
+              inputId="file-input-create-document"
+              kind="document"
+              loading={loading}
+              selectedFile={selectedFile}
+              onFileChange={setSelectedFile}
+            />
           )}
           {type === 'video' && (
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 mb-1">File (Video)</label>
-              <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center">
-                <input
-                  type="file"
-                  name="file"
-                  accept="video/*"
-                  className="hidden"
-                  id="file-input-create"
-                />
-                <label htmlFor="file-input-create" className="cursor-pointer flex flex-col items-center gap-2">
-                  <FileUp className="h-6 w-6 text-slate-400" />
-                  <span className="text-[11px] text-slate-500">Click to upload video</span>
-                </label>
-              </div>
-            </div>
+            <FileUploadField
+              inputId="file-input-create-video"
+              kind="video"
+              loading={loading}
+              selectedFile={selectedFile}
+              onFileChange={setSelectedFile}
+            />
           )}
           {type === 'link' && (
             <div>
@@ -341,10 +590,17 @@ function EditResourceModal({
   resource: ResourceType | null;
   loading: boolean;
 }) {
-  const [type, setType] = useState(resource?.type || '');
+  const [type, setType] = useState<ResourceKind>(normalizeResourceType(resource?.type));
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleTypeChange = (nextType: ResourceKind) => {
+    setType(nextType);
+    setSelectedFile(null);
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
     const formData = new FormData(e.currentTarget);
     onSubmit(formData);
   };
@@ -384,53 +640,27 @@ function EditResourceModal({
           </div>
           <div>
             <label className="block text-[11px] font-medium text-slate-700 mb-1">Type</label>
-            <select 
-              name="type" 
-              defaultValue={resource?.type || ''}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none"
-              onChange={(e) => setType(e.target.value)}
-            >
-              <option value="">Select type</option>
-              <option value="document">Document</option>
-              <option value="video">Video</option>
-              <option value="link">Link</option>
-            </select>
+            <ResourceTypeDropdown value={type} onChange={handleTypeChange} />
           </div>
           {type === 'document' && (
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 mb-1">File (PDF)</label>
-              <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center">
-                <input
-                  type="file"
-                  name="file"
-                  accept=".pdf"
-                  className="hidden"
-                  id="file-input-edit"
-                />
-                <label htmlFor="file-input-edit" className="cursor-pointer flex flex-col items-center gap-2">
-                  <FileUp className="h-6 w-6 text-slate-400" />
-                  <span className="text-[11px] text-slate-500">Click to upload PDF</span>
-                </label>
-              </div>
-            </div>
+            <FileUploadField
+              inputId="file-input-edit-document"
+              kind="document"
+              loading={loading}
+              selectedFile={selectedFile}
+              onFileChange={setSelectedFile}
+              existingUrl={resource ? getResourceUrl(resource) : undefined}
+            />
           )}
           {type === 'video' && (
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 mb-1">File (Video)</label>
-              <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center">
-                <input
-                  type="file"
-                  name="file"
-                  accept="video/*"
-                  className="hidden"
-                  id="file-input-edit"
-                />
-                <label htmlFor="file-input-edit" className="cursor-pointer flex flex-col items-center gap-2">
-                  <FileUp className="h-6 w-6 text-slate-400" />
-                  <span className="text-[11px] text-slate-500">Click to upload video</span>
-                </label>
-              </div>
-            </div>
+            <FileUploadField
+              inputId="file-input-edit-video"
+              kind="video"
+              loading={loading}
+              selectedFile={selectedFile}
+              onFileChange={setSelectedFile}
+              existingUrl={resource ? getResourceUrl(resource) : undefined}
+            />
           )}
           {type === 'link' && (
             <div>
@@ -439,7 +669,7 @@ function EditResourceModal({
                 <input
                   type="url"
                   name="url"
-                  defaultValue={resource?.url || ''}
+                  defaultValue={resource ? getResourceUrl(resource) : ''}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none"
                   placeholder="https://example.com"
                 />

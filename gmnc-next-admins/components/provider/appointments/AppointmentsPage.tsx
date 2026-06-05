@@ -10,33 +10,91 @@ import {
   Plus,
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
+import AppointmentsSkeleton from '@/components/layout/skeletons/AppointmentsSkeleton';
 import { getAppointments, createAppointment } from '@/lib/api/appointments';
 import { getPatients } from '@/lib/api/patients';
-import { getAdminUsers } from '@/lib/api/users';
 import { useAuth } from '@/lib/context/AuthContext';
+import type { User } from '@/lib/context/AuthContext';
 import type { Appointment, AppointmentStatus } from './types';
 
 type Patient = { id: string; fullName: string };
-type Provider = { id: string; fullName: string; profession: string; facilityName: string };
+type Provider = {
+  id: string;
+  fullName: string;
+  profession: string;
+  facilityName: string;
+  verificationStatus?: string;
+};
 
-function mapApiAppointment(api: any): Appointment {
+type ApiRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is ApiRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function extractList(payload: unknown): ApiRecord[] {
+  if (Array.isArray(payload)) return payload.filter(isRecord);
+  if (!isRecord(payload)) return [];
+
+  const directKeys = ['providers', 'serviceProviders', 'patients', 'items'];
+  for (const key of directKeys) {
+    const value = payload[key];
+    if (Array.isArray(value)) return value.filter(isRecord);
+  }
+
+  const data = payload.data;
+  if (Array.isArray(data)) return data.filter(isRecord);
+  if (isRecord(data)) return extractList(data);
+
+  return [];
+}
+
+function getAppointmentScope(user: User | null, selectedRole?: string | null): 'admin' | 'provider' | 'caregiver' {
+  const roles = new Set([...(user?.roles ?? []), selectedRole ?? '', user?.userType ?? ''].map((role) => role.toLowerCase()));
+
+  if (roles.has('admin')) return 'admin';
+  if (roles.has('service_provider') || roles.has('provider')) return 'provider';
+  return 'caregiver';
+}
+
+function mapApiAppointment(apiValue: unknown): Appointment {
+  const api = isRecord(apiValue) ? apiValue : {};
+  const patient = isRecord(api.patient) ? api.patient : null;
+  const provider = isRecord(api.provider) ? api.provider : null;
+  const providerUser = provider && isRecord(provider.user) ? provider.user : null;
+
   return {
-    id: api.id,
-    patientId: api.patientId,
-    providerId: api.providerId,
-    appointmentDate: api.appointmentDate ? new Date(api.appointmentDate) : new Date(),
-    reasonText: api.reasonText,
-    reasonAudio: api.reasonAudio,
-    status: api.status as AppointmentStatus,
-    patient: api.patient || { id: api.patientId, fullName: 'Unknown Patient' },
-    provider: api.provider || {
-      id: api.providerId,
+    id: String(api.id ?? ''),
+    patientId: String(api.patientId ?? ''),
+    providerId: String(api.providerId ?? ''),
+    appointmentDate: api.appointmentDate ? new Date(String(api.appointmentDate)) : new Date(),
+    reasonText: typeof api.reasonText === 'string' ? api.reasonText : null,
+    reasonAudio: typeof api.reasonAudio === 'string' ? api.reasonAudio : null,
+    status: String(api.status ?? 'PENDING') as AppointmentStatus,
+    patient: patient ? {
+      id: String(patient.id ?? api.patientId ?? ''),
+      fullName: String(patient.fullName ?? 'Unknown Patient'),
+      phoneNumber: patient.phoneNumber ? String(patient.phoneNumber) : undefined,
+    } : { id: String(api.patientId ?? ''), fullName: 'Unknown Patient' },
+    provider: provider ? {
+      id: String(provider.id ?? api.providerId ?? ''),
+      profession: String(provider.profession ?? 'UNKNOWN'),
+      facilityName: String(provider.facilityName ?? 'Unknown Facility'),
+      facilityAddress: provider.facilityAddress ? String(provider.facilityAddress) : '',
+      user: {
+        id: String(providerUser?.id ?? provider.id ?? api.providerId ?? ''),
+        fullName: String(providerUser?.fullName ?? 'Unknown Provider'),
+        phoneNumber: providerUser?.phoneNumber ? String(providerUser.phoneNumber) : '',
+        email: providerUser?.email ? String(providerUser.email) : '',
+      },
+    } : {
+      id: String(api.providerId ?? ''),
       profession: 'UNKNOWN',
       facilityName: 'Unknown Facility',
       facilityAddress: '',
-      user: { id: api.providerId, fullName: 'Unknown Provider', phoneNumber: '', email: '' },
+      user: { id: String(api.providerId ?? ''), fullName: 'Unknown Provider', phoneNumber: '', email: '' },
     },
-    notes: api.notes,
+    notes: typeof api.notes === 'string' ? api.notes : null,
   };
 }
 
@@ -53,8 +111,34 @@ const PROVIDER_COLUMNS = [
   'DIETITIAN',
 ] as const;
 
+type ProviderColumn = (typeof PROVIDER_COLUMNS)[number];
+
+function isProviderColumn(value: unknown): value is ProviderColumn {
+  return typeof value === 'string' && PROVIDER_COLUMNS.includes(value as ProviderColumn);
+}
+
+function getUserProfession(user: User | null): ProviderColumn | null {
+  if (!isRecord(user)) return null;
+
+  if (isProviderColumn(user.profession)) {
+    return user.profession;
+  }
+
+  const serviceProvider = user.serviceProvider;
+  if (isRecord(serviceProvider) && isProviderColumn(serviceProvider.profession)) {
+    return serviceProvider.profession;
+  }
+
+  const provider = user.provider;
+  if (isRecord(provider) && isProviderColumn(provider.profession)) {
+    return provider.profession;
+  }
+
+  return null;
+}
+
 const PROVIDER_COLUMN_META: Record<
-  (typeof PROVIDER_COLUMNS)[number],
+  ProviderColumn,
   { label: string; color: string; border: string; accent: string }
 > = {
   GENERAL_PAEDIATRICIAN: { label: 'General Paediatrician', color: 'bg-blue-50', border: 'border-blue-200', accent: 'bg-blue-500' },
@@ -94,7 +178,7 @@ function getInitials(name: string) {
 
 function getProfessionLabel(profession: string) {
   return (
-    PROVIDER_COLUMN_META[profession as (typeof PROVIDER_COLUMNS)[number]]
+    PROVIDER_COLUMN_META[profession as ProviderColumn]
       ?.label ?? profession.replaceAll('_', ' ').toLowerCase()
   );
 }
@@ -152,9 +236,6 @@ function AppointmentCard({ appointment }: { appointment: Appointment }) {
                 {getInitials(name)}
               </span>
             ))}
-          <span className="-ml-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-50 text-[10px] font-bold text-slate-600 shadow-sm">
-            +1
-          </span>
         </div>
 
         <div className="min-w-0 text-right">
@@ -176,6 +257,8 @@ function SmallDropdown<T extends string>({
   onChange,
   ariaLabel,
   placeholder,
+  loading = false,
+  disabled = false,
   open,
   onOpenChange,
   pageSize = 4,
@@ -185,6 +268,8 @@ function SmallDropdown<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
   placeholder: string;
+  loading?: boolean;
+  disabled?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pageSize?: number;
@@ -233,7 +318,9 @@ function SmallDropdown<T extends string>({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={disabled || loading}
         onClick={() => {
+          if (disabled || loading) return;
           const nextOpen = !open;
           if (nextOpen) {
             setSearch('');
@@ -241,10 +328,10 @@ function SmallDropdown<T extends string>({
           }
           onOpenChange(nextOpen);
         }}
-        className="flex h-10 w-full items-center justify-between rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 transition hover:border-slate-300"
+        className="flex h-10 w-full items-center justify-between rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 transition hover:border-slate-300 disabled:cursor-wait disabled:bg-slate-50 disabled:text-slate-400"
       >
         <span className={selected ? 'truncate' : 'truncate text-slate-400'}>
-          {selected?.label ?? placeholder}
+          {loading ? 'Loading...' : selected?.label ?? placeholder}
         </span>
         <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-500">
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -265,7 +352,9 @@ function SmallDropdown<T extends string>({
           />
 
           <div className="max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {paginatedOptions.length === 0 ? (
+            {loading ? (
+              <div className="px-3 py-2.5 text-sm text-slate-500">Loading...</div>
+            ) : paginatedOptions.length === 0 ? (
               <div className="px-3 py-2.5 text-sm text-slate-500">No results found.</div>
             ) : (
               paginatedOptions.map((option) => {
@@ -341,7 +430,19 @@ function X({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: num
 }
 
 // Simplified modal for creating appointments (similar to user registration modal)
-function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen: boolean; onClose: () => void; onSuccess: () => void; token: string | null }) {
+function CreateAppointmentModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  token,
+  appointmentScope,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  token: string | null;
+  appointmentScope: 'admin' | 'provider' | 'caregiver';
+}) {
   const [openDropdown, setOpenDropdown] = useState<'patient' | 'provider' | null>(null);
   const [formData, setFormData] = useState({
     patientId: '',
@@ -353,6 +454,22 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const resetModalState = () => {
+    setOpenDropdown(null);
+    setSubmitError(null);
+    setPatients([]);
+    setProviders([]);
+    setFormData({
+      patientId: '',
+      providerId: '',
+      appointmentDate: '',
+      appointmentTime: '',
+      reasonText: '',
+    });
+    setErrors({});
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -377,6 +494,7 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setOpenDropdown(null);
+    setSubmitError(null);
 
     if (!validateForm()) {
       return;
@@ -395,9 +513,11 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
         appointmentDate,
         reasonText: formData.reasonText,
       }, token);
+      resetModalState();
       onSuccess();
     } catch (error) {
       console.error('Error creating appointment:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to create appointment');
     } finally {
       setIsSubmitting(false);
     }
@@ -421,44 +541,95 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
   };
 
   const handleModalClose = () => {
-    setOpenDropdown(null);
+    resetModalState();
     onClose();
   };
 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  const [loadingProviders, setLoadingProviders] = useState(false);
 
   useEffect(() => {
+    let active = true;
+
     async function loadData() {
       if (!isOpen || !token) return;
-      setLoadingData(true);
+      setSubmitError(null);
+      setLoadingPatients(true);
+      setLoadingProviders(true);
       try {
         const patientsData = await getPatients(token);
-        const mappedPatients = (patientsData.data || []).map((p: any) => ({
-          id: p.id || p.patientId,
-          fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown',
-        }));
-        setPatients(mappedPatients);
+        if (!active) return;
 
-        const usersData = await getAdminUsers(token);
-        const mappedProviders = (usersData.data || [])
-          .filter((u: any) => u.userType === 'SERVICE_PROVIDER')
-          .map((u: any) => ({
-            id: u.id,
-            fullName: u.fullName || 'Unknown',
-            profession: u.profession || 'UNKNOWN',
-            facilityName: u.facilityName || 'Unknown Facility',
-          }));
+        const mappedPatients = (patientsData.data || []).map((p) => ({
+          id: p.id || p.patientId || '',
+          fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown',
+        })).filter((patient) => patient.id);
+        setPatients(mappedPatients);
+      } catch (err) {
+        if (!active) return;
+        console.error('Failed to load patients:', err);
+        setPatients([]);
+      } finally {
+        if (active) setLoadingPatients(false);
+      }
+
+      try {
+        const endpoints = appointmentScope === 'admin'
+          ? ['/api/admin/providers?limit=200', '/api/service-provider?limit=200']
+          : ['/api/service-provider?limit=200', '/api/admin/providers?limit=200'];
+
+        let providerRecords: ApiRecord[] = [];
+        for (const endpoint of endpoints) {
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            cache: 'no-store',
+          });
+
+          if (!response.ok) continue;
+          const payload = await response.json().catch(() => null);
+          providerRecords = extractList(payload);
+          if (providerRecords.length > 0) break;
+        }
+
+        if (!active) return;
+
+        const mappedProviders = providerRecords.map((provider) => {
+          const user = isRecord(provider.user) ? provider.user : {};
+          return {
+            id: String(provider.id ?? ''),
+            fullName: String(user.fullName ?? provider.fullName ?? 'Unknown Provider'),
+            profession: String(provider.profession ?? 'UNKNOWN'),
+            facilityName: String(provider.facilityName ?? 'Unknown Facility'),
+            verificationStatus: provider.verificationStatus ? String(provider.verificationStatus) : undefined,
+          };
+        }).filter((provider) => (
+          provider.id
+          && provider.profession !== 'UNKNOWN'
+          && (!provider.verificationStatus || provider.verificationStatus === 'VERIFIED')
+        ));
+
         setProviders(mappedProviders);
       } catch (err) {
-        console.error('Failed to load patients/providers:', err);
+        if (!active) return;
+        console.error('Failed to load providers:', err);
+        setProviders([]);
       } finally {
-        setLoadingData(false);
+        if (active) setLoadingProviders(false);
       }
     }
+
     loadData();
-  }, [isOpen, token]);
+    return () => {
+      active = false;
+    };
+  }, [appointmentScope, isOpen, token]);
 
   const patientOptions = patients.map((patient) => ({
     value: patient.id,
@@ -515,6 +686,8 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
                   }}
                   ariaLabel="Select patient"
                   placeholder="Select a patient"
+                  loading={loadingPatients}
+                  disabled={isSubmitting}
                   open={openDropdown === 'patient'}
                   onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'patient' : null)}
                   pageSize={4}
@@ -536,6 +709,8 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
                   }}
                   ariaLabel="Select provider"
                   placeholder="Select a provider"
+                  loading={loadingProviders}
+                  disabled={isSubmitting}
                   open={openDropdown === 'provider'}
                   onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'provider' : null)}
                   pageSize={4}
@@ -546,41 +721,43 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
               </div>
 
               {/* Date and Time */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-slate-700">Date</label>
-                <div className="relative">
-                  <CalendarDays className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="date"
-                    name="appointmentDate"
-                    value={formData.appointmentDate}
-                    onChange={handleChange}
-                    className={`h-10 w-full rounded-full border border-slate-200 bg-white px-4 pl-11 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-emerald-500 ${
-                      errors.appointmentDate ? 'border-red-500' : ''
-                    }`}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Date</label>
+                  <div className="relative">
+                    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="date"
+                      name="appointmentDate"
+                      value={formData.appointmentDate}
+                      onChange={handleChange}
+                      className={`h-8 w-full rounded-xl border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${
+                        errors.appointmentDate ? 'border-red-500' : ''
+                      }`}
+                    />
+                  </div>
+                  {errors.appointmentDate && (
+                    <p className="mt-1 text-xs text-red-600">{errors.appointmentDate}</p>
+                  )}
                 </div>
-                {errors.appointmentDate && (
-                  <p className="mt-1 text-xs text-red-600">{errors.appointmentDate}</p>
-                )}
-              </div>
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-slate-700">Time</label>
-                <div className="relative">
-                  <Clock3 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="time"
-                    name="appointmentTime"
-                    value={formData.appointmentTime}
-                    onChange={handleChange}
-                    className={`h-10 w-full rounded-full border border-slate-200 bg-white px-4 pl-11 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-emerald-500 ${
-                      errors.appointmentTime ? 'border-red-500' : ''
-                    }`}
-                  />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Time</label>
+                  <div className="relative">
+                    <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="time"
+                      name="appointmentTime"
+                      value={formData.appointmentTime}
+                      onChange={handleChange}
+                      className={`h-8 w-full rounded-xl border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${
+                        errors.appointmentTime ? 'border-red-500' : ''
+                      }`}
+                    />
+                  </div>
+                  {errors.appointmentTime && (
+                    <p className="mt-1 text-xs text-red-600">{errors.appointmentTime}</p>
+                  )}
                 </div>
-                {errors.appointmentTime && (
-                  <p className="mt-1 text-xs text-red-600">{errors.appointmentTime}</p>
-                )}
               </div>
 
               {/* Reason */}
@@ -606,6 +783,11 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
             </div>
 
             {/* Submit Button */}
+            {submitError ? (
+              <p className="mt-4 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+                {submitError}
+              </p>
+            ) : null}
             <div className="mt-auto flex items-center justify-end gap-3 pt-10">
               <Button
                 type="button"
@@ -619,7 +801,7 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
               <Button
                 type="submit"
                 className="rounded-full px-5 py-2 text-xs font-medium"
-                disabled={isSubmitting || !token}
+                disabled={isSubmitting || loadingPatients || loadingProviders || !token}
               >
                 {isSubmitting ? 'Creating...' : 'Create Appointment'}
               </Button>
@@ -632,7 +814,8 @@ function CreateAppointmentModal({ isOpen, onClose, onSuccess, token }: { isOpen:
 }
 
 export default function AppointmentAdminPage() {
-  const { token } = useAuth();
+  const { token, user, selectedRole } = useAuth();
+  const appointmentScope = getAppointmentScope(user, selectedRole);
   const [filters, setFilters] = useState({
     status: 'all',
   });
@@ -652,7 +835,7 @@ export default function AppointmentAdminPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getAppointments(token);
+        const data = await getAppointments(token, appointmentScope);
         if (!active) return;
         const mapped = (data.appointments || []).map(mapApiAppointment);
         setAppointments(mapped);
@@ -666,7 +849,7 @@ export default function AppointmentAdminPage() {
 
     loadAppointments();
     return () => { active = false; };
-  }, [token]);
+  }, [appointmentScope, token]);
 
   // Filter appointments based on selected status
   const filteredAppointments = useMemo(() => {
@@ -689,6 +872,46 @@ export default function AppointmentAdminPage() {
     });
   }, [appointments, filters, viewMode, selectedDate, error]);
 
+  const currentUserProfession = useMemo(() => {
+    const profileProfession = getUserProfession(user);
+    if (profileProfession) return profileProfession;
+
+    const ownAppointment = appointments.find((appointment) => (
+      user?.id && appointment.provider.user.id === user.id
+    ));
+    if (isProviderColumn(ownAppointment?.provider.profession)) {
+      return ownAppointment.provider.profession;
+    }
+
+    const firstProviderAppointment = appointmentScope === 'provider'
+      ? appointments.find((appointment) => isProviderColumn(appointment.provider.profession))
+      : null;
+
+    return isProviderColumn(firstProviderAppointment?.provider.profession)
+      ? firstProviderAppointment.provider.profession
+      : null;
+  }, [appointmentScope, appointments, user]);
+
+  const kanbanColumns = useMemo(() => {
+    const allColumns = [...PROVIDER_COLUMNS];
+    if (!currentUserProfession) {
+      return allColumns;
+    }
+
+    if (appointmentScope === 'provider') {
+      return [currentUserProfession];
+    }
+
+    if (appointmentScope === 'admin') {
+      return [
+        currentUserProfession,
+        ...allColumns.filter((profession) => profession !== currentUserProfession),
+      ];
+    }
+
+    return allColumns;
+  }, [appointmentScope, currentUserProfession]);
+
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
@@ -708,7 +931,7 @@ export default function AppointmentAdminPage() {
         try {
           setLoading(true);
           setError(null);
-          const data = await getAppointments(token);
+          const data = await getAppointments(token, appointmentScope);
           const mapped = (data.appointments || []).map(mapApiAppointment);
           setAppointments(mapped);
         } catch (err) {
@@ -719,20 +942,6 @@ export default function AppointmentAdminPage() {
       })();
     }
   };
-
-  async function loadAppointments() {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getAppointments();
-      const mapped = (data.appointments || []).map(mapApiAppointment);
-      setAppointments(mapped);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load appointments');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const handleBoardWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     const target = event.target;
@@ -865,13 +1074,21 @@ export default function AppointmentAdminPage() {
       </div>
 
       {/* Kanban or Calendar View */}
-      {viewMode === 'kanban' ? (
+      {loading ? (
+        <div className="min-h-0 flex-1">
+          <AppointmentsSkeleton />
+        </div>
+      ) : error ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-center text-[11px] font-medium text-red-600">
+          {error}
+        </div>
+      ) : viewMode === 'kanban' ? (
         <div
           onWheel={handleBoardWheel}
           className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-auto overflow-y-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <div className="flex h-full w-max gap-4">
-            {PROVIDER_COLUMNS.map((profession) => {
+            {kanbanColumns.map((profession) => {
               const professionAppointments = filteredAppointments.filter(
                 (apt) => apt.provider.profession === profession
               );
@@ -914,36 +1131,38 @@ export default function AppointmentAdminPage() {
         </div>
       ) : (
         // Calendar View
-        <div className="flex-1 overflow-y-auto scrollbar-none">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-bold mb-2">Select Date</label>
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-600">Select Date</label>
                 <input
                   type="date"
                   value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
                   onChange={e => setSelectedDate(e.target.value ? new Date(e.target.value) : null)}
-                  className="border border-slate-200 rounded-lg px-4 py-2 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+                  className="h-9 w-44 rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition hover:border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
               <div>
                 <span className="text-xs text-slate-500">{selectedDate ? `Appointments for ${selectedDate.toLocaleDateString()}` : 'Select a date to view appointments'}</span>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-{error ? (
-              <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-600">
-                {error}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-none">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {error ? (
+                  <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-600">
+                    {error}
+                  </div>
+                ) : filteredAppointments.length === 0 ? (
+                  <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-400">
+                    No appointments found
+                  </div>
+                ) : (
+                  filteredAppointments.map((appointment) => (
+                    <AppointmentCard key={appointment.id} appointment={appointment} />
+                  ))
+                )}
               </div>
-            ) : filteredAppointments.length === 0 ? (
-              <div className="col-span-full flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-400">
-                No appointments found
-              </div>
-            ) : (
-              filteredAppointments.map((appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} />
-              ))
-            )}
             </div>
           </div>
         </div>
@@ -955,6 +1174,7 @@ export default function AppointmentAdminPage() {
         onClose={handleCloseModal}
         onSuccess={handleSuccess}
         token={token}
+        appointmentScope={appointmentScope}
       />
     </div>
   );

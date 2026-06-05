@@ -27,6 +27,10 @@ const nextConfig: NextConfig = {
         destination: `${apiBaseUrl}/resource/:path*`,
       },
       {
+        source: '/game/:path*',
+        destination: `${apiBaseUrl}/game/:path*`,
+      },
+      {
         source: '/assessment/:path*',
         destination: `${apiBaseUrl}/assessment/:path*`,
       },

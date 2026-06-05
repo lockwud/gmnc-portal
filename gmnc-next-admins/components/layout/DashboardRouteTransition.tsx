@@ -38,7 +38,7 @@ export default function DashboardRouteTransition({
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none">{children}</div>
       {showSkeleton ? (
         <div className="absolute inset-0 z-30 bg-slate-50 px-6 py-6">
           <DashboardTransitionSkeleton pathname={pathname} />
