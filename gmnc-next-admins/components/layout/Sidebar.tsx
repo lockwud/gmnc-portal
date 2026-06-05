@@ -197,7 +197,7 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
         path: "/reports",
         icon: "assessment",
         collapsible: false,
-        requiredRole: "admin",
+        requiredRole: "provider",
       },
 
       {
@@ -205,7 +205,7 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
         path: "/settings",
         icon: "settings",
         collapsible: false,
-        requiredRole: "admin",
+        requiredRole: "provider",
       },
     ],
   },

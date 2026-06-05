@@ -9,7 +9,6 @@ export type Role =
   | 'provider'
   | 'support'
   | 'tester'
-  | 'caregiver'
   | (string & Record<never, never>); // allows arbitrary strings from the API
 
 export type Permission =
@@ -43,7 +42,6 @@ export interface User {
 const USER_TYPE_ROLES: Record<string, Role> = {
   ADMIN: 'admin',
   SERVICE_PROVIDER: 'provider',
-  CAREGIVER: 'caregiver',
 };
 
 const BUILT_IN_ROLES = new Set<Role>([
@@ -51,7 +49,6 @@ const BUILT_IN_ROLES = new Set<Role>([
   'provider',
   'support',
   'tester',
-  'caregiver',
 ]);
 
 // =========================================
@@ -85,7 +82,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'telehealth.start',
     'telehealth.join',
   ],
-  caregiver: ['appointment.read', 'telehealth.join', 'caregiver.read'],
 };
 
 // =========================================
@@ -101,8 +97,6 @@ export function getDashboardRoute(role: Role): string {
       return '/support';
     case 'tester':
       return '/dashboard';
-    case 'caregiver':
-      return '/caregiver';
     default:
       return '/dashboard';
   }
@@ -152,8 +146,8 @@ export function canAccessDashboardPath(user: User, pathname: string): boolean {
 
   if (pathMatches(pathname, '/provider')) return hasRole(user, 'provider');
   if (pathMatches(pathname, '/support')) return hasRole(user, 'support');
-  if (pathMatches(pathname, '/caregiver')) return hasRole(user, 'caregiver');
-  if (pathMatches(pathname, '/settings')) return false;
+  if (pathMatches(pathname, '/settings')) return hasRole(user, 'provider');
+  if (pathMatches(pathname, '/reports')) return hasRole(user, 'provider');
 
   return false;
 }
