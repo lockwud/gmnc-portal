@@ -422,6 +422,7 @@ const fetchPatients = async () => {
 
   const filteredTasks = tasks.filter(task => {
     if (statusFilter === 'ALL') return true;
+    if (statusFilter === 'ASSIGNED') return task.status === 'ASSIGNED' && task.completedDates.length > 0;
     return task.status === statusFilter;
   });
 
@@ -437,7 +438,7 @@ const fetchPatients = async () => {
 
   // Counts for filters
   const allTasksCount = tasks.length;
-  const inProgressCount = tasks.filter(t => t.status === 'ASSIGNED').length;
+  const inProgressCount = tasks.filter(t => t.status === 'ASSIGNED' && t.completedDates.length > 0).length;
   const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
 
   const formatDate = (dateString: string) => {
@@ -794,7 +795,7 @@ const fetchPatients = async () => {
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
@@ -803,7 +804,7 @@ const fetchPatients = async () => {
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
               </div>

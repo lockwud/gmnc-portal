@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { CheckCheck, Circle, X } from 'lucide-react';
 import { COLORS } from '@/lib/colors';
 import { useAuth } from '@/lib/context/AuthContext';
 import {
@@ -30,7 +31,6 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false);
 
   const cacheRef = useRef<NotificationItem[]>([]);
   const cacheTimestampRef = useRef<number>(0);
@@ -40,9 +40,9 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
       return;
     }
 
-    if (!isLoadMore && !isLoadMore && cacheRef.current.length > 0 && Date.now() - cacheTimestampRef.current < FIVE_MINUTES) {
+    if (!isLoadMore && cacheRef.current.length > 0 && Date.now() - cacheTimestampRef.current < FIVE_MINUTES) {
       setNotifications(cacheRef.current);
-      setHasMore(cacheRef.current.length > PAGE_SIZE);
+      setHasMore(cacheRef.current.length > displayCount);
       return;
     }
 
@@ -62,7 +62,7 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [token]);
+  }, [displayCount, token]);
 
   const refreshUnreadCount = useCallback(async () => {
     if (!token) return;
@@ -75,32 +75,23 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
   }, [token]);
 
   useEffect(() => {
-    if (open !== panelOpen) {
-      setPanelOpen(open);
-      if (open && token) {
-        refreshNotifications();
-        refreshUnreadCount();
-      }
+    if (open && token) {
+      const timeout = window.setTimeout(() => {
+        void refreshNotifications();
+        void refreshUnreadCount();
+      }, 0);
+
+      return () => window.clearTimeout(timeout);
     }
-  }, [open, panelOpen, token, refreshNotifications, refreshUnreadCount]);
+  }, [open, token, refreshNotifications, refreshUnreadCount]);
 
   useEffect(() => {
-    if (!panelOpen || !token) return;
+    if (!open || !token) return;
     const interval = setInterval(() => {
       refreshUnreadCount();
     }, 30000);
     return () => clearInterval(interval);
-  }, [panelOpen, token, refreshUnreadCount]);
-
-  useEffect(() => {
-    if (!token) {
-      setNotifications([]);
-      setUnreadCount(0);
-      setHasMore(false);
-      cacheRef.current = [];
-      cacheTimestampRef.current = 0;
-    }
-  }, [token]);
+  }, [open, token, refreshUnreadCount]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -117,24 +108,32 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
     if (!token) return;
     try {
       await markNotificationAsRead(id, token);
-      const next = notifications.filter(n => n.id !== id);
+      const next = notifications.map((notification) => (
+        notification.id === id
+          ? { ...notification, status: 'READ' as const }
+          : notification
+      ));
       cacheRef.current = next;
-      cacheTimestampRef.current = Date.now();
+      cacheTimestampRef.current = 0;
       setNotifications(next);
-      setUnreadCount(prev => Math.max(0, prev - 1));
-      window.dispatchEvent(new CustomEvent('notifications:unread-changed', { detail: { unreadCount: Math.max(0, unreadCount - 1) } }));
+      const nextUnreadCount = next.filter((notification) => notification.status === 'UNREAD').length;
+      setUnreadCount(nextUnreadCount);
+      window.dispatchEvent(new CustomEvent('notifications:unread-changed', { detail: { unreadCount: nextUnreadCount } }));
     } catch (err) {
       console.error('Failed to mark as read:', err);
     }
   };
 
   const handleMarkAllAsRead = async () => {
-    if (!token || !confirm('Mark all notifications as read?')) return;
+    if (!token || unreadCount === 0) return;
     try {
       await markAllNotificationsAsRead(token);
-      const next: NotificationItem[] = [];
+      const next = notifications.map((notification) => ({
+        ...notification,
+        status: notification.status === 'ARCHIVED' ? notification.status : 'READ' as const,
+      }));
       cacheRef.current = next;
-      cacheTimestampRef.current = Date.now();
+      cacheTimestampRef.current = 0;
       setNotifications(next);
       setUnreadCount(0);
       window.dispatchEvent(new CustomEvent('notifications:unread-changed', { detail: { unreadCount: 0 } }));
@@ -145,13 +144,75 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
 
   const handleLoadMore = async () => {
     if (!token || loadingMore) return;
-    await refreshNotifications(true);
+    const nextCount = Math.min(notifications.length, displayCount + PAGE_SIZE);
+    setDisplayCount(nextCount);
+    setHasMore(nextCount < notifications.length);
   };
 
   if (!open) return null;
 
   const activeBg = (COLORS && (COLORS.activeBg ?? COLORS.primary)) || '#2563EB';
   const visibleNotifications = notifications.slice(0, displayCount);
+  const unreadNotifications = visibleNotifications.filter((notification) => notification.status === 'UNREAD');
+  const readNotifications = visibleNotifications.filter((notification) => notification.status !== 'UNREAD');
+
+  const renderNotification = (notification: NotificationItem) => {
+    const isUnread = notification.status === 'UNREAD';
+
+    return (
+      <div
+        key={notification.id}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (isUnread) void handleMarkAsRead(notification.id);
+        }}
+        className={`border-b border-gray-100 p-3 last:border-0 transition hover:bg-gray-50 ${
+          isUnread ? 'bg-emerald-50/40' : 'bg-white'
+        } ${isUnread ? 'cursor-pointer' : ''}`}
+      >
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (isUnread) void handleMarkAsRead(notification.id);
+            }}
+            disabled={!isUnread}
+            aria-label={isUnread ? 'Mark notification as read' : 'Notification is read'}
+            title={isUnread ? 'Mark as read' : 'Read'}
+            className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition ${
+              isUnread
+                ? 'border-emerald-400 bg-white text-emerald-600 hover:bg-emerald-100'
+                : 'border-slate-200 bg-slate-100 text-slate-300'
+            }`}
+          >
+            <Circle size={8} fill={isUnread ? 'currentColor' : 'none'} strokeWidth={isUnread ? 0 : 2} />
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className={`truncate text-sm ${isUnread ? 'font-semibold text-gray-950' : 'font-medium text-gray-700'}`}>
+                {notification.title}
+              </h3>
+              <span className="shrink-0 text-[10px] text-gray-400">
+                {new Date(notification.createdAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-xs text-gray-500">{notification.content}</p>
+            <p className="mt-1 text-[10px] text-gray-400">
+              {new Date(notification.createdAt).toLocaleTimeString(undefined, {
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -170,6 +231,8 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
         className={`${width} relative ml-auto h-full bg-white shadow-xl border-l flex flex-col`}
         style={{ borderLeftColor: '#e6e9f2' }}
         role="document"
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <div
           className="px-4 py-3 flex items-start justify-between border-b shrink-0"
@@ -184,27 +247,33 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
             </p>
           </div>
 
-          <button
-            ref={closeBtnRef}
-            onClick={onClose}
-            aria-label="Close notifications"
-            title=""
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-100 text-gray-600 focus:outline-none"
-            style={{ boxShadow: 'none' }}
-          >
-            <span
-              className="material-icons text-xs"
-              style={{ color: '#374151' }}
-              aria-hidden
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleMarkAllAsRead}
+              disabled={unreadCount === 0}
+              aria-label="Mark all notifications as read"
+              title="Mark all as read"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-300"
             >
-              close
-            </span>
-            <style jsx>{`
-              button:focus {
-                box-shadow: 0 0 0 3px ${activeBg}22;
-              }
-            `}</style>
-          </button>
+              <CheckCheck size={15} />
+            </button>
+            <button
+              ref={closeBtnRef}
+              onClick={onClose}
+              aria-label="Close notifications"
+              title="Close"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-100 text-gray-600 focus:outline-none"
+              style={{ boxShadow: 'none' }}
+            >
+              <X size={14} />
+              <style jsx>{`
+                button:focus {
+                  box-shadow: 0 0 0 3px ${activeBg}22;
+                }
+              `}</style>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-none">
@@ -221,40 +290,29 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
               </span>
               <div className="text-sm font-semibold text-gray-700 mb-1">No notifications</div>
               <div className="text-xs text-gray-400 max-w-[220px]">
-                You're all caught up! New notifications will appear here.
+                You&apos;re all caught up! New notifications will appear here.
               </div>
             </div>
           ) : (
             <>
-              <div className="p-2 border-b border-gray-100 shrink-0">
-                <button
-                  onClick={handleMarkAllAsRead}
-                  className="text-xs text-emerald-600 font-medium hover:text-emerald-700"
-                >
-                  Mark all as read
-                </button>
-              </div>
               <div>
-                {visibleNotifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className="p-3 border-b border-gray-100 last:border-0 hover:bg-gray-50"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-medium text-gray-900 text-sm">{n.title}</h3>
-                      <button
-                        onClick={() => handleMarkAsRead(n.id)}
-                        className="text-[10px] text-gray-500 hover:text-gray-700 shrink-0"
-                      >
-                        Mark read
-                      </button>
+                {unreadNotifications.length > 0 ? (
+                  <section>
+                    <div className="sticky top-0 z-10 border-b border-gray-100 bg-white/95 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      Unread
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{n.content}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      {new Date(n.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
+                    {unreadNotifications.map(renderNotification)}
+                  </section>
+                ) : null}
+
+                {readNotifications.length > 0 ? (
+                  <section>
+                    <div className="sticky top-0 z-10 border-b border-gray-100 bg-white/95 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      Read
+                    </div>
+                    {readNotifications.map(renderNotification)}
+                  </section>
+                ) : null}
 
                 {hasMore && (
                   <div className="p-3 border-t border-gray-100">
