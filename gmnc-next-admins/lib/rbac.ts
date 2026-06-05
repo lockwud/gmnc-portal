@@ -9,7 +9,6 @@ export type Role =
   | 'provider'
   | 'support'
   | 'tester'
-  | 'caregiver'
   | (string & Record<never, never>); // allows arbitrary strings from the API
 
 export type Permission =
@@ -39,6 +38,18 @@ export interface User {
   permissions: string[];
   avatar?: string | null;
 }
+
+const USER_TYPE_ROLES: Record<string, Role> = {
+  ADMIN: 'admin',
+  SERVICE_PROVIDER: 'provider',
+};
+
+const BUILT_IN_ROLES = new Set<Role>([
+  'admin',
+  'provider',
+  'support',
+  'tester',
+]);
 
 // =========================================
 // ROLE → PERMISSION MAP (frontend defaults)
@@ -71,7 +82,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'telehealth.start',
     'telehealth.join',
   ],
-  caregiver: ['appointment.read', 'telehealth.join', 'caregiver.read'],
 };
 
 // =========================================
@@ -87,20 +97,68 @@ export function getDashboardRoute(role: Role): string {
       return '/support';
     case 'tester':
       return '/dashboard';
-    case 'caregiver':
-      return '/caregiver';
     default:
       return '/dashboard';
   }
 }
 
 // =========================================
-// PERMISSION GUARD
+// ACCESS HELPERS
 // =========================================
-export function hasPermission(user: User, permission: Permission): boolean {
-  return user.permissions.includes(permission);
+export function getDefaultRoleForUserType(userType?: string | null): Role | null {
+  if (!userType) return null;
+  return USER_TYPE_ROLES[userType.trim().toUpperCase()] ?? null;
+}
+
+export function getEffectiveRoles(user: User): Role[] {
+  const roles = user.roles
+    .map((role) => role.trim().toLowerCase() as Role)
+    .filter((role) => BUILT_IN_ROLES.has(role));
+  const defaultRole = getDefaultRoleForUserType(user.userType);
+
+  return [...new Set(defaultRole ? [...roles, defaultRole] : roles)];
 }
 
 export function hasRole(user: User, role: Role): boolean {
-  return user.roles.includes(role);
+  return getEffectiveRoles(user).includes(role.toLowerCase() as Role);
+}
+
+export function hasWorkspaceAccess(user: User, role: Role): boolean {
+  return hasRole(user, 'admin') || hasRole(user, 'tester') || hasRole(user, role);
+}
+
+function pathMatches(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+export function canAccessDashboardPath(user: User, pathname: string): boolean {
+  if (
+    pathMatches(pathname, '/dashboard')
+    || pathMatches(pathname, '/profile')
+    || pathMatches(pathname, '/notifications')
+  ) {
+    return true;
+  }
+
+  if (hasRole(user, 'admin') || hasRole(user, 'tester')) {
+    return true;
+  }
+
+  if (pathMatches(pathname, '/provider')) return hasRole(user, 'provider');
+  if (pathMatches(pathname, '/support')) return hasRole(user, 'support');
+  if (pathMatches(pathname, '/settings')) return hasRole(user, 'provider');
+  if (pathMatches(pathname, '/reports')) return hasRole(user, 'provider');
+
+  return false;
+}
+
+// =========================================
+// PERMISSION GUARD
+// =========================================
+export function hasPermission(user: User, permission: Permission): boolean {
+  if (user.permissions.includes(permission)) return true;
+
+  return getEffectiveRoles(user).some((role) =>
+    ROLE_PERMISSIONS[role]?.includes(permission),
+  );
 }
