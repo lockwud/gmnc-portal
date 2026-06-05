@@ -27,8 +27,17 @@ const ToggleIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+function getErrorStatus(error: unknown): number | null {
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const status = (error as { status?: unknown }).status;
+    return typeof status === 'number' ? status : null;
+  }
+
+  return null;
+}
+
 const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
-  const { user, logout, selectedRole, token } = useAuth();
+  const { user, logout, selectedRole, token, isLoading } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [userOpen, setUserOpen] = useState(false);
@@ -38,6 +47,7 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const loaded = useRef(false);
+  const notificationAuthFailedRef = useRef(false);
 
   const activeBg = (COLORS && (COLORS.activeBg ?? COLORS.primary)) || '#2563EB';
 
@@ -51,7 +61,6 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setSearchOpen(false);
         setUserOpen(false);
-        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', onDocClick);
@@ -61,33 +70,63 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
   }, []);
 
   useEffect(() => {
-    if (!token) {
-      setUnreadCount(0);
-      return;
+    notificationAuthFailedRef.current = false;
+
+    if (isLoading || !token || !user?.id) {
+      const timeout = window.setTimeout(() => setUnreadCount(0), 0);
+      return () => window.clearTimeout(timeout);
     }
 
     let cancelled = false;
-
     async function loadUnreadCount() {
+      if (cancelled || notificationAuthFailedRef.current) return;
+
       try {
         const count = await getUnreadNotificationCount(token);
         if (!cancelled && loaded.current) {
           setUnreadCount(typeof count === 'number' ? count : 0);
         }
-      } catch {
+      } catch (error) {
+        const status = getErrorStatus(error);
+
+        if (status === 401 || status === 403) {
+          notificationAuthFailedRef.current = true;
+          clearInterval(interval);
+        }
+
         if (!cancelled && loaded.current) {
           setUnreadCount(0);
         }
       }
     }
 
-    loadUnreadCount();
-    const interval = setInterval(loadUnreadCount, 30000);
+    const timeout = window.setTimeout(() => {
+      void loadUnreadCount();
+    }, 0);
+    const interval = setInterval(() => {
+      void loadUnreadCount();
+    }, 30000);
+
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
       clearInterval(interval);
     };
-  }, [token]);
+  }, [isLoading, token, user?.id]);
+
+  useEffect(() => {
+    function handleUnreadChanged(event: Event) {
+      const detail = (event as CustomEvent<{ unreadCount?: number }>).detail;
+      if (typeof detail?.unreadCount === 'number') {
+        setUnreadCount(detail.unreadCount);
+      }
+    }
+
+    window.addEventListener('notifications:unread-changed', handleUnreadChanged);
+    return () => {
+      window.removeEventListener('notifications:unread-changed', handleUnreadChanged);
+    };
+  }, []);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,4 +247,3 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
 };
 
 export default TopBar;
-

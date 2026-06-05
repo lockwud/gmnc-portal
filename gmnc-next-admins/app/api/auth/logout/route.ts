@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import {
   ACCESS_TOKEN_COOKIE,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from '@/lib/session';
-import { apiClient } from '@/lib/api/client';
 
 /**
  * Builds a Set-Cookie header value that definitively expires a cookie.
@@ -15,22 +14,7 @@ function buildExpiredCookieHeader(name: string): string {
   return `${name}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${sessionCookieOptions.secure ? '; Secure' : ''}`;
 }
 
-export async function POST(req: NextRequest) {
-  // Attempt to notify the backend to invalidate the session token
-  const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (accessToken) {
-    try {
-      await apiClient('/auth/logout', {
-        method: 'POST',
-        token: accessToken,
-        timeoutMs: 5000,
-      });
-    } catch {
-      // Intentionally swallowed — we must log out locally regardless of
-      // whether the backend call succeeds (e.g. token already expired).
-    }
-  }
-
+export async function POST() {
   const response = NextResponse.json({ success: true });
 
   // Explicitly expire both auth cookies using raw Set-Cookie headers
@@ -54,4 +38,4 @@ export async function POST(req: NextRequest) {
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   return response;
-}
+}

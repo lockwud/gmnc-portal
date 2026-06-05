@@ -1,13 +1,8 @@
 import {
-  AppointmentListResponse,
   AppointmentListItem,
   CreateAppointmentPayload,
   CreateAppointmentResponse,
 } from './types';
-
-import { env } from '@/lib/env';
-
-const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
 
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);
@@ -32,7 +27,7 @@ function getToken(): string | null {
 
 async function apGet<T>(path: string, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(path, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -47,7 +42,7 @@ async function apGet<T>(path: string, token?: string | null): Promise<T> {
 
 async function apPost<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(path, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -62,7 +57,7 @@ async function apPost<T>(path: string, body: unknown, token?: string | null): Pr
 
 async function apPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(path, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -77,7 +72,7 @@ async function apPut<T>(path: string, body: unknown, token?: string | null): Pro
 
 async function apPatch<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(path, {
     method: 'PATCH',
     credentials: 'include',
     headers: {
@@ -90,12 +85,18 @@ async function apPatch<T>(path: string, body: unknown, token?: string | null): P
   return parseJson<T>(res);
 }
 
-export async function getAppointments(token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
+type AppointmentScope = 'admin' | 'provider' | 'caregiver';
+
+export async function getAppointments(
+  token?: string | null,
+  scope: AppointmentScope = 'admin',
+): Promise<{ appointments: AppointmentListItem[]; total: number }> {
   const res = await apGet<{
     status: boolean;
+    success?: boolean;
     message?: string;
     data: AppointmentListItem[];
-  }>(`/api/appointment/admin`, token);
+  }>(`/api/appointment/${scope}`, token);
 
   const appointments = Array.isArray(res.data) ? res.data : [];
   return { appointments, total: appointments.length };
@@ -111,23 +112,23 @@ export async function createAppointment(payload: CreateAppointmentPayload, token
   return res.data;
 }
 
-export async function getProviderAppointments(providerId: string, token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
+export async function getProviderAppointments(_providerId: string, token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
   const res = await apGet<{
     status: boolean;
     message?: string;
     data: AppointmentListItem[];
-  }>(`/api/appointment/provider/${providerId}`, token);
+  }>(`/api/appointment/provider`, token);
 
   const appointments = Array.isArray(res.data) ? res.data : [];
   return { appointments, total: appointments.length };
 }
 
-export async function getPatientAppointments(patientId: string, token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
+export async function getPatientAppointments(_patientId: string, token?: string | null): Promise<{ appointments: AppointmentListItem[]; total: number }> {
   const res = await apGet<{
     status: boolean;
     message?: string;
     data: AppointmentListItem[];
-  }>(`/api/appointment/patient/${patientId}`, token);
+  }>(`/api/appointment/caregiver`, token);
 
   const appointments = Array.isArray(res.data) ? res.data : [];
   return { appointments, total: appointments.length };

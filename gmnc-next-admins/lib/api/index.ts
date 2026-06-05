@@ -12,3 +12,4 @@ export * from './resources';
 export * from './notifications';
 export * from './approvals';
 export * from './analytics';
+export * from './games';
