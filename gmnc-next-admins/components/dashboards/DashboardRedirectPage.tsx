@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
-import { getDashboardRoute } from "@/lib/rbac";
+import { getDashboardRoute, getDefaultRoleForUserType } from "@/lib/rbac";
 
 export default function DashboardRedirectPage() {
   const { user, selectedRole, isLoading } = useAuth();
@@ -20,7 +20,7 @@ export default function DashboardRedirectPage() {
       return;
     }
 
-    const roleToUse = selectedRole || user.roles[0];
+    const roleToUse = selectedRole || user.roles[0] || getDefaultRoleForUserType(user.userType);
     if (roleToUse) {
       router.push(getDashboardRoute(roleToUse));
     }

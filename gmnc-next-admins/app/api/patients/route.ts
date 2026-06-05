@@ -39,8 +39,29 @@ export async function GET(request: NextRequest) {
     if (cpResponse.ok) {
       const data = await cpResponse.json().catch(() => null);
       const patients = getItems(data);
-      if (Array.isArray(patients) && patients.length > 0) {
-        return NextResponse.json({ status: true, data: patients });
+      if (Array.isArray(patients)) {
+        // Map patients to include properly formatted caregiver data
+        const mappedPatients = patients.map((p: any) => {
+          const caregiverName = 
+            p.caregiver?.user?.fullName || 
+            p.caregiver?.user?.name || 
+            p.caregiver?.fullName || 
+            p.caregiver?.name || 
+            '—';
+          
+          return {
+            ...p,
+            caregiver: {
+              fullName: caregiverName,
+              name: caregiverName,
+            },
+            latestAssessmentStatus: p.latestAssessmentStatus || null,
+            nextAppointmentDate: p.nextAppointmentDate || null,
+            latestReferralStatus: p.latestReferralStatus || null,
+            openTasksCount: typeof p.openTasksCount === 'number' ? p.openTasksCount : 0,
+          };
+        });
+        return NextResponse.json({ status: true, data: mappedPatients });
       }
     }
 
@@ -54,11 +75,34 @@ export async function GET(request: NextRequest) {
     if (adminResponse.ok) {
       const data = await adminResponse.json().catch(() => null);
       const patients = getItems(data);
-      return NextResponse.json({ status: true, data: patients });
+      
+      // Map patients to include properly formatted caregiver data
+      const mappedPatients = Array.isArray(patients) ? patients.map((p: any) => {
+        const caregiverName = 
+          p.caregiver?.user?.fullName || 
+          p.caregiver?.user?.name || 
+          p.caregiver?.fullName || 
+          p.caregiver?.name || 
+          '—';
+        
+        return {
+          ...p,
+          caregiver: {
+            fullName: caregiverName,
+            name: caregiverName,
+          },
+          latestAssessmentStatus: p.latestAssessmentStatus || null,
+          nextAppointmentDate: p.nextAppointmentDate || null,
+          latestReferralStatus: p.latestReferralStatus || null,
+          openTasksCount: typeof p.openTasksCount === 'number' ? p.openTasksCount : 0,
+        };
+      }) : [];
+      
+      return NextResponse.json({ status: true, data: mappedPatients });
     }
 
     const cpErrData = await cpResponse.json().catch(() => null);
-    const cpErrMsg = (cpErrData as Record<string, unknown>)?.message || 'No patients found';
+    const cpErrMsg = (cpErrData as Record<string, unknown>)?.message || 'Failed to load patients';
     return NextResponse.json(
       { status: false, message: cpErrMsg },
       { status: cpResponse.status }
