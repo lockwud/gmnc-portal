@@ -447,6 +447,7 @@ export type SupportMessage = {
 };
 
 export type SupportTicket = {
+  ticketNumber?: string;
   ticketId: string;
   userId: string;
   category: SupportCategory;
