@@ -178,6 +178,11 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
         requiredRole: "support",
         children: [
           {
+            label: "My Tickets",
+            path: "/support/tickets",
+            icon: "confirmation_number",
+          },
+          {
             label: "FAQ Database",
             path: "/support/faqs",
             icon: "help_center",
