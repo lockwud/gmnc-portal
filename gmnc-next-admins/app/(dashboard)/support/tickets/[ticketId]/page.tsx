@@ -151,10 +151,19 @@ export default function SupportTicketDetailPage() {
 
   return (
     <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <div>
-          <p className="text-xs text-slate-500">{ticket?.ticketId}</p>
-          <h1 className="text-[15px] font-semibold text-slate-900">{ticket?.subject}</h1>
+      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            ✉️
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">{ticket?.ticketNumber ?? ticket?.ticketId}</p>
+            <h1 className="text-[17px] font-semibold text-slate-900">{ticket?.subject}</h1>
+            <div className="mt-1 flex items-center gap-2">
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${ticket ? ticketStatusClass(ticket.status) : 'bg-slate-100 text-slate-600'}`}>{ticket?.status?.replace('_', ' ')}</span>
+              <span className="text-xs text-slate-400">Created {formatDateTime(ticket?.createdAt)}</span>
+            </div>
+          </div>
         </div>
         {ticket && ticket.status !== 'CLOSED' && (
           <Button
@@ -167,7 +176,7 @@ export default function SupportTicketDetailPage() {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
+      <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, index) => (
@@ -190,35 +199,47 @@ export default function SupportTicketDetailPage() {
             </Link>
           </div>
         ) : (
-          <div className="mx-auto max-w-4xl space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <span
-                className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${ticketStatusClass(
-                  ticket.status
-                )}`}
-              >
-                {ticket.status.replace('_', ' ')}
-              </span>
-              <span className="text-xs text-slate-500">
-                Created {formatDateTime(ticket.createdAt)}
-              </span>
+          <div className="mx-auto max-w-4xl space-y-6">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <p className="text-sm font-semibold text-slate-900">{ticket?.subject}</p>
+              <p className="mt-2 text-sm text-slate-600">{ticket?.description}</p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm font-semibold text-slate-900">{ticket.subject}</p>
-              <p className="mt-1 text-sm text-slate-600">{ticket.description}</p>
-            </div>
-
-            <div className="space-y-3">
-              {sortedMessages.map(renderMessageUi)}
+            <div className="space-y-4">
               {sortedMessages.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                  No messages yet.
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                  No messages yet. Start the conversation by sending a reply.
                 </div>
               )}
+
+              <div className="space-y-4">
+                {sortedMessages.map((item) => {
+                  const isUser = item.senderRole === 'USER';
+                  const bubbleClass = isUser
+                    ? 'ml-auto rounded-2xl rounded-br-sm bg-emerald-600 text-white'
+                    : 'rounded-2xl rounded-bl-sm bg-white text-slate-900 ring-1 ring-slate-200';
+
+                  return (
+                    <div key={item.messageId} className="flex w-full items-start gap-3">
+                      {!isUser && (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700">{item?.sender?.fullName ? item.sender.fullName.charAt(0) : 'S'}</div>
+                      )}
+                      <div className={`max-w-[85%] ${isUser ? 'ml-auto text-right' : ''}`}>
+                        <div className={`px-4 py-3 ${bubbleClass}`}>
+                          <p className="whitespace-pre-wrap break-words text-sm">{item.content}</p>
+                        </div>
+                        <p className="mt-1 text-[10px] text-slate-400">{formatDateTime(item.createdAt)}</p>
+                      </div>
+                      {isUser && (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">U</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {ticket.status !== 'CLOSED' && (
+            {ticket?.status !== 'CLOSED' && (
               <form onSubmit={handleSendMessage} className="space-y-3">
                 <label className="block text-xs font-medium text-slate-700">Reply</label>
                 <textarea
