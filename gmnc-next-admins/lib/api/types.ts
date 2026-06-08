@@ -441,6 +441,12 @@ export type SupportMessage = {
   ticketId: string;
   senderId: string;
   senderRole: SupportSenderRole;
+  sender?: {
+    id: string;
+    fullName?: string | null;
+    userType?: string | null;
+    profileImage?: string | null;
+  };
   content: string;
   createdAt: string;
   updatedAt?: string;
