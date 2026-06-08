@@ -415,3 +415,119 @@ export type ResourceType = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+export type SupportTicketStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'WAITING_ON_USER'
+  | 'RESOLVED'
+  | 'CLOSED';
+
+export type SupportCategory =
+  | 'ACCOUNT'
+  | 'APPOINTMENT'
+  | 'TECHNICAL'
+  | 'BILLING'
+  | 'CAREGIVER_SUPPORT'
+  | 'PROVIDER_SUPPORT'
+  | 'OTHER';
+
+export type SupportPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export type SupportSenderRole = 'USER' | 'SUPPORT';
+
+export type SupportMessage = {
+  messageId: string;
+  ticketId: string;
+  senderId: string;
+  senderRole: SupportSenderRole;
+  content: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type SupportTicket = {
+  ticketId: string;
+  userId: string;
+  category: SupportCategory;
+  subject: string;
+  description: string;
+  status: SupportTicketStatus;
+  priority: SupportPriority;
+  assignedTo?: string | null;
+  messages: SupportMessage[];
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string | null;
+};
+
+export type SupportTicketsListResponse = {
+  tickets: SupportTicket[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export type CreateSupportTicketPayload = {
+  category: SupportCategory;
+  subject: string;
+  description: string;
+  attachments?: string[];
+  priority?: SupportPriority;
+};
+
+export type AddSupportMessagePayload = {
+  content: string;
+};
+
+export type AdminUpdateSupportTicketPayload = {
+  status?: SupportTicketStatus;
+  priority?: SupportPriority;
+  assignedTo?: string | null;
+};
+
+export type FaqCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  isActive: boolean;
+};
+
+export type FaqArticle = {
+  id: string;
+  question: string;
+  answer: string;
+  categoryId: string;
+  category?: FaqCategory;
+  tags?: string[];
+  isPublished: boolean;
+  helpfulCount: number;
+  notHelpfulCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FaqListResponse = {
+  faqs: FaqArticle[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export type FaqCategoriesResponse = {
+  categories: FaqCategory[];
+};
+
+export type SupportTicketFilters = {
+  page?: number;
+  limit?: number;
+  status?: SupportTicketStatus;
+  category?: SupportCategory;
+};
