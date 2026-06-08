@@ -123,6 +123,18 @@ export async function getAssessmentToolForm(toolCode: string): Promise<Assessmen
   return Promise.resolve(existing).catch(() => fallback);
 }
 
+export function clearAssessmentToolFormCache(toolCode?: string) {
+  if (!toolCode) {
+    assessmentToolFormPromises.clear();
+    return;
+  }
+
+  const key = toolCode.trim();
+  if (assessmentToolFormPromises.has(key)) {
+    assessmentToolFormPromises.delete(key);
+  }
+}
+
 function buildOccupationalTherapyForm(toolCode: string): AssessmentToolFormResponse {
   const code = toolCode.trim().toUpperCase();
   if (!['OT_CP_CLINICAL', 'OT_CLINICAL', 'OT', 'OCCUPATIONAL_THERAPY'].includes(code)) {
@@ -149,8 +161,8 @@ function buildOccupationalTherapyForm(toolCode: string): AssessmentToolFormRespo
         sectionCode: 'family_home',
         fields: [
           { fieldCode: 'ground_surface', question: 'Ground Surface', expectedAnswerFormat: 'STRING', options: [{ label: 'Even (Concrete/asphalt)', value: 'EVEN' }, { label: 'Sand', value: 'SAND' }, { label: 'Gravel', value: 'GRAVEL' }, { label: 'Uneven; specify:', value: 'UNEVEN' }] },
-          { fieldCode: 'main_entrance', question: 'Main Entrance', expectedAnswerFormat: 'STRING', options: [{ label: 'Leveled/even', value: 'LEVELED' }, { label: 'Few Steps', value: 'FEW_STEPS' }, { label: 'Ramp', value: 'RAMP' }, { label: 'Elevator', value: 'ELEVATOR' }] },
-          { fieldCode: 'doors_hallways', question: 'Doors/Hallways', expectedAnswerFormat: 'STRING', options: [{ label: 'Wheelchair accessible', value: 'WHEELCHAIR_ACCESSIBLE' }, { label: 'Narrow', value: 'NARROW' }, { label: 'Yes; specify:', value: 'YES' }, { label: 'No', value: 'NO' }] },
+          { fieldCode: 'main_entrance', question: 'Main Entrance', expectedAnswerFormat: 'SELECT', options: [{ label: 'Leveled/even', value: 'LEVELLED_EVEN' }, { label: 'Few Steps', value: 'FEW_STEPS' }, { label: 'Ramp', value: 'RAMP' }, { label: 'Elevator', value: 'ELEVATOR' }] },
+          { fieldCode: 'doors_hallways', question: 'Doors/Hallways', expectedAnswerFormat: 'SELECT', options: [{ label: 'Wheelchair accessible', value: 'WHEELCHAIR_ACCESSIBLE' }, { label: 'Narrow', value: 'NARROW' }] },
           { fieldCode: 'stairs_inside', question: 'Stairs inside the house', expectedAnswerFormat: 'STRING', options: [{ label: 'Banisters (railing)', value: 'BANISTERS' }, { label: 'N/A', value: 'NA' }] },
           { fieldCode: 'bedroom', question: 'Bedroom', expectedAnswerFormat: 'STRING', options: [{ label: 'Bed', value: 'BED' }, { label: 'Mattress on the ground', value: 'MATTRESS_GROUND' }, { label: 'Main floor', value: 'MAIN_FLOOR' }, { label: 'Higher level', value: 'HIGHER_LEVEL' }] },
           { fieldCode: 'accessibility_issues', question: 'Accessibility issues (if any)', expectedAnswerFormat: 'TEXTAREA' },

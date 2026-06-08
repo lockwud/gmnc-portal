@@ -95,11 +95,11 @@ function DropdownField({ field, value, onChange }: { field: OtAssessmentField; v
             >
               Select
             </button>
-            {options.map((option) => {
+            {options.map((option, idx) => {
               const active = selectedValue === option.value;
               return (
                 <button
-                  key={option.value}
+                  key={`${option.value}-${idx}`}
                   type="button"
                   onClick={() => { onChange(option.value); setOpen(false); }}
                   className={`w-full rounded-xl px-3 py-1.5 text-left text-[11px] transition ${active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}
@@ -204,11 +204,11 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
 
     return (
       <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
+        {options.map((option, idx) => {
           const active = selectedArr.includes(option.value);
           return (
             <button
-              key={option.value}
+              key={`${option.value}-${idx}`}
               type="button"
               onClick={() => toggleCheckboxItem(field, option.value)}
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium whitespace-nowrap transition ${                active
@@ -241,11 +241,11 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
 
     return (
       <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
+        {options.map((option, idx) => {
           const active = selectedValue === option.value;
           return (
             <button
-              key={option.value}
+              key={`${option.value}-${idx}`}
               type="button"
               onClick={() => update(field, option.value)}
               className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
@@ -265,8 +265,21 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
   const renderField = (field: OtAssessmentField) => {
     const key = responseKey(field);
     const value = values[key];
-    const format = field.expectedAnswerFormat.toUpperCase();
+    const rawFormat = String(field.expectedAnswerFormat || '').toUpperCase();
+    // If backend returns `string` but provides `options`, treat as `SELECT`
+    // so dropdowns render correctly (covers string or object option formats).
+    const hasOptions = Array.isArray(field.options) && field.options.length > 0;
+    const format = (rawFormat === 'STRING' && hasOptions) ? 'SELECT' : rawFormat;
+    const isLabelField = (field.fieldKey === 'houseTypeAndLevel') || String(field.expectedAnswerFormat || '').toUpperCase() === 'LABEL';
     const options = normalizeOptions(field.options);
+
+    if (isLabelField) {
+      return (
+        <div className="py-2">
+          <div className="text-sm font-medium text-slate-800">{field.question}</div>
+        </div>
+      );
+    }
 
     if (format === 'CHECKBOX') return renderCheckboxGroup(field);
 
@@ -321,6 +334,17 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
   };
 
   const renderFieldWithLabel = (field: OtAssessmentField) => {
+    const isLabel = (field.fieldKey === 'houseTypeAndLevel') || String(field.expectedAnswerFormat || '').toUpperCase() === 'LABEL';
+
+    if (isLabel) {
+      return (
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-slate-800">{field.question || field.fieldCode}</div>
+          {field.helperText ? <p className="text-[11px] text-slate-500">{field.helperText}</p> : null}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-slate-800">
@@ -333,11 +357,29 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
     );
   };
 
-  const wideSections = new Set(['NEUROMOTOR', 'UPPER_EXTREMITY', 'ADL_DETAILED']);
+  const wideSections = new Set([
+    'NEUROMOTOR',
+    'UPPER_EXTREMITY',
+    'ADL_DETAILED',
+    'SENSORIMOTOR',
+    'FINE_MOTOR',
+    'SENSORY_BEHAVIOR',
+    'SUMMARY_PROBLEMS',
+    'OCCUPATIONAL_PROFILE'
+  ]);
   const sectionCode = (section.sectionCode || '').toUpperCase();
   const isWide = wideSections.has(sectionCode);
 
   const gridClass = isWide ? 'grid-cols-1' : 'md:grid-cols-3';
+
+  // remove duplicate fields with identical questions (normalized)
+  const seenQuestions = new Set<string>();
+  const uniqueFields = section.fields.filter((f) => {
+    const q = String(f.question || f.fieldCode || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+    if (seenQuestions.has(q)) return false;
+    seenQuestions.add(q);
+    return true;
+  });
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -347,7 +389,7 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
       </div>
 
       <div className={`grid grid-cols-1 gap-4 ${gridClass}`}>
-        {section.fields.map((field) => {
+        {uniqueFields.map((field) => {
           const key = responseKey(field);
           return (
             <div key={key} className="md:col-span-1">
