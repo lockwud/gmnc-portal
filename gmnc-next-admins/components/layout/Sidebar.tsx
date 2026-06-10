@@ -171,19 +171,23 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
 
         ],
       },
-      {
-        label: "Support",
-        icon: "support_agent",
-        collapsible: true,
-        requiredRole: "support",
-        children: [
-          {
-            label: "FAQ Database",
-            path: "/support/faqs",
-            icon: "help_center",
-          },
-        ],
-      },
+        {
+          label: "Support",
+          icon: "support_agent",
+          collapsible: true,
+          children: [
+            {
+              label: "My Tickets",
+              path: "/support/tickets",
+              icon: "confirmation_number",
+            },
+            {
+              label: "FAQ Database",
+              path: "/support/faqs",
+              icon: "help_center",
+            },
+          ],
+        },
     ],
   },
 ];

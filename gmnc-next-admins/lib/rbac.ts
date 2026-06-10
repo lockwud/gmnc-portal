@@ -144,6 +144,21 @@ export function canAccessDashboardPath(user: User, pathname: string): boolean {
     return true;
   }
 
+  // Allow user-facing support pages for service providers and caregivers
+  // while keeping the top-level /support dashboard restricted to support role.
+  if (
+    pathMatches(pathname, '/support/tickets') ||
+    pathMatches(pathname, '/support/faqs')
+  ) {
+    if (
+      hasRole(user, 'admin') ||
+      hasRole(user, 'tester') ||
+      hasRole(user, 'provider')
+    ) {
+      return true;
+    }
+  }
+
   if (pathMatches(pathname, '/provider')) return hasRole(user, 'provider');
   if (pathMatches(pathname, '/support')) return hasRole(user, 'support');
   if (pathMatches(pathname, '/settings')) return hasRole(user, 'provider');
