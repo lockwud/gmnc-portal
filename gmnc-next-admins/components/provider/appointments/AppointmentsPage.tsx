@@ -50,10 +50,19 @@ function extractList(payload: unknown): ApiRecord[] {
 }
 
 function getAppointmentScope(user: User | null, selectedRole?: string | null): 'admin' | 'provider' | 'caregiver' {
-  const roles = new Set([...(user?.roles ?? []), selectedRole ?? '', user?.userType ?? ''].map((role) => role.toLowerCase()));
+  if (!user) return 'caregiver';
+
+  const roles = new Set(
+    [...(user.roles ?? []), selectedRole ?? ''].map((role) => role.toLowerCase()),
+  );
 
   if (roles.has('admin')) return 'admin';
-  if (roles.has('service_provider') || roles.has('provider')) return 'provider';
+
+  const isServiceProvider =
+    (user.userType ?? '').toUpperCase() === 'SERVICE_PROVIDER';
+
+  if (isServiceProvider) return 'provider';
+
   return 'caregiver';
 }
 

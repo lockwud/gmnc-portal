@@ -10,7 +10,7 @@ import { AuthBackground } from "@/components/auth/AuthBackground";
 
 export default function CheckEmailPage() {
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") ?? "";
+  const email = searchParams?.get("email") ?? "";
 
   const [isResending, setIsResending] = React.useState(false);
   const [resendSent, setResendSent] = React.useState(false);
