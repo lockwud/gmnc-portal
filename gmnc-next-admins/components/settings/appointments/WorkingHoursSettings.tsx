@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Clock, Save, CalendarDays, ChevronLeft } from 'lucide-react';
+import { CalendarDays, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
-import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { getAppointmentSettings, updateAppointmentSettings, DEFAULT_SETTINGS } from '@/lib/api/settings';
 import type { AppointmentSettingsType } from '@/lib/api/types';
+import { useToast } from '@/components/ui/Toast';
 
 type WorkingHours = {
   day: string;
@@ -30,7 +30,8 @@ export default function WorkingHoursSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { show } = useToast();
 
   useEffect(() => {
     async function loadSettings() {
@@ -75,7 +76,12 @@ export default function WorkingHoursSettings() {
         ...settingsToSave,
         workingHours: workingHours,
       });
-      setIsModalOpen(true);
+      show({
+        type: 'success',
+        title: 'Settings saved',
+        message: 'Your working hours have been updated successfully.',
+        duration: 4000,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
@@ -181,28 +187,6 @@ export default function WorkingHoursSettings() {
           </div>
         </div>
       </div>
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50">
-              <Save className="h-6 w-6 text-emerald-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">Settings Saved</h3>
-              <p className="text-sm text-slate-500">Your working hours have been updated successfully.</p>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end">
-            <Button
-              onClick={() => setIsModalOpen(false)}
-              className="rounded-full px-4 py-2 text-xs font-medium"
-            >
-              OK
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

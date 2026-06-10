@@ -251,31 +251,33 @@ useEffect(() => {
       setLoading(true);
       const allAssignments: UserAssignmentRecord[] = [];
 
-      for (const user of users) {
-        const rolesResponse = await fetch(
-          `/api/admin/rbac/users/${user.id}/roles`,
-          { headers: getAuthHeaders(), credentials: 'include' },
-        );
+      // Batch fetch roles for all users to avoid N+1 requests
+      const userIdsParam = users.map((u) => u.id).join(",");
+      const batchResp = await fetch(`/api/admin/rbac/users/roles?userIds=${encodeURIComponent(userIdsParam)}`, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
 
-        if (!rolesResponse.ok) continue;
-
-        const userRolesResponse = await rolesResponse.json();
-        const userRoles = Array.isArray(userRolesResponse) ? userRolesResponse : userRolesResponse.data ?? [];
-
-        for (const role of userRoles) {
-          allAssignments.push({
-            id: `${user.id}-${role.id}`,
-            userId: user.id,
-            userName: user.fullName,
-            email: user.email ?? "",
-            roleSlug: role.role.slug,
-            roleName: role.role.name,
-            scopeType: role.scopeType,
-            scopeId: role.scopeId,
-            grantedAt: role.grantedAt,
-            expiresAt: role.expiresAt,
-            active: role.active,
-          });
+      if (batchResp.ok) {
+        const batchJson = await batchResp.json();
+        const map = batchJson?.data ?? {};
+        for (const user of users) {
+          const userRoles = Array.isArray(map[user.id]) ? map[user.id] : [];
+          for (const role of userRoles) {
+            allAssignments.push({
+              id: `${user.id}-${role.id}`,
+              userId: user.id,
+              userName: user.fullName,
+              email: user.email ?? "",
+              roleSlug: role.role.slug,
+              roleName: role.role.name,
+              scopeType: role.scopeType,
+              scopeId: role.scopeId,
+              grantedAt: role.grantedAt,
+              expiresAt: role.expiresAt,
+              active: role.active,
+            });
+          }
         }
       }
 
@@ -324,31 +326,38 @@ useEffect(() => {
   // =========================================
   const refreshAssignments = async () => {
     const updated: UserAssignmentRecord[] = [];
+    if (users.length === 0) {
+      setAssignments([]);
+      return;
+    }
 
-    for (const user of users) {
-       const r = await fetch(`/api/admin/rbac/users/${user.id}/roles`, {
-         headers: getAuthHeaders(),
-         credentials: 'include',
-       });
-      if (!r.ok) continue;
+    const userIdsParam = users.map((u) => u.id).join(",");
+    const batchResp = await fetch(`/api/admin/rbac/users/roles?userIds=${encodeURIComponent(userIdsParam)}`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
 
-       const userRolesResponse = await r.json();
-       const userRoles = Array.isArray(userRolesResponse) ? userRolesResponse : userRolesResponse.data ?? [];
-         for (const role of userRoles) {
-           updated.push({
-             id: `${user.id}-${role.id}`,
-             userId: user.id,
-             userName: user.fullName,
-             email: user.email ?? "",
-             roleSlug: role.role.slug,
-             roleName: role.role.name,
-             scopeType: role.scopeType,
-             scopeId: role.scopeId,
-             grantedAt: role.grantedAt ?? new Date().toISOString(),
-             expiresAt: role.expiresAt,
-             active: role.active,
-           });
-         }
+    if (batchResp.ok) {
+      const batchJson = await batchResp.json();
+      const map = batchJson?.data ?? {};
+      for (const user of users) {
+        const userRoles = Array.isArray(map[user.id]) ? map[user.id] : [];
+        for (const role of userRoles) {
+          updated.push({
+            id: `${user.id}-${role.id}`,
+            userId: user.id,
+            userName: user.fullName,
+            email: user.email ?? "",
+            roleSlug: role.role.slug,
+            roleName: role.role.name,
+            scopeType: role.scopeType,
+            scopeId: role.scopeId,
+            grantedAt: role.grantedAt ?? new Date().toISOString(),
+            expiresAt: role.expiresAt,
+            active: role.active,
+          });
+        }
+      }
     }
 
     setAssignments(updated);

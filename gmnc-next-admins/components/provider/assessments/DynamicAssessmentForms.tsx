@@ -3,6 +3,7 @@
 import React from 'react';
 import { AssessmentToolFormResponse } from '@/lib/api/types';
 import AssessmentSection from './AssessmentSection';
+import OtAssessmentSection from './OtAssessmentSection';
 
 type Props = {
   schema: AssessmentToolFormResponse;
@@ -10,28 +11,11 @@ type Props = {
   onFieldChange: (fieldKey: string, nextValue: unknown) => void;
 };
 
-function buildSectionsFromDimensions(schema: AssessmentToolFormResponse) {
-  const dimensions = schema.dimensions ?? [];
-  const sections = [];
-  
-  for (const dim of dimensions) {
-    const fields = [];
-    for (let i = dim.start; i <= dim.end; i++) {
-      fields.push({
-        fieldCode: `${dim.code}${i}`,
-        fieldKey: `${dim.code}${i}`,
-        question: `${dim.code}${i}`,
-        expectedAnswerFormat: 'NUMBER_OR_NT',
-      });
-    }
-    sections.push({
-      title: dim.name,
-      description: '',
-      fields,
-    });
-  }
-  
-  return sections;
+const OT_TOOL_CODES = ['OT_CP_CLINICAL_ASSESSMENT', 'OT_CP_CLINICAL', 'OT_CLINICAL', 'OT', 'OCCUPATIONAL_THERAPY'];
+
+function isOtTool(schema: AssessmentToolFormResponse) {
+  const code = (schema.toolCode || '').trim().toUpperCase();
+  return OT_TOOL_CODES.includes(code);
 }
 
 export default function DynamicAssessmentForm({
@@ -39,22 +23,48 @@ export default function DynamicAssessmentForm({
   values,
   onFieldChange,
 }: Props) {
-  let sections = schema.sections ?? [];
-  
-  if (schema.dimensions && schema.dimensions.length > 0) {
-    sections = buildSectionsFromDimensions(schema);
+  const sections = schema.sections ?? [];
+
+  if (!isOtTool(schema)) {
+    return (
+      <div className="space-y-4">
+        {sections.map((section, index) => (
+          <AssessmentSection
+            key={`${section.sectionCode ?? section.title}-${index}`}
+            section={section}
+            values={values}
+            onFieldChange={onFieldChange}
+          />
+        ))}
+      </div>
+    );
   }
-  
+
   return (
     <div className="space-y-4">
-      {sections.map((section, index) => (
-        <AssessmentSection
-          key={`${section.title}-${index}`}
-          section={section}
-          values={values}
-          onFieldChange={onFieldChange}
-        />
-      ))}
+      {sections.map((section, index) => {
+        const sectionCode = section.sectionCode || '';
+
+        if (sectionCode === 'clinical_notes') {
+          return (
+            <AssessmentSection
+              key={`${section.title}-${index}`}
+              section={section}
+              values={values}
+              onFieldChange={onFieldChange}
+            />
+          );
+        }
+
+        return (
+          <OtAssessmentSection
+            key={`${section.title}-${index}`}
+            section={section as any}
+            values={values}
+            onFieldChange={onFieldChange}
+          />
+        );
+      })}
     </div>
   );
 }

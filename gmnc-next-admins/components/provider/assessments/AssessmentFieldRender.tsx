@@ -24,21 +24,42 @@ function normalizeFormat(format?: string) {
   return String(format || '').toUpperCase();
 }
 
+const ASHWORTH_SCORE_LABELS: Record<string, string> = {
+  '0': 'No increase in muscle tone',
+  '1': 'Slight increase in muscle tone, manifested by a catch and release or by minimal resistance at the end of the range of motion when the affected part(s) is moved in flexion or extension',
+  '1+': 'Slight increase in muscle tone, manifested by a catch, followed by minimal resistance throughout the remainder (less than half) of the ROM',
+  '2': 'More marked increase in muscle tone through most of the ROM, but affected part(s) easily moved',
+  '3': 'Considerable increase in muscle tone, passive movement difficult',
+  '4': 'Affected part(s) rigid in flexion or extension',
+};
+
+function describeAshworthOption(option: { label: string; value: string }) {
+  const trimmedValue = option.value.trim();
+  if (trimmedValue in ASHWORTH_SCORE_LABELS) {
+    return `${trimmedValue} — ${ASHWORTH_SCORE_LABELS[trimmedValue]}`;
+  }
+  if (ASHWORTH_SCORE_LABELS[option.label]) {
+    return `${option.label} — ${ASHWORTH_SCORE_LABELS[option.label]}`;
+  }
+  return option.label;
+}
+
 function normalizeOptions(options?: FieldOption[]) {
   if (!Array.isArray(options)) return [];
 
   return options.map((option) => {
     if (typeof option === 'string') {
-      return {
-        label: option.replace(/_/g, ' '),
-        value: option,
-      };
+      const normalized = option.replace(/_/g, ' ');
+      const described = normalized in ASHWORTH_SCORE_LABELS
+        ? `${normalized} — ${ASHWORTH_SCORE_LABELS[normalized]}`
+        : normalized;
+      return { label: described, value: option };
     }
 
-    return {
-      label: option.label,
-      value: String(option.value),
-    };
+    const { label, value } = option;
+    const described = describeAshworthOption({ label, value: String(value) });
+
+    return { label: described, value: String(option.value) };
   });
 }
 

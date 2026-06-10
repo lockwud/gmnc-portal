@@ -9,6 +9,7 @@ import {
   getAssessmentTools,
   submitAssessment,
   warmAssessmentToolForms,
+  clearAssessmentToolFormCache,
 } from '@/lib/api/assessments';
 import {
   AssessmentToolFormResponse,
@@ -107,6 +108,13 @@ export default function AssessmentCreatePage() {
       if (!selectedTool?.toolCode) {
         setFormSchema(null);
         return;
+      }
+
+      // ensure we fetch a fresh schema (clear any cached promise)
+      try {
+        clearAssessmentToolFormCache(selectedTool.toolCode);
+      } catch {
+        // ignore
       }
 
       try {

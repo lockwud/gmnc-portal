@@ -25,6 +25,15 @@ type PatientRow = {
 // but we will primarily use the fetched data now.
 const mockPatients: PatientRow[] = [];
 
+function formatStatus(status?: string | null) {
+  if (!status) return 'None';
+  // Convert DB status to display format
+  return status
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 function calculateAge(dateOfBirth: string) {
   const dob = new Date(dateOfBirth);
   const now = new Date();
@@ -293,7 +302,7 @@ export default function CpPatientsPage() {
                                 patient.latestAssessmentStatus
                               )}`}
                             >
-                              {patient.latestAssessmentStatus ?? 'None'}
+                              {formatStatus(patient.latestAssessmentStatus)}
                             </span>
                           </td>
 
@@ -317,7 +326,7 @@ export default function CpPatientsPage() {
                                 patient.latestReferralStatus
                               )}`}
                             >
-                              {patient.latestReferralStatus ?? 'None'}
+                              {formatStatus(patient.latestReferralStatus)}
                             </span>
                           </td>
 
