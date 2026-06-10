@@ -51,11 +51,11 @@ export default function AssessmentCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const patientId = searchParams.get('patientId') || '';
-  const patientName = searchParams.get('patientName') || '';
-  const patientGender = searchParams.get('patientGender') || '';
-  const patientDob = searchParams.get('patientDob') || '';
-  const caregiverName = searchParams.get('caregiverName') || '';
+  const patientId = searchParams?.get('patientId') || '';
+  const patientName = searchParams?.get('patientName') || '';
+  const patientGender = searchParams?.get('patientGender') || '';
+  const patientDob = searchParams?.get('patientDob') || '';
+  const caregiverName = searchParams?.get('caregiverName') || '';
 
   useEffect(() => {
     let active = true;

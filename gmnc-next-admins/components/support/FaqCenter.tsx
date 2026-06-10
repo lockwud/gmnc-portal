@@ -15,7 +15,7 @@ type Article = FaqArticle;
 
 export default function SupportFaqsPage() {
   const searchParams = useSearchParams();
-  const initialQuery = searchParams.get('q') ?? '';
+  const initialQuery = searchParams?.get('q') ?? '';
   const { show } = useToast();
   const { token } = useAuth();
 

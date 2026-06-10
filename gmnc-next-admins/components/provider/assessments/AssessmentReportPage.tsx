@@ -355,33 +355,33 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
     nestedRecord(reportRecord, 'assessedBy') ||
     nestedRecord(assessmentRecord, 'assessedBy');
   const toolCode =
-    searchParams.get('toolCode') ||
+    searchParams?.get('toolCode') ||
     (typeof assessmentRecord?.toolCode === 'string' ? assessmentRecord.toolCode : null) ||
     (typeof reportRecord?.toolCode === 'string' ? reportRecord.toolCode : null) ||
     'Assessment Report';
   const status =
-    searchParams.get('status') ||
+    searchParams?.get('status') ||
     (typeof assessmentRecord?.status === 'string' ? assessmentRecord.status : null) ||
     (typeof reportRecord?.status === 'string' ? reportRecord.status : null) ||
     'COMPLETED';
   const assessedAt =
-    searchParams.get('assessedAt') ||
+    searchParams?.get('assessedAt') ||
     (typeof assessmentRecord?.assessedAt === 'string' ? assessmentRecord.assessedAt : null) ||
     (typeof reportRecord?.assessedAt === 'string' ? reportRecord.assessedAt : null);
   const patientName =
-    searchParams.get('patientName') ||
+    searchParams?.get('patientName') ||
     stringValue(patientRecord, 'fullName') ||
     stringValue(patientRecord, 'name') ||
     stringValue(assessmentRecord, 'patientName') ||
     stringValue(reportRecord, 'patientName') ||
     'Patient';
   const patientGender =
-    searchParams.get('patientGender') ||
+    searchParams?.get('patientGender') ||
     stringValue(patientRecord, 'gender') ||
     stringValue(assessmentRecord, 'patientGender') ||
     stringValue(reportRecord, 'patientGender');
   const patientDob =
-    searchParams.get('patientDob') ||
+    searchParams?.get('patientDob') ||
     stringValue(patientRecord, 'dateOfBirth') ||
     stringValue(patientRecord, 'dob') ||
     stringValue(assessmentRecord, 'patientDob') ||
@@ -389,13 +389,13 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
     stringValue(reportRecord, 'patientDob') ||
     stringValue(reportRecord, 'dateOfBirth');
   const caregiverName =
-    searchParams.get('caregiverName') ||
+    searchParams?.get('caregiverName') ||
     stringValue(caregiverRecord, 'fullName') ||
     stringValue(caregiverRecord, 'name') ||
     stringValue(assessmentRecord, 'caregiverName') ||
     stringValue(reportRecord, 'caregiverName');
   const assessedByName =
-    searchParams.get('assessedByName') ||
+    searchParams?.get('assessedByName') ||
     stringValue(providerUserRecord, 'fullName') ||
     stringValue(providerUserRecord, 'name') ||
     stringValue(providerRecord, 'fullName') ||
