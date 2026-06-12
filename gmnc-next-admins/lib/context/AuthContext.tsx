@@ -172,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const caregiverBlocked = sessionStorage.getItem('gmnc_caregiver_blocked');
     if (caregiverBlocked) {
       sessionStorage.removeItem('gmnc_caregiver_blocked');
+      setError('Caregivers cannot access this portal.');
       router.replace('/login');
     }
   }, [router]);

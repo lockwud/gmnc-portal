@@ -224,6 +224,7 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
             path: "/settings",
             icon: "settings",
             collapsible: false,
+            requiredRole: "provider",
           },
     ],
   },
