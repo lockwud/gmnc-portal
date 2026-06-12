@@ -1,5 +1,10 @@
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ReferralsPage from '@/components/provider/referrals/ReferralsPage';
 
 export default function ProviderReferralsRoute() {
-  return <ReferralsPage />;
+  return (
+    <ProtectedRoute requiredRole="admin">
+      <ReferralsPage />
+    </ProtectedRoute>
+  );
 }

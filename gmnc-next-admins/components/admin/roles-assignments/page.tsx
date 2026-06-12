@@ -363,6 +363,92 @@ useEffect(() => {
     setAssignments(updated);
   };
 
+
+  // REVOKE ROLE
+  const handleRevokeRole = async (assignment: UserAssignmentRecord) => {
+    try {
+      show({
+        title: "Revoking role...",
+        message: "Please wait while we revoke the role.",
+        type: "loading",
+        duration: 0,
+      });
+
+      const role = roles.find((r) => r.slug === assignment.roleSlug);
+
+      const response = await fetch(`/api/admin/rbac/users/${assignment.userId}/roles`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          roleId: role?.id ?? assignment.roleSlug,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to revoke role");
+
+      await refreshAssignments();
+
+      show({
+        title: "Success",
+        message: "Role revoked successfully.",
+        type: "success",
+        duration: 3000,
+      });
+    } catch (err) {
+      console.error(err);
+      show({
+        title: "Error",
+        message:
+          err instanceof Error ? err.message : "Failed to revoke role",
+        type: "error",
+        duration: 4000,
+      });
+    }
+  };
+
+  // =========================================
+  // REMOVE USER PERMISSION OVERRIDE
+  // =========================================
+  const handleRemovePermissionOverride = async (
+    userId: string,
+    permissionCode: string,
+  ) => {
+    try {
+      show({
+        title: "Removing permission override...",
+        message: "Please wait.",
+        type: "loading",
+        duration: 0,
+      });
+
+      const response = await fetch(`/api/admin/rbac/users/${userId}/permissions`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          permissionCode,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to remove permission override");
+
+      show({
+        title: "Success",
+        message: "Permission override removed successfully.",
+        type: "success",
+        duration: 3000,
+      });
+    } catch (err) {
+      console.error(err);
+      show({
+        title: "Error",
+        message:
+          err instanceof Error ? err.message : "Failed to remove permission override",
+        type: "error",
+        duration: 4000,
+      });
+    }
+  };
+
   // =========================================
   // ASSIGN ROLE
   // =========================================
@@ -490,7 +576,7 @@ useEffect(() => {
               </div>
             ) : (
               <>
-                <AssignmentTable assignments={paginatedAssignments} />
+                <AssignmentTable assignments={paginatedAssignments} onRevokeRole={handleRevokeRole} />
 
                 <div className="border border-slate-200 bg-white">
                   <Pagination

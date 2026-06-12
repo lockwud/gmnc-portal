@@ -168,13 +168,13 @@ export default function UserRegistrationPage() {
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     userId: string;
-    userType: string;
+    userType: Exclude<UserType, 'ALL'>;
     isSelf: boolean;
     userName: string;
   }>({
     isOpen: false,
     userId: '',
-    userType: '',
+    userType: 'CAREGIVER',
     isSelf: false,
     userName: '',
   });
@@ -430,6 +430,15 @@ export default function UserRegistrationPage() {
     const userRecord = users.find((u) => u.id === id);
     const userName = userRecord?.fullName || 'this user';
 
+    if (userRecord?.accountStatus === 'DEACTIVATED') {
+      show({
+        title: 'Account already deactivated',
+        message: `${userName}'s account is already deactivated.`,
+        duration: 3000,
+      });
+      return;
+    }
+
     setConfirmModal({
       isOpen: true,
       userId: id,
@@ -471,51 +480,45 @@ export default function UserRegistrationPage() {
           });
         }
       } else {
-        const isAdminUser = userType === 'ADMIN';
+        const isDeleteAction = userType === 'CAREGIVER' || userType === 'SERVICE_PROVIDER';
 
-        if (isAdminUser) {
-          // Admin deactivating another admin — use deactivate-account endpoint
-          const res = await fetch('/api/user/deactivate-account', {
+        const res = await fetch(
+          isDeleteAction ? '/api/user/delete-account' : '/api/user/deactivate-account',
+          {
             method: 'POST',
             credentials: 'include',
+            cache: 'no-store',
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({ userId }),
-          });
-          const result = await res.json().catch(() => null);
+            body: JSON.stringify({ userId, type: userType }),
+          },
+        );
+        const result = await res.json().catch(() => null);
 
-          if (res.ok && (result?.success || result?.status === 'SUCCESS')) {
-            show({ title: 'Deactivated', message: 'Admin account has been deactivated.', duration: 3000 });
+        if (res.ok && (result?.success || result?.status === 'SUCCESS')) {
+          show({
+            title: isDeleteAction ? 'Deleted' : 'Deactivated',
+            message: isDeleteAction
+              ? `${formatUserType(userType)} account has been permanently deleted.`
+              : `${formatUserType(userType)} account has been deactivated and access revoked until reactivation.`,
+            duration: 3000,
+          });
+          if (isDeleteAction) {
+            setUsers((prev) => prev.filter((u) => u.id !== userId));
+          } else {
             setUsers((prev) =>
               prev.map((u) => (u.id === userId ? { ...u, accountStatus: 'DEACTIVATED' } : u)),
             );
-            await fetchUsers();
-          } else {
-            show({ title: 'Error', message: result?.message || 'Failed to deactivate admin.', duration: 4000 });
           }
+          await fetchUsers();
         } else {
-          // Caregiver / Service Provider — use delete-account endpoint
-          const res = await fetch('/api/user/delete-account', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({ userId }),
+          show({
+            title: 'Error',
+            message: result?.message || (isDeleteAction ? 'Failed to delete user.' : 'Failed to deactivate user.'),
+            duration: 4000,
           });
-          const result = await res.json().catch(() => null);
-
-          if (res.ok && (result?.success || result?.status === 'SUCCESS' || result?.message)) {
-            show({ title: 'Deleted', message: 'User account has been deleted.', duration: 3000 });
-            // Remove the user from the list immediately
-            setUsers((prev) => prev.filter((u) => u.id !== userId));
-            await fetchUsers();
-          } else {
-            show({ title: 'Error', message: result?.message || 'Failed to delete user.', duration: 4000 });
-          }
         }
       }
     } catch (err) {
@@ -1005,34 +1008,37 @@ export default function UserRegistrationPage() {
             <Plus size={40} className="rotate-45" />
           </div>
           <div>
-            <h2 className="text-xl font-black tracking-tight text-slate-900">
-              {confirmModal.isSelf
-                ? 'Deactivate Account'
-                : confirmModal.userType === 'ADMIN'
-                ? 'Deactivate User'
-                : 'Delete User'}
-            </h2>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              {confirmModal.isSelf ? (
+            {(() => {
+              const isDelete = !confirmModal.isSelf && (confirmModal.userType === 'CAREGIVER' || confirmModal.userType === 'SERVICE_PROVIDER');
+              return (
                 <>
-                  Are you sure you want to deactivate your account{' '}
-                  <span className="font-bold text-rose-500">({confirmModal.userName})</span>? You
-                  will lose access to all portal features immediately and be logged out.
+                  <h2 className="text-xl font-black tracking-tight text-slate-900">
+                    {confirmModal.isSelf ? 'Deactivate Account' : isDelete ? 'Delete User' : 'Deactivate User'}
+                  </h2>
+                  <p className="mt-2 text-sm font-medium text-slate-500">
+                    {confirmModal.isSelf ? (
+                      <>
+                        Are you sure you want to deactivate your account{' '}
+                        <span className="font-bold text-rose-500">({confirmModal.userName})</span>? You
+                        will lose access to all portal features immediately and be logged out.
+                      </>
+                    ) : isDelete ? (
+                      <>
+                        Are you sure you want to permanently delete{' '}
+                        <span className="font-bold text-slate-900">{confirmModal.userName}</span>? This
+                        action cannot be undone and will remove their data from the system.
+                      </>
+                    ) : (
+                      <>
+                        Are you sure you want to deactivate{' '}
+                        <span className="font-bold text-slate-900">{confirmModal.userName}</span>? This
+                        will deactivate their account and revoke access.
+                      </>
+                    )}
+                  </p>
                 </>
-              ) : confirmModal.userType === 'ADMIN' ? (
-                <>
-                  Are you sure you want to deactivate{' '}
-                  <span className="font-bold text-slate-900">{confirmModal.userName}</span>? This
-                  will deactivate their account and revoke access.
-                </>
-              ) : (
-                <>
-                  Are you sure you want to permanently delete{' '}
-                  <span className="font-bold text-slate-900">{confirmModal.userName}</span>? This
-                  action cannot be undone.
-                </>
-              )}
-            </p>
+              );
+            })()}
           </div>
           <div className="flex gap-4 pt-4">
             <button
@@ -1051,10 +1057,11 @@ export default function UserRegistrationPage() {
             >
               {isProcessing ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : confirmModal.isSelf || confirmModal.userType === 'ADMIN' ? (
-                'Yes, Deactivate'
               ) : (
-                'Yes, Delete'
+                (() => {
+                  const isDelete = !confirmModal.isSelf && (confirmModal.userType === 'CAREGIVER' || confirmModal.userType === 'SERVICE_PROVIDER');
+                  return isDelete ? 'Yes, Delete' : 'Yes, Deactivate';
+                })()
               )}
             </button>
           </div>

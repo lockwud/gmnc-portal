@@ -209,8 +209,18 @@ export function AdminDashboard() {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load admin analytics';
-      console.error('Failed to load admin dashboard analytics:', errorMessage, error);
-      setMetricsError(errorMessage);
+      console.error('[AdminDashboard] Failed to load analytics:', {
+        error: errorMessage,
+        fullError: error,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+      });
+      
+      // Provide more helpful error message for permission denied
+      if (errorMessage.includes('do not have the required role')) {
+        setMetricsError('You do not have admin permissions to view analytics. Please contact an administrator.');
+      } else {
+        setMetricsError(errorMessage);
+      }
     } finally {
       setIsLoadingMetrics(false);
     }
