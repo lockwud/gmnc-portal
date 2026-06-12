@@ -6,6 +6,9 @@ import type {
   SupportTicketsListResponse,
   SupportTicket,
   SupportTicketFilters,
+  SupportCategory,
+  SupportTicketStatus,
+  SupportPriority,
   FaqListResponse,
   FaqCategoriesResponse,
   FaqArticle,
@@ -58,12 +61,15 @@ type SupportTicketRaw = {
 type SupportApiResponse = { status: number; message?: string; data?: unknown };
 
 function normalizeSupportMessage(message: Record<string, unknown>): SupportTicket['messages'][number] {
-  const sender = typeof message.sender === 'object' && message.sender !== null
+  const rawSender = typeof message.sender === 'object' && message.sender !== null
+    ? message.sender as Record<string, unknown>
+    : null;
+  const sender = rawSender
     ? {
-        id: typeof message.sender.id === 'string' ? message.sender.id : '',
-        fullName: typeof message.sender.fullName === 'string' ? message.sender.fullName : null,
-        userType: typeof message.sender.userType === 'string' ? message.sender.userType : null,
-        profileImage: typeof message.sender.profileImage === 'string' ? message.sender.profileImage : null,
+        id: typeof rawSender.id === 'string' ? rawSender.id : '',
+        fullName: typeof rawSender.fullName === 'string' ? rawSender.fullName : null,
+        userType: typeof rawSender.userType === 'string' ? rawSender.userType : null,
+        profileImage: typeof rawSender.profileImage === 'string' ? rawSender.profileImage : null,
       }
     : undefined;
 
@@ -84,11 +90,11 @@ function normalizeSupportTicket(raw: SupportTicketRaw | undefined): SupportTicke
     return {
       ticketId: '',
       userId: '',
-      category: 'OTHER',
+      category: 'OTHER' as SupportCategory,
       subject: '',
       description: '',
-      status: 'OPEN',
-      priority: 'MEDIUM',
+      status: 'OPEN' as SupportTicketStatus,
+      priority: 'MEDIUM' as SupportPriority,
       messages: [],
       createdAt: '',
       updatedAt: '',
@@ -103,11 +109,11 @@ function normalizeSupportTicket(raw: SupportTicketRaw | undefined): SupportTicke
     ticketNumber: raw.ticketNumber ?? undefined,
     ticketId: typeof raw.id === 'string' ? raw.id : typeof raw.ticketId === 'string' ? raw.ticketId : '',
     userId: typeof raw.userId === 'string' ? raw.userId : '',
-    category: typeof raw.category === 'string' ? raw.category : 'OTHER',
+    category: (typeof raw.category === 'string' ? raw.category : 'OTHER') as SupportCategory,
     subject: typeof raw.subject === 'string' ? raw.subject : '',
     description: typeof raw.description === 'string' ? raw.description : '',
-    status: typeof raw.status === 'string' ? raw.status : 'OPEN',
-    priority: typeof raw.priority === 'string' ? raw.priority : 'MEDIUM',
+    status: (typeof raw.status === 'string' ? raw.status : 'OPEN') as SupportTicketStatus,
+    priority: (typeof raw.priority === 'string' ? raw.priority : 'MEDIUM') as SupportPriority,
     assignedTo: raw.assignedTo ?? null,
     messages,
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : '',
@@ -123,7 +129,9 @@ export async function listTickets(filters: SupportTicketFilters = {}, token?: st
     token: token ?? undefined,
   });
 
-  const raw = typeof response.data === 'object' && response.data !== null ? response.data : {};
+  const raw = typeof response.data === 'object' && response.data !== null
+    ? (response.data as { data?: unknown; pagination?: { total: number; page: number; limit: number; totalPages: number } })
+    : {} as { data?: unknown; pagination?: { total: number; page: number; limit: number; totalPages: number } };
   const tickets = Array.isArray(raw.data)
     ? (raw.data as SupportTicketRaw[]).map((ticket) => normalizeSupportTicket(ticket))
     : [];
@@ -198,7 +206,9 @@ export async function adminListTickets(filters: SupportTicketFilters = {}, token
     token: token ?? undefined,
   });
 
-  const raw = typeof response.data === 'object' && response.data !== null ? response.data : {};
+  const raw = typeof response.data === 'object' && response.data !== null
+    ? (response.data as { data?: unknown; pagination?: { total: number; page: number; limit: number; totalPages: number } })
+    : {};
   const tickets = Array.isArray(raw.data)
     ? (raw.data as SupportTicketRaw[]).map((ticket) => normalizeSupportTicket(ticket))
     : [];

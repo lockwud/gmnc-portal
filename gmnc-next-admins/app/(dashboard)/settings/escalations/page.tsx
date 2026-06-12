@@ -30,6 +30,5 @@ export default function EscalationsPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

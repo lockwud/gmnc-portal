@@ -30,6 +30,5 @@ export default function CompliancePage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

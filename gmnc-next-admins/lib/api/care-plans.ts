@@ -42,7 +42,7 @@ export async function getCarePlan(patientId: string, token?: string | null) {
     token: token ?? undefined,
   });
 
-  return response.data;
+  return response.data.data;
 }
 
 export async function listCarePlans(patientId?: string, token?: string | null) {
@@ -61,7 +61,7 @@ export async function generateCarePlan(assessmentId: string, token?: string | nu
     token: token ?? undefined,
   });
 
-  return response.data;
+  return response.data.data;
 }
 
 export async function updateCarePlanStatus(carePlanId: string, status: CarePlanStatus, token?: string | null) {
@@ -71,7 +71,7 @@ export async function updateCarePlanStatus(carePlanId: string, status: CarePlanS
     token: token ?? undefined,
   });
 
-  return response.data;
+  return response.data.data;
 }
 
 export async function updateCarePlanContent(carePlanId: string, payload: Record<string, unknown>, token?: string | null) {
@@ -81,5 +81,5 @@ export async function updateCarePlanContent(carePlanId: string, payload: Record<
     token: token ?? undefined,
   });
 
-  return response.data;
+  return response.data.data;
 }

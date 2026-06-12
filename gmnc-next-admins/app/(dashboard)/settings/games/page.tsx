@@ -30,6 +30,5 @@ export default function GamesSettingsPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

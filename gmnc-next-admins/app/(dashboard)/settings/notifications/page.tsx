@@ -130,7 +130,5 @@ export default function NotificationsSettingsPage() {
       </div>
     </div>
     </ProtectedRoute>
-
-</ProtectedRoute>
 )
 }

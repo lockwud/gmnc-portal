@@ -30,6 +30,5 @@ export default function WorkspaceSettingsPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

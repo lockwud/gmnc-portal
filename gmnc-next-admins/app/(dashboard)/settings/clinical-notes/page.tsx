@@ -30,6 +30,5 @@ export default function ClinicalNotesSettingsPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

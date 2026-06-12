@@ -30,6 +30,5 @@ export default function PlatformSettingsPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

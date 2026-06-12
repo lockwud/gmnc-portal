@@ -87,11 +87,13 @@ export default function ProviderCarePlansPage() {
       return;
     }
 
+    const planId = selectedPlan.patientId;
+    const plan = selectedPlan;
     let active = true;
     async function loadDetail() {
       try {
         setDetailLoading(true);
-        const data = await getCarePlan(selectedPlan.patientId, token);
+        const data = await getCarePlan(planId, token);
         if (!active) return;
         setDetailPlan(data ?? null);
       } catch {
@@ -287,7 +289,7 @@ export default function ProviderCarePlansPage() {
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Primary Provider</dt>
                       <dd className="mt-1">
-                        {detailPlan.primaryProvider?.user?.fullName ?? detailPlan.primaryProviderId}
+                        {detailPlan.provider?.user?.fullName ?? detailPlan.primaryProviderId}
                       </dd>
                     </div>
                   </dl>

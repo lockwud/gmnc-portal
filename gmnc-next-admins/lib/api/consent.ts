@@ -1,6 +1,8 @@
 import { apiClient } from './client';
 import type { ConsentRecord, ConsentType, ConsentMethod } from './types';
 
+export type { ConsentRecord };
+
 export async function createConsent(payload: {
   patientId: string;
   consentType: ConsentType;
@@ -14,7 +16,7 @@ export async function createConsent(payload: {
     token: token ?? undefined,
   });
 
-  return response.data;
+  return response.data.data;
 }
 
 export async function revokeConsent(consentId: string, token?: string | null) {
@@ -23,7 +25,7 @@ export async function revokeConsent(consentId: string, token?: string | null) {
     token: token ?? undefined,
   });
 
-  return response.data;
+  return response.data.data;
 }
 
 export async function listConsents(patientId: string, token?: string | null) {

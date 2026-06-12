@@ -30,6 +30,5 @@ export default function DataRetentionPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

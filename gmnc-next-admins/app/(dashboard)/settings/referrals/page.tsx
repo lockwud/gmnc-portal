@@ -30,6 +30,5 @@ export default function ReferralsSettingsPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }

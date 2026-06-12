@@ -30,6 +30,5 @@ export default function SupportWorkflowPage() {
     </div>
     </ProtectedRoute>
 
-</ProtectedRoute>
 )
 }
