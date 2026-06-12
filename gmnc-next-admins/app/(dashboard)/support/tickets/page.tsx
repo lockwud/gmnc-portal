@@ -1,5 +1,6 @@
 'use client';
 
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';

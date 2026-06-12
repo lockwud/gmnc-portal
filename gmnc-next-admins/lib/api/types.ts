@@ -40,7 +40,7 @@ export type RegisterResult = {
 
 // assessments 
 
-export type AssessmentStatus = 'DRAFT' | 'COMPLETED' | 'REVIEWED';
+export type AssessmentStatus = 'DRAFT' | 'PENDING_REVIEW' | 'COMPLETED' | 'REVIEWED' | 'REVIEWED_NEEDS_REVISION' | 'APPROVED';
 
 export type AssessmentListItem = {
   id: string;
@@ -537,4 +537,136 @@ export type SupportTicketFilters = {
   limit?: number;
   status?: SupportTicketStatus;
   category?: SupportCategory;
+};
+
+// referrals
+
+export type ReferralStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED';
+
+export type ReferralListItem = {
+  id: string;
+  patientId: string;
+  fromProviderId: string;
+  toProviderId?: string | null;
+  toProfession: string;
+  reason: string;
+  status: ReferralStatus;
+  createdAt: string;
+  patient?: {
+    id: string;
+    fullName: string;
+  };
+  fromProvider?: {
+    id: string;
+    profession: string;
+    user?: {
+      id: string;
+      fullName: string;
+    };
+  };
+  toProvider?: {
+    id: string;
+    profession: string;
+    user?: {
+      id: string;
+      fullName: string;
+    };
+  };
+  relatedAssessment?: {
+    id: string;
+    toolCode: string;
+    status: string;
+    assessedAt?: string | null;
+  } | null;
+};
+
+export type CreateReferralPayload = {
+  patientId: string;
+  assessmentId?: string;
+  toProfession: string;
+  toProviderId?: string;
+  reason: string;
+};
+
+export type UpdateReferralStatusPayload = {
+  status: 'ACCEPTED' | 'DECLINED' | 'COMPLETED';
+};
+
+export type CreateRehabTaskFromReferralPayload = {
+  title: string;
+  instructions: string;
+  instructionSteps?: string[];
+  frequencyPerDay?: number;
+  frequencyNote?: string;
+  durationDays: number;
+  startDate?: string;
+  endDate?: string;
+  videoUrl?: string;
+};
+
+export type ReferralRecommendationResponse = {
+  suggestedProfessions: string[];
+  dimensionFindings: Array<Record<string, unknown>>;
+  reasoning: string;
+};
+
+export type CarePlanStatus = 'ACTIVE' | 'COMPLETED' | 'SUPERSEDED';
+
+export type CarePlan = {
+  id: string;
+  patientId: string;
+  assessmentId: string;
+  primaryProviderId: string;
+  reviewDate?: string | null;
+  status: CarePlanStatus;
+  goals: unknown[];
+  interventions: unknown[];
+  createdAt: string;
+  updatedAt: string;
+  patient?: {
+    id: string;
+    fullName: string;
+  };
+  provider?: {
+    id: string;
+    profession: string;
+    user?: {
+      id: string;
+      fullName: string;
+    };
+  };
+};
+
+export type ConsentType = 'TREATMENT' | 'DATA_SHARING' | 'RECORDING' | 'PHOTO_VIDEO' | 'RESEARCH';
+
+export type ConsentMethod = 'DIGITAL_SIGNATURE' | 'SMS' | 'PAPER';
+
+export type ConsentRecord = {
+  id: string;
+  patientId: string;
+  grantedByUserId: string;
+  consentType: ConsentType;
+  scope?: string | null;
+  documentId?: string | null;
+  method: ConsentMethod;
+  grantedAt: string;
+  revokedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  patient?: {
+    id: string;
+    fullName: string;
+  };
+  grantedBy?: {
+    id: string;
+    fullName: string;
+    email: string;
+  };
+};
+
+export type TelehealthRecordingConsent = {
+  participantId: string;
+  isRecordingConsented: boolean;
+  recordingConsentedAt?: string | null;
+  recordingConsentedByUserId?: string | null;
 };

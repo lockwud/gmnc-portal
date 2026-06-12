@@ -137,6 +137,16 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
                 path: "/provider/approvals",
                 icon: "check_circle",
               },
+              {
+                label: "Care Plans",
+                path: "/provider/care-plans",
+                icon: "assignment",
+              },
+              {
+                label: "Consent",
+                path: "/provider/consent",
+                icon: "verified_user",
+              },
             ],
           },
           {
