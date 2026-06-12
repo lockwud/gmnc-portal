@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 // =========================================
 // TYPES
 // =========================================
-export type Role = 'admin' | 'provider' | 'support' | 'tester' | 'caregiver' | string;
+export type Role = 'admin' | 'provider' | 'support' | 'tester' | (string & Record<never, never>);
 
 export interface User {
   id: string;
@@ -17,7 +17,27 @@ export interface User {
   roles: string[];
   permissions: string[];
   userType?: string;
+  profession?: string;
+  serviceProvider?: {
+    id: string;
+    profession?: string;
+    userId?: string;
+    user?: {
+      id: string;
+      fullName?: string;
+    };
+  };
+  provider?: {
+    id: string;
+    profession?: string;
+    userId?: string;
+    user?: {
+      id: string;
+      fullName?: string;
+    };
+  };
   avatar?: string | null;
+  hasNoRole?: boolean;
 }
 
 interface AuthContextType {
@@ -32,8 +52,7 @@ interface AuthContextType {
     password: string;
     phoneNumber: string;
     gender: 'MALE' | 'FEMALE';
-    role: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
-    dateOfBirth?: string;
+    role: 'SERVICE_PROVIDER' | 'ADMIN';
     profileImage?: string;
     address?: string;
     digitalAddress?: string;
@@ -74,13 +93,19 @@ function getTokenUserType(token?: string | null): string | undefined {
 
 function normaliseUser(raw: Record<string, unknown>, token?: string | null): User {
   const name = (raw.name as string | undefined) ?? (raw.fullName as string | undefined) ?? '';
+  const roles: string[] = Array.isArray(raw.roles) ? (raw.roles as string[]) : [];
+  const permissions: string[] = Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [];
+  const userType = (raw.userType as string | undefined) ?? getTokenUserType(token);
+  const isProviderWithoutRole = userType === 'SERVICE_PROVIDER' && roles.length === 0;
+
   return {
     ...((raw as unknown) as User),
     name,
     fullName: name,
-    roles: Array.isArray(raw.roles) ? (raw.roles as string[]) : [],
-    permissions: Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [],
-    userType: (raw.userType as string | undefined) ?? getTokenUserType(token),
+    roles,
+    permissions,
+    userType,
+    hasNoRole: isProviderWithoutRole,
   };
 }
 
@@ -126,6 +151,9 @@ function resolveSelectedRole(user: User, storedRole?: string | null): Role | nul
     return storedRole as Role;
   }
   if (effectiveRoles.includes('admin')) return 'admin';
+  if (user.roles.length === 0 && user.userType === 'SERVICE_PROVIDER') {
+    return 'provider';
+  }
   return (user.roles[0] as Role) ?? getDefaultRoleForUserType(user.userType);
 }
 
@@ -139,6 +167,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const caregiverBlocked = sessionStorage.getItem('gmnc_caregiver_blocked');
+    if (caregiverBlocked) {
+      sessionStorage.removeItem('gmnc_caregiver_blocked');
+      router.replace('/login');
+    }
+  }, [router]);
 
   // =========================================
   // HYDRATE FROM /api/auth/me ON MOUNT
@@ -197,6 +233,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // =========================================
+  // PERMISSION STATE REFRESH (every 5 minutes)
+  // =========================================
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json() as {
+          user?: Record<string, unknown> | null;
+          accessToken?: string | null;
+        };
+        if (!data.user) return;
+        const normalisedUser = normaliseUser(data.user, data.accessToken ?? token);
+        setUser(normalisedUser);
+        if (data.accessToken) setToken(data.accessToken);
+      } catch {
+        // silently ignore polling errors
+      }
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  // =========================================
   // LOGIN
   // =========================================
   const login = async (identifier: string, password: string) => {
@@ -224,19 +289,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const accessToken = data.accessToken ?? '';
       const normalisedUser = normaliseUser(data.user, accessToken);
+      if ((normalisedUser.userType ?? '').toUpperCase() === 'CAREGIVER') {
+        setError('Caregivers cannot access this portal.');
+        router.replace('/login');
+        router.refresh();
+        return;
+      }
+
       const role = resolveSelectedRole(normalisedUser);
 
       setUser(normalisedUser);
       setToken(accessToken);
       setSelectedRoleState(role);
 
-      // Persist to localStorage — this is the critical fix so that pages
-      // reading localStorage("user") and localStorage("token") always work.
       persistAuth(normalisedUser, accessToken);
 
       if (role) {
         localStorage.setItem('gmnc_selected_role', role);
-        router.replace(getDashboardRoute(role as Parameters<typeof getDashboardRoute>[0]));
+        router.replace(getDashboardRoute(role));
       } else {
         localStorage.removeItem('gmnc_selected_role');
         router.replace('/dashboard');

@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 
 export default function SecuritySettingsPage() {
   return (
+    <ProtectedRoute>
+      
     <div className="w-full pb-8 pt-4">
       <div className="w-full px-6">
         <header className="mb-5 flex items-center gap-3">
@@ -49,5 +52,7 @@ export default function SecuritySettingsPage() {
         </div>
       </div>
     </div>
-  );
+    </ProtectedRoute>
+
+)
 }

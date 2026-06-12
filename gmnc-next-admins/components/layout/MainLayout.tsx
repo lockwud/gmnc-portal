@@ -10,7 +10,7 @@ import { canAccessDashboardPath } from '@/lib/rbac';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const router = useRouter();
   const { user, isLoading } = useAuth();
 

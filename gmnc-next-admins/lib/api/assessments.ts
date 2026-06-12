@@ -123,6 +123,18 @@ export async function getAssessmentToolForm(toolCode: string): Promise<Assessmen
   return Promise.resolve(existing).catch(() => fallback);
 }
 
+export function clearAssessmentToolFormCache(toolCode?: string) {
+  if (!toolCode) {
+    assessmentToolFormPromises.clear();
+    return;
+  }
+
+  const key = toolCode.trim();
+  if (assessmentToolFormPromises.has(key)) {
+    assessmentToolFormPromises.delete(key);
+  }
+}
+
 function buildOccupationalTherapyForm(toolCode: string): AssessmentToolFormResponse {
   const code = toolCode.trim().toUpperCase();
   if (!['OT_CP_CLINICAL', 'OT_CLINICAL', 'OT', 'OCCUPATIONAL_THERAPY'].includes(code)) {
@@ -149,8 +161,8 @@ function buildOccupationalTherapyForm(toolCode: string): AssessmentToolFormRespo
         sectionCode: 'family_home',
         fields: [
           { fieldCode: 'ground_surface', question: 'Ground Surface', expectedAnswerFormat: 'STRING', options: [{ label: 'Even (Concrete/asphalt)', value: 'EVEN' }, { label: 'Sand', value: 'SAND' }, { label: 'Gravel', value: 'GRAVEL' }, { label: 'Uneven; specify:', value: 'UNEVEN' }] },
-          { fieldCode: 'main_entrance', question: 'Main Entrance', expectedAnswerFormat: 'STRING', options: [{ label: 'Leveled/even', value: 'LEVELED' }, { label: 'Few Steps', value: 'FEW_STEPS' }, { label: 'Ramp', value: 'RAMP' }, { label: 'Elevator', value: 'ELEVATOR' }] },
-          { fieldCode: 'doors_hallways', question: 'Doors/Hallways', expectedAnswerFormat: 'STRING', options: [{ label: 'Wheelchair accessible', value: 'WHEELCHAIR_ACCESSIBLE' }, { label: 'Narrow', value: 'NARROW' }, { label: 'Yes; specify:', value: 'YES' }, { label: 'No', value: 'NO' }] },
+          { fieldCode: 'main_entrance', question: 'Main Entrance', expectedAnswerFormat: 'SELECT', options: [{ label: 'Leveled/even', value: 'LEVELLED_EVEN' }, { label: 'Few Steps', value: 'FEW_STEPS' }, { label: 'Ramp', value: 'RAMP' }, { label: 'Elevator', value: 'ELEVATOR' }] },
+          { fieldCode: 'doors_hallways', question: 'Doors/Hallways', expectedAnswerFormat: 'SELECT', options: [{ label: 'Wheelchair accessible', value: 'WHEELCHAIR_ACCESSIBLE' }, { label: 'Narrow', value: 'NARROW' }] },
           { fieldCode: 'stairs_inside', question: 'Stairs inside the house', expectedAnswerFormat: 'STRING', options: [{ label: 'Banisters (railing)', value: 'BANISTERS' }, { label: 'N/A', value: 'NA' }] },
           { fieldCode: 'bedroom', question: 'Bedroom', expectedAnswerFormat: 'STRING', options: [{ label: 'Bed', value: 'BED' }, { label: 'Mattress on the ground', value: 'MATTRESS_GROUND' }, { label: 'Main floor', value: 'MAIN_FLOOR' }, { label: 'Higher level', value: 'HIGHER_LEVEL' }] },
           { fieldCode: 'accessibility_issues', question: 'Accessibility issues (if any)', expectedAnswerFormat: 'TEXTAREA' },
@@ -368,4 +380,56 @@ export async function getAssessmentById(assessmentId: string): Promise<{ id: str
   }>(`/api/assessment/${assessmentId}`);
 
   return res.data;
+}
+
+export type SuggestedClassification = {
+  classifierType: string;
+  suggestedLevel: string;
+  confidence: number;
+  source: string;
+};
+
+export function getSuggestedClassification(reportScores: Record<string, unknown>, toolCode: string): SuggestedClassification | null {
+  const scores = reportScores ?? {};
+  const code = String(toolCode || '').toUpperCase();
+
+  if (code === 'GMFM_88') {
+    const total = typeof scores.total === 'number' ? scores.total : (typeof scores.percentage === 'number' ? scores.percentage : null);
+    if (total == null) return null;
+
+    let level = 'LEVEL_I';
+    if (total < 20) level = 'LEVEL_V';
+    else if (total < 35) level = 'LEVEL_IV';
+    else if (total < 55) level = 'LEVEL_III';
+    else if (total < 75) level = 'LEVEL_II';
+
+    return {
+      classifierType: 'GMFCS',
+      suggestedLevel: level,
+      confidence: total > 0 ? Math.min(total, 100) : 0,
+      source: 'GMFM-88 total score heuristic',
+    };
+  }
+
+  if (code === 'OT_CP_CLINICAL_ASSESSMENT' || code === 'OT_CP_CLINICAL') {
+    const adlKey = Object.keys(scores).find((key) => /adl|self.?care|feeding|dressing/i.test(key));
+    if (!adlKey) return null;
+    const adlValue = scores[adlKey];
+    if (typeof adlValue !== 'string') return null;
+
+    const normalized = adlKey.toLowerCase();
+    let level = 'LEVEL_I';
+    if (/unable|unable/i.test(adlValue)) level = 'LEVEL_V';
+    else if (/need adaptations/i.test(adlValue)) level = 'LEVEL_III';
+    else if (/difficulties|with difficulties/i.test(adlValue)) level = 'LEVEL_II';
+
+    return {
+      classifierType: 'GMFCS',
+      suggestedLevel: level,
+      confidence: 0.65,
+      source: `OT ADL section heuristic (${adlKey})`,
+    };
+  }
+
+  return null;
 }

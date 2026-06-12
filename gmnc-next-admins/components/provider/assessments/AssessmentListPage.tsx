@@ -13,11 +13,11 @@ import { AssessmentHistorySkeleton } from './AssessmentSkeletons';
 export default function AssessmentListPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const patientId = searchParams.get('patientId');
-  const patientName = searchParams.get('patientName');
-  const patientGender = searchParams.get('patientGender');
-  const patientDob = searchParams.get('patientDob');
-  const caregiverName = searchParams.get('caregiverName');
+  const patientId = searchParams?.get('patientId') ?? '';
+  const patientName = searchParams?.get('patientName') ?? '';
+  const patientGender = searchParams?.get('patientGender') ?? '';
+  const patientDob = searchParams?.get('patientDob') ?? '';
+  const caregiverName = searchParams?.get('caregiverName') ?? '';
 
   const [items, setItems] = useState<AssessmentListItem[]>([]);
   const [loading, setLoading] = useState(true);

@@ -19,7 +19,7 @@ export default function ProtectedRoute({
   const { user, isLoading } = useAuth();
 
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
 
   useEffect(() => {
     if (isLoading) return;
@@ -44,8 +44,10 @@ export default function ProtectedRoute({
       return;
     }
 
-    const roleAllowed = !requiredRole || hasRole(user, requiredRole);
-    const permissionAllowed = !requiredPermission || hasPermission(user, requiredPermission);
+    // Admin bypass: admin users can access any role-protected page
+    const isAdmin = hasRole(user, 'admin');
+    const roleAllowed = !requiredRole || isAdmin || hasRole(user, requiredRole);
+    const permissionAllowed = !requiredPermission || isAdmin || hasPermission(user, requiredPermission);
 
     if (!roleAllowed || !permissionAllowed) {
       router.replace('/access-denied');
@@ -78,8 +80,9 @@ export default function ProtectedRoute({
     return null;
   }
 
-  const roleAllowed = !requiredRole || hasRole(user, requiredRole);
-  const permissionAllowed = !requiredPermission || hasPermission(user, requiredPermission);
+  const isAdmin = hasRole(user, 'admin');
+  const roleAllowed = !requiredRole || isAdmin || hasRole(user, requiredRole);
+  const permissionAllowed = !requiredPermission || isAdmin || hasPermission(user, requiredPermission);
 
   if (!roleAllowed || !permissionAllowed) {
     return null;

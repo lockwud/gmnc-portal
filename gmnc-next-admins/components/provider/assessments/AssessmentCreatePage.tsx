@@ -9,6 +9,7 @@ import {
   getAssessmentTools,
   submitAssessment,
   warmAssessmentToolForms,
+  clearAssessmentToolFormCache,
 } from '@/lib/api/assessments';
 import {
   AssessmentToolFormResponse,
@@ -50,11 +51,11 @@ export default function AssessmentCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const patientId = searchParams.get('patientId') || '';
-  const patientName = searchParams.get('patientName') || '';
-  const patientGender = searchParams.get('patientGender') || '';
-  const patientDob = searchParams.get('patientDob') || '';
-  const caregiverName = searchParams.get('caregiverName') || '';
+  const patientId = searchParams?.get('patientId') || '';
+  const patientName = searchParams?.get('patientName') || '';
+  const patientGender = searchParams?.get('patientGender') || '';
+  const patientDob = searchParams?.get('patientDob') || '';
+  const caregiverName = searchParams?.get('caregiverName') || '';
 
   useEffect(() => {
     let active = true;
@@ -107,6 +108,13 @@ export default function AssessmentCreatePage() {
       if (!selectedTool?.toolCode) {
         setFormSchema(null);
         return;
+      }
+
+      // ensure we fetch a fresh schema (clear any cached promise)
+      try {
+        clearAssessmentToolFormCache(selectedTool.toolCode);
+      } catch {
+        // ignore
       }
 
       try {

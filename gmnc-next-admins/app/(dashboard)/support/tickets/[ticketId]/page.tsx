@@ -15,7 +15,7 @@ export default function SupportTicketDetailPage() {
   const router = useRouter();
   const { show } = useToast();
   const { token } = useAuth();
-  const ticketId = typeof params.ticketId === 'string' ? params.ticketId : '';
+  const ticketId = typeof params?.ticketId === 'string' ? params.ticketId : '';
 
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);

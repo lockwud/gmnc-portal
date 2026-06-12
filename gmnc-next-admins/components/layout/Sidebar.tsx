@@ -78,6 +78,11 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
             icon: "groups",
           },
           {
+            label: "Appointments",
+            path: "/admin/appointments",
+            icon: "event",
+          },
+          {
             label: "Roles & Access",
             path: "/admin/roles-access",
             icon: "verified_user",
@@ -131,6 +136,16 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
                 label: "Approvals",
                 path: "/provider/approvals",
                 icon: "check_circle",
+              },
+              {
+                label: "Care Plans",
+                path: "/provider/care-plans",
+                icon: "assignment",
+              },
+              {
+                label: "Consent",
+                path: "/provider/consent",
+                icon: "verified_user",
               },
             ],
           },
@@ -196,21 +211,20 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
   {
     title: "SYSTEM",
     items: [
-      {
-        label: "Reports",
-        path: "/reports",
-        icon: "assessment",
-        collapsible: false,
-        requiredRole: "provider",
-      },
+          {
+            label: "Reports",
+            path: "/admin/reports",
+            icon: "assessment",
+            collapsible: false,
+            requiredRole: "admin",
+          },
 
-      {
-        label: "System Settings",
-        path: "/settings",
-        icon: "settings",
-        collapsible: false,
-        requiredRole: "provider",
-      },
+          {
+            label: "System Settings",
+            path: "/settings",
+            icon: "settings",
+            collapsible: false,
+          },
     ],
   },
 ];
@@ -220,7 +234,7 @@ type Props = {
 };
 
 const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const { user } = useAuth();
 
   const canViewMenuItem = React.useCallback((item: MenuItem): boolean => {

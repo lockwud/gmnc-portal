@@ -1,5 +1,10 @@
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import TaskPage from '@/components/provider/tasks/TasksPage';
 
 export default function ProviderTasksRoute() {
-  return <TaskPage />;
+  return (
+    <ProtectedRoute requiredRole="provider">
+      <TaskPage />
+    </ProtectedRoute>
+  );
 }
