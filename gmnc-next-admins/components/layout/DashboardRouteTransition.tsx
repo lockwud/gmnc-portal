@@ -14,7 +14,7 @@ export default function DashboardRouteTransition({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const [showSkeleton, setShowSkeleton] = useState(true);
   const firstPaintRef = useRef(true);
 

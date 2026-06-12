@@ -61,10 +61,16 @@ export default function ProfilePage() {
             </div>
           
             <div>
-              <Link href="/profile/edit" className="px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
-                <span className="material-icons text-[18px]">edit</span>
-                Edit Profile
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/profile/edit" className="px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
+                  <span className="material-icons text-[18px]">edit</span>
+                  Edit Profile
+                </Link>
+                <Link href="/profile/signature" className="px-5 py-2.5 bg-white hover:bg-slate-50 text-gray-800 font-medium rounded-xl text-sm transition-colors shadow-sm border border-slate-200 flex items-center gap-2">
+                  <span className="material-icons text-[18px]">draw</span>
+                  Signature
+                </Link>
+              </div>
             </div>
           </div>
         </div>

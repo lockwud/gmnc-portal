@@ -7,10 +7,11 @@ import EmptyState from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
-import RowActions from '@/components/ui/RowActions';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
-import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar , Trash2 } from 'lucide-react';
+
+// import RowActions from '../ui/RowActions';
 
 type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
 type RegistrationStep = 1 | 2 | 3;
@@ -253,10 +254,43 @@ export default function UserRegistrationPage() {
     dateOfBirth: '',
   });
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    userId: string;
+    userName: string;
+    userType: UserType;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const filteredUsers = useMemo(() => {
     if (roleFilter === 'ALL') return users;
     return users.filter((user) => user.userType === roleFilter);
   }, [roleFilter, users]);
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch('/api/users/delete', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deleteConfirm.userId, userType: deleteConfirm.userType }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        show({ title: 'Deleted', message: 'User account deleted. Patient records are retained.', duration: 3000 });
+        setUsers((prev) => prev.filter((u) => u.id !== deleteConfirm.userId));
+        setDeleteConfirm(null);
+      } else {
+        show({ title: 'Error', message: result.message || 'Failed to delete.', duration: 4000 });
+      }
+    } catch {
+      show({ title: 'Error', message: 'Network error during delete.', duration: 4000 });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const totalItems = filteredUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -669,6 +703,15 @@ export default function UserRegistrationPage() {
                                   onEdit={() => handleEdit(user)}
                                   onDelete={() => handleDeactivate(user.id)}
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirm({ open: true, userId: user.id, userName: user.fullName, userType: user.userType })}
+                                  className="flex h-9 w-9 items-center justify-center rounded-full text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                                  aria-label={`Delete ${user.fullName}`}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -693,6 +736,36 @@ export default function UserRegistrationPage() {
           </div>
         </div>
       </div>
+
+      <Modal isOpen={!!deleteConfirm?.open} onClose={() => setDeleteConfirm(null)}>
+        <div className="mx-auto flex w-full max-w-md flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <Trash2 className="h-6 w-6 text-red-600" />
+          </div>
+          <h3 className="mt-4 text-center text-lg font-semibold text-slate-900">Delete user</h3>
+          <p className="mt-2 text-center text-xs text-slate-500">
+            Are you sure you want to delete <span className="font-semibold text-slate-800">{deleteConfirm?.userName}</span>? Related patient records will be retained.
+          </p>
+          <div className="mt-6 flex w-full items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDeleteConfirm(null)}
+              className="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal}>
         <div className="mx-auto flex min-h-[620px] w-full max-w-3xl flex-col rounded-[28px] border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-900/10">

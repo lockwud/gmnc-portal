@@ -19,7 +19,7 @@ export default function ProtectedRoute({
   const { user, isLoading } = useAuth();
 
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
 
   useEffect(() => {
     if (isLoading) return;

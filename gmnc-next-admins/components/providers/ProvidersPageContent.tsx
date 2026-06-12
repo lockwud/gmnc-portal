@@ -100,7 +100,7 @@ const providers: ProviderRecord[] = [
 export function ProvidersPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const isZoomed = searchParams.get("view") === "maximized";
+  const isZoomed = searchParams?.get("view") === "maximized";
 
   const [data, setData] = React.useState<ProviderRecord[]>(providers);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -170,7 +170,7 @@ export function ProvidersPageContent() {
   });
 
   const toggleZoom = () => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(window.location.search);
     if (isZoomed) {
       params.delete("view");
     } else {
