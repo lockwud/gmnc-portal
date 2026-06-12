@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Link from 'next/link';
 import { ChevronLeft, Video, Settings } from 'lucide-react';
 import { getTelehealthSettings, updateTelehealthSettings } from '@/lib/api/telehealth';
@@ -27,6 +28,8 @@ function ToggleSwitch({
   disabled?: boolean;
 }) {
   return (
+    <ProtectedRoute>
+      
     <button
       type="button"
       role="switch"
@@ -43,7 +46,10 @@ function ToggleSwitch({
         }`}
       />
     </button>
-  );
+    </ProtectedRoute>
+
+</ProtectedRoute>
+)
 }
 
 function NumberInput({
@@ -71,7 +77,10 @@ function NumberInput({
       />
       {unit && <span className="text-xs text-slate-500">{unit}</span>}
     </div>
-  );
+    </ProtectedRoute>
+
+</ProtectedRoute>
+)
 }
 
 export default function TelehealthSettingsPage() {
@@ -117,7 +126,9 @@ export default function TelehealthSettingsPage() {
           <p className="mt-2 text-sm text-slate-500">Loading settings...</p>
         </div>
       </div>
-    );
+  
+</ProtectedRoute>
+)
   }
 
   return (
@@ -271,5 +282,8 @@ export default function TelehealthSettingsPage() {
         </div>
       </div>
     </div>
-  );
+    </ProtectedRoute>
+
+</ProtectedRoute>
+)
 }

@@ -132,15 +132,16 @@ function pathMatches(pathname: string, prefix: string): boolean {
 }
 
 export function canAccessDashboardPath(user: User, pathname: string): boolean {
+  // Admin and tester can access any dashboard path
+  if (hasRole(user, 'admin') || hasRole(user, 'tester')) {
+    return true;
+  }
+
   if (
     pathMatches(pathname, '/dashboard')
     || pathMatches(pathname, '/profile')
     || pathMatches(pathname, '/notifications')
   ) {
-    return true;
-  }
-
-  if (hasRole(user, 'admin') || hasRole(user, 'tester')) {
     return true;
   }
 

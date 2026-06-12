@@ -37,6 +37,7 @@ export interface User {
     };
   };
   avatar?: string | null;
+  hasNoRole?: boolean;
 }
 
 interface AuthContextType {
@@ -92,13 +93,19 @@ function getTokenUserType(token?: string | null): string | undefined {
 
 function normaliseUser(raw: Record<string, unknown>, token?: string | null): User {
   const name = (raw.name as string | undefined) ?? (raw.fullName as string | undefined) ?? '';
+  const roles: string[] = Array.isArray(raw.roles) ? (raw.roles as string[]) : [];
+  const permissions: string[] = Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [];
+  const userType = (raw.userType as string | undefined) ?? getTokenUserType(token);
+  const isProviderWithoutRole = userType === 'SERVICE_PROVIDER' && roles.length === 0;
+
   return {
     ...((raw as unknown) as User),
     name,
     fullName: name,
-    roles: Array.isArray(raw.roles) ? (raw.roles as string[]) : [],
-    permissions: Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [],
-    userType: (raw.userType as string | undefined) ?? getTokenUserType(token),
+    roles,
+    permissions,
+    userType,
+    hasNoRole: isProviderWithoutRole,
   };
 }
 
@@ -144,6 +151,9 @@ function resolveSelectedRole(user: User, storedRole?: string | null): Role | nul
     return storedRole as Role;
   }
   if (effectiveRoles.includes('admin')) return 'admin';
+  if (user.roles.length === 0 && user.userType === 'SERVICE_PROVIDER') {
+    return 'provider';
+  }
   return (user.roles[0] as Role) ?? getDefaultRoleForUserType(user.userType);
 }
 
@@ -162,7 +172,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const caregiverBlocked = sessionStorage.getItem('gmnc_caregiver_blocked');
     if (caregiverBlocked) {
       sessionStorage.removeItem('gmnc_caregiver_blocked');
-      setError('Caregivers cannot access this portal.');
       router.replace('/login');
     }
   }, [router]);
@@ -222,6 +231,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void hydrateAuth();
     return () => { isMounted = false; };
   }, []);
+
+  // =========================================
+  // PERMISSION STATE REFRESH (every 5 minutes)
+  // =========================================
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json() as {
+          user?: Record<string, unknown> | null;
+          accessToken?: string | null;
+        };
+        if (!data.user) return;
+        const normalisedUser = normaliseUser(data.user, data.accessToken ?? token);
+        setUser(normalisedUser);
+        if (data.accessToken) setToken(data.accessToken);
+      } catch {
+        // silently ignore polling errors
+      }
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   // =========================================
   // LOGIN

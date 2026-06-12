@@ -28,8 +28,6 @@ const sections: Section[] = [
         href: '/settings/platform',
         icon: 'settings',
       },
-     
-     
       {
         id: 'workspace',
         label: 'Workspace Preferences',
@@ -38,19 +36,16 @@ const sections: Section[] = [
       },
     ],
   },
-
   {
     id: 'users-access',
     title: 'Users',
     items: [
-
       {
         id: 'user-management',
         label: 'Profiles',
         href: '/profile',
         icon: 'groups',
       },
-     
       {
         id: 'security',
         label: 'Security',
@@ -59,17 +54,10 @@ const sections: Section[] = [
       },
     ],
   },
-
   {
     id: 'clinical-provider',
     title: 'Clinical & Provider Settings',
     items: [
-      {
-        id: 'provider-network',
-        label: 'Provider',
-        href: '/settings/providers',
-        icon: 'medical_services',
-      },
       {
         id: 'appointments',
         label: 'Appointment Configuration',
@@ -90,40 +78,6 @@ const sections: Section[] = [
       },
     ],
   },
-
-  {
-    id: 'caregiver-engagement',
-    title: 'Caregiver & Engagement Settings',
-    items: [
-      {
-        id: 'telehealth',
-        label: 'Telehealth Configuration',
-        href: '/settings/telehealth',
-        icon: 'videocam',
-      },
-      {
-        id: 'games',
-        label: 'Games & Activity Settings',
-        href: '/settings/games',
-        icon: 'sports_esports',
-      },
-    ],
-  },
-
-  {
-    id: 'communication',
-    title: 'Communication & Notifications',
-    items: [
-      {
-        id: 'notifications',
-        label: 'Notification Preferences',
-        href: '/settings/notifications',
-        icon: 'notifications_active',
-      },
-     
-    ],
-  },
-
   {
     id: 'support-kb',
     title: 'Support & Knowledge Base',
@@ -148,7 +102,6 @@ const sections: Section[] = [
       },
     ],
   },
-
   {
     id: 'security',
     title: 'Security, Audit & Compliance',
@@ -171,12 +124,6 @@ const sections: Section[] = [
         href: '/settings/data-retention',
         icon: 'storage',
       },
-      {
-        id: 'api-integrations',
-        label: 'API & Integration Settings',
-        href: '/settings/integrations',
-        icon: 'hub',
-      },
     ],
   },
 ];
@@ -185,10 +132,7 @@ const sectionIcons: Record<string, string> = {
   platform: 'tune',
   'users-access': 'admin_panel_settings',
   'clinical-provider': 'medical_services',
-  'caregiver-engagement': 'person',
-  communication: 'notifications',
   'support-kb': 'support_agent',
-  billing: 'credit_card',
   security: 'shield',
 };
 

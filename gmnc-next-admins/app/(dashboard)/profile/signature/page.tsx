@@ -13,15 +13,15 @@ export default function SignaturePage() {
   const loadPreview = useCallback(async () => {
     setLoadingPreview(true)
     try {
-      const res = await listSignatures('self')
-      const json = await res.json().catch(() => null)
-      const src = typeof json?.data?.dataUrl === 'string'
-        ? json.data.dataUrl
-        : typeof json?.dataUrl === 'string'
-          ? json.dataUrl
-          : typeof json?.signature?.dataUrl === 'string'
-            ? json.signature.dataUrl
-            : null
+      const json = await listSignatures('self')
+      const src =
+        typeof json?.data?.dataUrl === 'string'
+          ? json.data.dataUrl
+          : typeof json?.dataUrl === 'string'
+            ? json.dataUrl
+            : typeof json?.signature?.dataUrl === 'string'
+              ? json.signature.dataUrl
+              : null
       if (src) setPreview(src)
     } catch { /* ignore */ } finally {
       setLoadingPreview(false)
