@@ -3,7 +3,6 @@ import { hasRole, type User } from '@/lib/rbac';
 import { sessionUserSchema, type SessionUser } from '@/lib/validators/auth';
 import { ACCESS_TOKEN_COOKIE, SESSION_COOKIE, deserializeSessionUser } from '@/lib/session';
 import { env } from '@/lib/env';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/session';
 
 export async function DELETE(request: NextRequest) {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
