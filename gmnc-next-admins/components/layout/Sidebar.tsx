@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/AuthContext";
-import { hasWorkspaceAccess, type Role } from "@/lib/rbac";
+import { useTheme } from "@/lib/context/ThemeContext";
+import { hasRole, getEffectiveRoles, type Role } from "@/lib/rbac";
 
 type MenuItem = {
   label: string;
@@ -147,6 +148,11 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
                 path: "/provider/consent",
                 icon: "verified_user",
               },
+              {
+                label: "Reports",
+                path: "/admin/reports",
+                icon: "assessment",
+              },
             ],
           },
           {
@@ -171,7 +177,7 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
             icon: "folder",
             collapsible: true,
             children: [
-              {
+            {
               label: "Documents",
               path: "/provider/resources",
               icon: "description",
@@ -183,26 +189,26 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
               },
             ],
           },
-
         ],
       },
-        {
-          label: "Support",
-          icon: "support_agent",
-          collapsible: true,
-          children: [
-            {
-              label: "My Tickets",
-              path: "/support/tickets",
-              icon: "confirmation_number",
-            },
-            {
-              label: "FAQ Database",
-              path: "/support/faqs",
-              icon: "help_center",
-            },
-          ],
-        },
+      {
+        label: "Support",
+        icon: "support_agent",
+        collapsible: true,
+        requiredRole: "support",
+        children: [
+          {
+            label: "My Tickets",
+            path: "/support/tickets",
+            icon: "confirmation_number",
+          },
+          {
+            label: "FAQ Database",
+            path: "/support/faqs",
+            icon: "help_center",
+          },
+        ],
+      },
     ],
   },
 ];
@@ -211,21 +217,20 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
   {
     title: "SYSTEM",
     items: [
-          {
-            label: "Reports",
-            path: "/admin/reports",
-            icon: "assessment",
-            collapsible: false,
-            requiredRole: "admin",
-          },
-
-          {
-            label: "System Settings",
-            path: "/settings",
-            icon: "settings",
-            collapsible: false,
-            requiredRole: "provider",
-          },
+      {
+        label: "Reports",
+        path: "/admin/reports",
+        icon: "assessment",
+        collapsible: false,
+        requiredRole: "provider",
+      },
+      {
+        label: "System Settings",
+        path: "/settings",
+        icon: "settings",
+        collapsible: false,
+        requiredRole: "provider",
+      },
     ],
   },
 ];
@@ -237,11 +242,30 @@ type Props = {
 const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const pathname = usePathname() ?? '';
   const { user } = useAuth();
+  const { preferences, isDark } = useTheme();
 
+  /**
+   * Menu visibility rules:
+   * - MAIN section items: only shown if user has the exact required role
+   * - WORKSPACES items: admin sees ALL workspaces (Admin + Provider + Support),
+   *   other users only see their own workspace
+   * - SYSTEM items: only shown if user has the exact required role
+   */
   const canViewMenuItem = React.useCallback((item: MenuItem): boolean => {
     if (!user) return false;
-    if (item.requiredRole && !hasWorkspaceAccess(user, item.requiredRole)) return false;
-    return true;
+    // Items with no requiredRole are always visible (e.g. Dashboard, Profile)
+    if (!item.requiredRole) return true;
+    
+    // Admin can view any workspace item
+    if (hasRole(user, 'admin')) return true;
+    
+    // Users with explicit roles get access to their role's workspace
+    if (hasRole(user, item.requiredRole)) return true;
+    
+    // SERVICE_PROVIDER userType gets access to provider workspace even without an assigned role
+    if (user.userType === 'SERVICE_PROVIDER' && item.requiredRole === 'provider') return true;
+    
+    return false;
   }, [user]);
 
   const visibleTopSidebarSections = useMemo(
@@ -267,16 +291,10 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
-  // NEW: openGroups state for expanded/collapsed groups
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  // Only set selectedKey on initial mount
-  const didSetSelectedKey = useRef(false);
   useEffect(() => {
-    if (!didSetSelectedKey.current) {
-      setSelectedKey(pathname ?? null);
-      didSetSelectedKey.current = true;
-    }
+    setSelectedKey(pathname ?? null);
   }, [pathname]);
 
   const isPathSelected = React.useCallback(
@@ -295,39 +313,33 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     return recur(item);
   }, [isPathSelected]);
 
-  // Helper: handleGroupClick
   const handleGroupClick = (item: MenuItem) => {
     const key = item.label;
     setOpenGroups((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
-    setSelectedKey(`group:${item.label}`);
   };
 
-  // Helper: handleLeafClick
-  const handleLeafClick = (path: string) => setSelectedKey(path);
+  const handleLeafClick = (path: string) => {
+    setSelectedKey(path);
+  };
 
-  // Helper: groupIsSelected
   const groupIsSelected = (group: MenuItem) => {
-    const gkey = `group:${group.label}`;
-    if (selectedKey === gkey) return true;
     if (itemOrChildMatchesPath(group)) return true;
     if (group.children)
-      return group.children.some((c) => selectedKey === c.path);
-    if (group.path) return selectedKey === group.path;
+      return group.children.some((c) => isPathSelected(c.path));
+    if (group.path) return isPathSelected(group.path);
     return false;
   };
 
-  // Constants for styling
   const iconSizeClass = "text-xs";
   const itemFontClass = "text-[11px]";
   const itemPadding = "px-2 py-1.5";
   const itemGap = "gap-2";
 
-  // Helper: renderChildrenExpanded
   const renderChildrenExpanded = (children: MenuItem[]) =>
-    children.map((child) => {
+    children.filter(canViewMenuItem).map((child) => {
       const key = child.path ?? `group:${child.label}`;
       const isSelected =
         selectedKey === key || isPathSelected(child.path) || itemOrChildMatchesPath(child);
@@ -342,6 +354,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
               onMouseEnter={() => setHoveredKey(key)}
               onMouseLeave={() => setHoveredKey(null)}
               className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSelected ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+              style={{ color: isSelected ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
               title={child.label}
             >
               <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
@@ -367,6 +380,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           onMouseEnter={() => setHoveredKey(key)}
           onMouseLeave={() => setHoveredKey(null)}
           className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSelected ? "sidebar-selected" : isHovered ? "sidebar-hovered" : ""}`}
+          style={{ color: isSelected ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
           title={child.label}
         >
           <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
@@ -375,16 +389,16 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
       );
     });
 
-  // Helper: renderChildrenCollapsed
   const renderChildrenCollapsed = (children: MenuItem[]) =>
-    children.map((child) => {
+    children.filter(canViewMenuItem).map((child) => {
       const key = child.path ?? `group:${child.label}`;
       if (child.children) {
         return (
           <div key={key} className="flex flex-col items-center">
             <button
               onClick={() => handleGroupClick(child)}
-              className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-slate-100"
+              className="flex h-9 w-9 items-center justify-center rounded-md"
+              style={{ color: 'var(--sidebar-text)' }}
               title={child.label}
               aria-label={child.label}
             >
@@ -398,7 +412,8 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           key={key}
           href={child.path ?? "#"}
           onClick={() => child.path && handleLeafClick(child.path)}
-          className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-slate-100"
+          className="flex h-9 w-9 items-center justify-center rounded-md"
+          style={{ color: 'var(--sidebar-text)' }}
           title={child.label}
           aria-label={child.label}
         >
@@ -407,7 +422,6 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
       );
     });
 
-  // Place this inside Sidebar, before return
   function renderSection(
     section: { title?: string; items: MenuItem[] },
     keyPrefix: string,
@@ -415,7 +429,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     return (
       <div key={keyPrefix}>
         {!collapsed && section.title && (
-          <p className="mb-1 px-2 text-[10px] font-semibold uppercase text-emerald-600">
+          <p className="mb-1 px-2 text-[10px] font-semibold uppercase" style={{ color: 'var(--color-brand)' }}>
             {section.title}
           </p>
         )}
@@ -434,6 +448,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                     onMouseEnter={() => setHoveredKey(groupKey)}
                     onMouseLeave={() => setHoveredKey(null)}
                     className={`w-full flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${groupSel ? "sidebar-selected" : hoveredKey === groupKey ? "sidebar-hovered" : ""}`}
+                    style={{ color: groupSel ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
                     title={item.label}
                   >
                     <span className={`material-icons ${iconSizeClass}`}>
@@ -457,7 +472,14 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                     </div>
                   )}
                   {collapsed && open && (
-                    <div className="absolute top-0 z-10 w-48 rounded-md border border-slate-200 bg-white py-1 shadow-lg sidebar-shadow">
+                    <div
+                      className="absolute top-0 z-10 w-48 rounded-md border py-1 shadow-lg sidebar-shadow"
+                      style={{
+                        borderColor: 'var(--sidebar-border)',
+                        backgroundColor: 'var(--sidebar-bg)',
+                        color: 'var(--sidebar-text)',
+                      }}
+                    >
                       {renderChildrenCollapsed(item.children)}
                     </div>
                   )}
@@ -477,6 +499,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                 onMouseEnter={() => setHoveredKey(key)}
                 onMouseLeave={() => setHoveredKey(null)}
                 className={`flex items-center ${itemGap} ${itemPadding} rounded-md ${itemFontClass} ${isSel ? "sidebar-selected" : isHoveredItem ? "sidebar-hovered" : ""}`}
+                style={{ color: isSel ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
                 title={item.label}
               >
                 <span className={`material-icons ${iconSizeClass}`}>
@@ -493,9 +516,13 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
 
   return (
     <aside
-      className={`flex h-screen flex-col border-r border-slate-200 bg-white sidebar-shadow sidebar-width`}
+      className={`flex h-screen flex-col sidebar-shadow sidebar-width`}
+      style={{
+        backgroundColor: 'var(--sidebar-bg)',
+        borderRight: '1px solid var(--sidebar-border)',
+      }}
     >
-      <div className="flex items-center gap-2 border-b border-slate-100 px-2 py-2">
+      <div className="flex items-center gap-2 px-2 py-2" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
         <Link href="/" className="flex items-center gap-2">
           <div
             className={`relative shrink-0 ${collapsed ? "h-9 w-9 min-w-9 min-h-9" : "h-12 w-12 min-w-12 min-h-12"}`}
@@ -506,17 +533,19 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
               fill
               sizes={collapsed ? "36px" : "48px"}
               className="rounded-md object-contain"
+              style={{ filter: 'drop-shadow(0 0 0 transparent)' }}
             />
           </div>
 
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span
-                className="text-sm font-semibold text-emerald-600 leading-tight"
+                className="text-sm font-semibold leading-tight"
+                style={{ color: 'var(--color-brand)' }}
               >
                 GMNC
               </span>
-              <span className="text-[11px] text-gray-400">
+              <span className="text-[11px]" style={{ color: 'var(--sidebar-muted)' }}>
                 GET MY NEURO CARE
               </span>
             </div>
@@ -533,7 +562,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           )}
         </nav>
 
-        <div className="border-t border-slate-100 px-1 pt-1.5 pb-1">
+        <div className="border-t px-1 pt-1.5 pb-1" style={{ borderColor: 'var(--sidebar-border)' }}>
           <div className="space-y-2">
             {visibleBottomSidebarSections.map((section, idx) =>
               renderSection(section, `bottom-${idx}`)

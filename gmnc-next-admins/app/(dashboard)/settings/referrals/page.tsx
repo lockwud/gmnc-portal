@@ -1,34 +1,51 @@
 'use client';
 
-import React from 'react';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { ArrowLeftRight } from 'lucide-react';
+import PlatformSettingsPage from '@/components/settings/PlatformSettingsPage';
+import {
+  getReferralSettings,
+  updateReferralSettings,
+  type ReferralSettings,
+} from '@/lib/api/settings';
 
-export default function ReferralsSettingsPage() {
+const PROFESSION_OPTIONS = [
+  { label: 'Physiotherapist', value: 'PHYSIOTHERAPIST' },
+  { label: 'Occupational Therapist', value: 'OCCUPATIONAL_THERAPIST' },
+  { label: 'Speech Therapist', value: 'SPEECH_THERAPIST' },
+  { label: 'Clinical Psychologist', value: 'CLINICAL_PSYCHOLOGIST' },
+  { label: 'Dietitian', value: 'DIETITIAN' },
+  { label: 'Pharmacist', value: 'PHARMACIST' },
+  { label: 'General Paediatrician', value: 'GENERAL_PAEDIATRICIAN' },
+  { label: 'Paediatric Neurologist', value: 'PAEDIATRIC_NEUROLOGIST' },
+];
+
+const FIELDS = [
+  { key: 'enableAutoAssignment', label: 'Enable Auto-Assignment', type: 'toggle' as const, description: 'Automatically assign referrals to available providers' },
+  { key: 'defaultReferralExpiryDays', label: 'Default Referral Expiry', type: 'number' as const, description: 'Days before referral expires', min: 1, max: 90, unit: 'days' },
+  { key: 'enableSLATracking', label: 'Enable SLA Tracking', type: 'toggle' as const, description: 'Track referral response times' },
+  { key: 'slaWarningHours', label: 'SLA Warning Threshold', type: 'number' as const, description: 'Hours before SLA warning', min: 1, max: 168, unit: 'hrs' },
+  { key: 'slaEscalationHours', label: 'SLA Escalation Threshold', type: 'number' as const, description: 'Hours before SLA escalation', min: 1, max: 336, unit: 'hrs' },
+  { key: 'requireClinicalNotes', label: 'Require Clinical Notes', type: 'toggle' as const, description: 'Require clinical notes with referral' },
+  { key: 'enableReferralNotifications', label: 'Enable Notifications', type: 'toggle' as const, description: 'Send notifications for referral updates' },
+  { key: 'allowedTargetProfessions', label: 'Allowed Target Professions', type: 'multi-select' as const, description: 'Professions that can receive referrals', options: PROFESSION_OPTIONS },
+];
+
+export default function ReferralsSettingsRoute() {
+  const fetch = useCallback(() => getReferralSettings() as Promise<Record<string, unknown>>, []);
+  const update = useCallback(
+    (data: Record<string, unknown>) => updateReferralSettings(data as Partial<ReferralSettings>),
+    []
+  );
+
   return (
-    <ProtectedRoute>
-      
-    <div className="w-full pb-8 pt-4">
-      <div className="w-full px-6">
-        <header className="mb-5 flex items-center gap-3">
-          <Link href="/settings" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100">
-            <ChevronLeft className="h-4 w-4 text-slate-600" />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-900">Referral Workflow Settings</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Configure referral workflows and routing rules.
-            </p>
-          </div>
-        </header>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <p className="text-slate-600">Referral settings configuration coming soon.</p>
-        </div>
-      </div>
-    </div>
-    </ProtectedRoute>
-
-)
+    <PlatformSettingsPage
+      title="Referral Workflow Settings"
+      description="Configure referral workflows and routing rules."
+      icon={ArrowLeftRight}
+      fields={FIELDS}
+      fetchSettings={fetch}
+      updateSettings={update}
+    />
+  );
 }

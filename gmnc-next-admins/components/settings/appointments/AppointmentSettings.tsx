@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Calendar, Clock, Shield, Bell, Save, Eye, ExternalLink, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { getAppointmentSettings, updateAppointmentSettings } from '@/lib/api/settings';
 import type { AppointmentSettingsType } from '@/lib/api/types';
+import { useToast } from '@/components/ui/Toast';
 
 function SettingCard({
   title,
@@ -188,26 +189,41 @@ export default function AppointmentSettings() {
   const [settings, setSettings] = useState<AppointmentSettingsType>({ ...DEFAULT_SETTINGS });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { show } = useToast();
+
+  const handleAuthError = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('gmnc_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('gmnc_user');
+      window.location.href = '/login';
+    }
+  }, []);
 
   useEffect(() => {
     async function loadSettings() {
       try {
         setIsLoading(true);
-        setError(null);
         const data = await getAppointmentSettings();
         if (data) {
           setSettings({ ...DEFAULT_SETTINGS, ...data });
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load settings');
+        const msg = err instanceof Error ? err.message : 'Failed to load settings';
+        if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('invalid token')) {
+          show({ type: 'warning', title: 'Session Expired', message: 'Your session has expired. Please log in again.', duration: 5000 });
+          setTimeout(() => handleAuthError(), 2000);
+          return;
+        }
+        show({ type: 'error', title: 'Error', message: msg, duration: 5000 });
       } finally {
         setIsLoading(false);
       }
     }
     loadSettings();
-  }, []);
+  }, [show, handleAuthError]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -215,7 +231,13 @@ export default function AppointmentSettings() {
       await updateAppointmentSettings(settings);
       setIsModalOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save settings');
+      const msg = err instanceof Error ? err.message : 'Failed to save settings';
+      if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('invalid token')) {
+        show({ type: 'warning', title: 'Session Expired', message: 'Your session has expired. Please log in again.', duration: 5000 });
+        setTimeout(() => handleAuthError(), 2000);
+        return;
+      }
+      show({ type: 'error', title: 'Error', message: msg, duration: 5000 });
     } finally {
       setIsSaving(false);
     }
@@ -250,11 +272,7 @@ export default function AppointmentSettings() {
         <div className="flex h-[calc(100vh-200px)] flex-col">
           <div className="flex-1 overflow-y-auto scrollbar-none">
             <div className="space-y-6 pb-4">
-              {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
+              {/* Errors are now shown via toast */}
 
               <SettingsDisplayCard settings={settings} />
 

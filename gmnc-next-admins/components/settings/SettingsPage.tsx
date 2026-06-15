@@ -34,6 +34,12 @@ const sections: Section[] = [
         href: '/settings/workspace',
         icon: 'dashboard_customize',
       },
+      {
+        id: 'appearance',
+        label: 'Appearance',
+        href: '/settings/appearance',
+        icon: 'palette',
+      },
     ],
   },
   {
@@ -137,17 +143,17 @@ const sectionIcons: Record<string, string> = {
 };
 
 const SystemSettings: React.FC = () => {
-  const sectionIconColor = (COLORS && (COLORS.activeBg ?? COLORS.primary)) || '#059669';
-  const itemIconColor = (COLORS && COLORS.text) || '#111827';
+  const sectionIconColor = 'var(--sidebar-active-bg)';
+  const itemIconColor = 'var(--card-text)';
 
   return (
     <div className="w-full pb-8 pt-4">
       <div className="w-full px-6">
         <header className="mb-5">
-          <h1 className="text-3xl font-semibold" style={{ color: '#111827' }}>
+          <h1 className="text-3xl font-semibold" style={{ color: 'var(--card-text)' }}>
             System Settings
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm" style={{ color: 'var(--card-muted)' }}>
             Configure core platform modules, operational rules, access policies, and communication preferences.
           </p>
         </header>
@@ -169,7 +175,8 @@ const SystemSettings: React.FC = () => {
                 </span>
                 <h2
                   id={`section-${section.id}`}
-                  className="text-sm font-semibold text-gray-700"
+                  className="text-sm font-semibold"
+                  style={{ color: 'var(--card-muted)' }}
                 >
                   {section.title}
                 </h2>
@@ -184,10 +191,14 @@ const SystemSettings: React.FC = () => {
                     aria-label={item.label}
                   >
                     <div
-                      className="flex items-center gap-3 rounded-full border bg-white px-6 py-3 transition-shadow transition-colors hover:shadow-sm"
-                      style={{ borderColor: '#e6e9f2' }}
+                      className="flex items-center gap-3 rounded-full px-6 py-3 transition-shadow transition-colors hover:shadow-sm"
+                      style={{
+                        backgroundColor: 'var(--card-bg)',
+                        border: '1px solid var(--card-border)',
+                        color: 'var(--card-text)',
+                      }}
                     >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-50" aria-hidden>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md" style={{ backgroundColor: 'var(--input-bg)' }} aria-hidden>
                         <span
                           className="material-icons"
                           style={{ color: itemIconColor, fontSize: 16 }}
@@ -197,7 +208,7 @@ const SystemSettings: React.FC = () => {
                       </div>
 
                       <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-800">
+                        <div className="text-sm font-medium" style={{ color: 'var(--card-text)' }}>
                           {item.label}
                         </div>
                       </div>
