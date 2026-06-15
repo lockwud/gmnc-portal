@@ -1,21 +1,52 @@
 /* Sidebar custom classes for stateful styling */
 .sidebar-selected {
-  background: #e5e7eb !important; /* Example: Tailwind gray-200 */
-  color: #1f2937 !important;      /* Example: Tailwind gray-800 */
+  background: var(--sidebar-selected) !important;
+  color: var(--sidebar-active-text) !important;
+}
+
+.sidebar-selected span {
+  color: var(--sidebar-active-text) !important;
+}
+
+.sidebar-selected .material-icons {
+  color: var(--sidebar-active-text) !important;
 }
 
 .sidebar-hovered {
-  background: #f3f4f6 !important; /* Example: Tailwind gray-100 */
-  color: #374151 !important;      /* Example: Tailwind gray-700 */
+  background: var(--sidebar-hover) !important;
+  color: var(--sidebar-text) !important;
+}
+
+.sidebar-hovered span {
+  color: var(--sidebar-text) !important;
+}
+
+.sidebar-hovered .material-icons {
+  color: var(--sidebar-text) !important;
 }
 
 .sidebar-shadow {
   box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
 }
 
+.dark .sidebar-shadow {
+  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.4) !important;
+}
+
 .sidebar-width {
   width: 220px;
   min-width: 220px;
+}
+
+/* Ensure sidebar items always show text properly */
+.sidebar-width a,
+.sidebar-width button {
+  color: var(--sidebar-text);
+}
+
+.sidebar-width a span,
+.sidebar-width button span {
+  color: inherit;
 }
 
 /* Utility classes */

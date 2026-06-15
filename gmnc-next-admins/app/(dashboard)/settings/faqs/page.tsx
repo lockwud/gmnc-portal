@@ -1,34 +1,47 @@
 'use client';
 
-import React from 'react';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { HelpCircle } from 'lucide-react';
+import PlatformSettingsPage from '@/components/settings/PlatformSettingsPage';
+import {
+  getFaqSettings,
+  updateFaqSettings,
+  type FaqSettings,
+} from '@/lib/api/settings';
 
-export default function FaqManagementPage() {
+const POSITION_OPTIONS = [
+  { label: 'Bottom Right', value: 'bottom-right' },
+  { label: 'Bottom Left', value: 'bottom-left' },
+  { label: 'Top Right', value: 'top-right' },
+  { label: 'Top Left', value: 'top-left' },
+];
+
+const FIELDS = [
+  { key: 'enableFaqModule', label: 'Enable FAQ Module', type: 'toggle' as const, description: 'Show FAQ section in the platform' },
+  { key: 'showHelpWidget', label: 'Show Help Widget', type: 'toggle' as const, description: 'Display floating help button' },
+  { key: 'helpWidgetPosition', label: 'Help Widget Position', type: 'select' as const, options: POSITION_OPTIONS },
+  { key: 'enableSearchSuggestions', label: 'Enable Search Suggestions', type: 'toggle' as const, description: 'Show suggestions while searching FAQs' },
+  { key: 'showPopularFaqs', label: 'Show Popular FAQs', type: 'toggle' as const, description: 'Display popular FAQs on the help page' },
+  { key: 'faqsPerPage', label: 'FAQs Per Page', type: 'number' as const, min: 5, max: 50, unit: 'items' },
+  { key: 'enableFeedbackOnFaqs', label: 'Enable FAQ Feedback', type: 'toggle' as const, description: 'Allow users to rate FAQ helpfulness' },
+  { key: 'requireApprovalForPublicFaq', label: 'Require Approval for Public', type: 'toggle' as const, description: 'FAQs must be approved before going public' },
+];
+
+export default function FaqSettingsRoute() {
+  const fetch = useCallback(() => getFaqSettings() as Promise<Record<string, unknown>>, []);
+  const update = useCallback(
+    (data: Record<string, unknown>) => updateFaqSettings(data as Partial<FaqSettings>),
+    []
+  );
+
   return (
-    <ProtectedRoute>
-      
-    <div className="w-full pb-8 pt-4">
-      <div className="w-full px-6">
-        <header className="mb-5 flex items-center gap-3">
-          <Link href="/settings" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100">
-            <ChevronLeft className="h-4 w-4 text-slate-600" />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-900">FAQ Management</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Manage frequently asked questions.
-            </p>
-          </div>
-        </header>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <p className="text-slate-600">FAQ management configuration coming soon.</p>
-        </div>
-      </div>
-    </div>
-    </ProtectedRoute>
-
+    <PlatformSettingsPage
+      title="FAQ Management"
+      description="Configure FAQ display and management settings."
+      icon={HelpCircle}
+      fields={FIELDS}
+      fetchSettings={fetch}
+      updateSettings={update}
+    />
   );
 }

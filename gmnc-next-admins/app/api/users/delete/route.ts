@@ -3,7 +3,6 @@ import { hasRole, type User } from '@/lib/rbac';
 import { sessionUserSchema, type SessionUser } from '@/lib/validators/auth';
 import { ACCESS_TOKEN_COOKIE, SESSION_COOKIE, deserializeSessionUser } from '@/lib/session';
 import { env } from '@/lib/env';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/session';
 
 export async function DELETE(request: NextRequest) {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -50,14 +49,36 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    let backendUrl: string;
-    if (userType === 'SERVICE_PROVIDER') {
-      backendUrl = `${env.API_BASE_URL}/service-provider/${encodeURIComponent(userId)}`;
-    } else {
-      backendUrl = `${env.API_BASE_URL}/caregiver/${encodeURIComponent(userId)}`;
+    // Step 1: Always delete the user account first (soft delete via admin endpoint)
+    // This handles users who may not have completed their profile yet
+    const adminUserDeleteUrl = `${env.API_BASE_URL}/admin/users/${encodeURIComponent(userId)}`;
+    const adminDeleteResponse = await fetch(adminUserDeleteUrl, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Even if admin delete fails 404 (user not found), continue to try profile deletion
+    const adminDeleteData = await adminDeleteResponse.json().catch(() => ({}));
+    if (!adminDeleteResponse.ok && adminDeleteResponse.status !== 404) {
+      return NextResponse.json(
+        { success: false, message: (adminDeleteData as { message?: string }).message || 'Failed to delete user account' },
+        { status: adminDeleteResponse.status }
+      );
     }
 
-    const response = await fetch(backendUrl, {
+    // Step 2: Attempt to delete the associated profile (service provider or caregiver)
+    // Gracefully handle 404 - the user may not have a profile record yet
+    let profileBackendUrl: string;
+    if (userType === 'SERVICE_PROVIDER') {
+      profileBackendUrl = `${env.API_BASE_URL}/service-provider/${encodeURIComponent(userId)}`;
+    } else {
+      profileBackendUrl = `${env.API_BASE_URL}/caregiver/${encodeURIComponent(userId)}`;
+    }
+
+    const profileResponse = await fetch(profileBackendUrl, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -67,16 +88,14 @@ export async function DELETE(request: NextRequest) {
       body: JSON.stringify({ retainPatientRecords: true }),
     });
 
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { success: false, message: (data as { message?: string }).message || 'Failed to delete account' },
-        { status: response.status }
-      );
+    // If profile delete fails with 404 (no profile exists), that's acceptable
+    if (!profileResponse.ok && profileResponse.status !== 404) {
+      const profileData = await profileResponse.json().catch(() => ({}));
+      // Non-404 errors on the profile deletion are non-fatal - user account is already deleted
+      console.warn('Profile deletion warning (non-fatal):', (profileData as { message?: string }).message);
     }
 
-    return NextResponse.json({ success: true, message: (data as { message?: string }).message || 'Account deleted successfully' });
+    return NextResponse.json({ success: true, message: 'User account deleted successfully. Patient records are retained.' });
   } catch {
     return NextResponse.json(
       { success: false, message: 'Internal server error' },

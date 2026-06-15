@@ -10,6 +10,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import { Input } from '@/components/ui/Input';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import {
   BarChart3,
   ChevronDown,
@@ -506,7 +507,7 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <ProtectedRoute requiredRole="admin">
+    <ProtectedRoute requiredRole="provider">
       <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
         <div className="shrink-0 border-b border-slate-200 px-4 py-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -522,25 +523,23 @@ export default function AdminReportsPage() {
               <button type="button" onClick={handleExcelDownload} className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100">
                 <Download className="h-4 w-4" /> Download CSV
               </button>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:border-slate-300">
-                <ShieldCheck className="h-4 w-4 text-slate-400" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="min-w-[100px] bg-transparent text-xs outline-none"
-                >
-                  <option value="ALL">All statuses</option>
-                  <option value="DRAFT">Draft</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="REVIEWED">Reviewed</option>
-                </select>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:border-slate-300">
-                <BarChart3 className="h-4 w-4 text-slate-400" />
-                <select value={toolFilter} onChange={(e) => setToolFilter(e.target.value)} className="min-w-[100px] bg-transparent text-xs outline-none">
-                  {availableTools.map((t) => <option key={t} value={t}>{t === 'ALL' ? 'All tools' : formatLabel(t)}</option>)}
-                </select>
-              </div>
+              <SelectDropdown
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v || 'ALL')}
+                options={[
+                  { label: 'All statuses', value: 'ALL' },
+                  { label: 'Draft', value: 'DRAFT' },
+                  { label: 'Completed', value: 'COMPLETED' },
+                  { label: 'Reviewed', value: 'REVIEWED' },
+                ]}
+                icon={<ShieldCheck className="h-4 w-4 text-slate-400" />}
+              />
+              <SelectDropdown
+                value={toolFilter}
+                onChange={(v) => setToolFilter(v || 'ALL')}
+                options={availableTools.map((t) => ({ label: t === 'ALL' ? 'All tools' : formatLabel(t), value: t }))}
+                icon={<BarChart3 className="h-4 w-4 text-slate-400" />}
+              />
             </div>
           </div>
         </div>

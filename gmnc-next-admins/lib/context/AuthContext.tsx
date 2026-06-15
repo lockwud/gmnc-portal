@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getDashboardRoute, getDefaultRoleForUserType, getEffectiveRoles } from '../rbac';
+import { getDashboardRoute, getDefaultRoleForUserType, getEffectiveRoles, hasAnyRole } from '../rbac';
 import { useRouter } from 'next/navigation';
 
 // =========================================
@@ -133,7 +133,11 @@ function clearAuth() {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('gmnc_selected_role');
-    const keysToRemove = Object.keys(localStorage).filter((k) => k.startsWith('gmnc_'));
+    // Remove gmnc_* keys EXCEPT theme preferences so the login page
+    // can render with the same theme the user logged out with.
+    const keysToRemove = Object.keys(localStorage).filter(
+      (k) => k.startsWith('gmnc_') && !k.startsWith('gmnc_theme_'),
+    );
     keysToRemove.forEach((k) => localStorage.removeItem(k));
     const sessionKeysToRemove = Object.keys(sessionStorage).filter((k) =>
       k.startsWith('gmnc_'),
@@ -147,14 +151,19 @@ function clearAuth() {
 function resolveSelectedRole(user: User, storedRole?: string | null): Role | null {
   const effectiveRoles = getEffectiveRoles(user);
 
-  if (storedRole && effectiveRoles.includes(storedRole as Role)) {
-    return storedRole as Role;
+  if (effectiveRoles.length > 0) {
+    if (storedRole && effectiveRoles.includes(storedRole as Role)) {
+      return storedRole as Role;
+    }
+    if (effectiveRoles.includes('admin')) return 'admin';
+    return (effectiveRoles[0] as Role) ?? null;
   }
-  if (effectiveRoles.includes('admin')) return 'admin';
-  if (user.roles.length === 0 && user.userType === 'SERVICE_PROVIDER') {
-    return 'provider';
-  }
-  return (user.roles[0] as Role) ?? getDefaultRoleForUserType(user.userType);
+
+  // No assigned roles — fall back to userType-based workspace
+  if ((user.userType || '').toUpperCase() === 'SERVICE_PROVIDER') return 'provider';
+  if ((user.userType || '').toUpperCase() === 'ADMIN') return 'admin';
+  if ((user.userType || '').toUpperCase() === 'CAREGIVER') return 'support';
+  return null;
 }
 
 // =========================================
