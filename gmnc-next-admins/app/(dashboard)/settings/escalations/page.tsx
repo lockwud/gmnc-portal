@@ -1,34 +1,36 @@
 'use client';
 
-import React from 'react';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import PlatformSettingsPage from '@/components/settings/PlatformSettingsPage';
+import {
+  getEscalationSettings,
+  updateEscalationSettings,
+  type EscalationSettings,
+} from '@/lib/api/settings';
 
-export default function EscalationsPage() {
+const FIELDS = [
+  { key: 'enableAutoEscalation', label: 'Enable Auto-Escalation', type: 'toggle' as const, description: 'Automatically escalate overdue tickets' },
+  { key: 'escalationThresholdHours', label: 'Escalation Threshold', type: 'number' as const, description: 'Hours before auto-escalation', min: 1, max: 168, unit: 'hrs' },
+  { key: 'maxEscalationLevel', label: 'Max Escalation Level', type: 'number' as const, description: 'Maximum escalation levels', min: 1, max: 5 },
+  { key: 'notifyOnEscalation', label: 'Notify on Escalation', type: 'toggle' as const, description: 'Send notifications when tickets are escalated' },
+];
+
+export default function EscalationsRoute() {
+  const fetch = useCallback(() => getEscalationSettings() as Promise<Record<string, unknown>>, []);
+  const update = useCallback(
+    (data: Record<string, unknown>) => updateEscalationSettings(data as Partial<EscalationSettings>),
+    []
+  );
+
   return (
-    <ProtectedRoute>
-      
-    <div className="w-full pb-8 pt-4">
-      <div className="w-full px-6">
-        <header className="mb-5 flex items-center gap-3">
-          <Link href="/settings" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100">
-            <ChevronLeft className="h-4 w-4 text-slate-600" />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-900">Issue Categories & Escalations</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Configure issue categories and escalation rules.
-            </p>
-          </div>
-        </header>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <p className="text-slate-600">Issue categories and escalations configuration coming soon.</p>
-        </div>
-      </div>
-    </div>
-    </ProtectedRoute>
-
-)
+    <PlatformSettingsPage
+      title="Issue Categories & Escalations"
+      description="Configure issue categories and escalation rules."
+      icon={AlertTriangle}
+      fields={FIELDS}
+      fetchSettings={fetch}
+      updateSettings={update}
+    />
+  );
 }

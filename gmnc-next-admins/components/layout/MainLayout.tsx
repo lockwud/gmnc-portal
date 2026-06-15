@@ -50,7 +50,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen" style={{ backgroundColor: 'var(--color-content-bg)' }}>
       <Sidebar collapsed={sidebarCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all">
         <TopBar onToggleSidebar={() => setSidebarCollapsed((s) => !s)} />

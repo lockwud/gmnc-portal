@@ -490,7 +490,49 @@ useEffect(() => {
               </div>
             ) : (
               <>
-                <AssignmentTable assignments={paginatedAssignments} />
+                <AssignmentTable
+                  assignments={paginatedAssignments}
+                  onRevoke={async (assignment) => {
+                    try {
+                      show({
+                        title: 'Revoking role...',
+                        message: 'Please wait while we revoke the role.',
+                        type: 'loading',
+                        duration: 0,
+                      });
+
+                      // Find the role ID from the roles list using the slug
+                      const role = roles.find((r) => r.slug === assignment.roleSlug);
+                      const roleId = role?.id || assignment.roleSlug;
+
+                      const response = await fetch(
+                        `/api/admin/rbac/users/${assignment.userId}/roles/${roleId}`,
+                        {
+                          method: 'DELETE',
+                          headers: getAuthHeaders(),
+                        }
+                      );
+
+                      if (!response.ok) throw new Error('Failed to revoke role');
+
+                      await refreshAssignments();
+
+                      show({
+                        title: 'Success',
+                        message: 'Role revoked successfully.',
+                        type: 'success',
+                        duration: 3000,
+                      });
+                    } catch (err) {
+                      show({
+                        title: 'Error',
+                        message: err instanceof Error ? err.message : 'Failed to revoke role',
+                        type: 'error',
+                        duration: 4000,
+                      });
+                    }
+                  }}
+                />
 
                 <div className="border border-slate-200 bg-white">
                   <Pagination
