@@ -172,7 +172,8 @@ export function canAccessDashboardPath(user: User, pathname: string): boolean {
       pathMatches(pathname, '/provider') ||
       pathMatches(pathname, '/support/tickets') ||
       pathMatches(pathname, '/support/faqs') ||
-      pathMatches(pathname, '/settings')
+      pathMatches(pathname, '/settings') ||
+      pathMatches(pathname, '/admin/reports')
     ) {
       return true;
     }
