@@ -79,11 +79,6 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
             icon: "groups",
           },
           {
-            label: "Appointments",
-            path: "/admin/appointments",
-            icon: "event",
-          },
-          {
             label: "Roles & Access",
             path: "/admin/roles-access",
             icon: "verified_user",
@@ -217,13 +212,6 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
   {
     title: "SYSTEM",
     items: [
-      {
-        label: "Reports",
-        path: "/admin/reports",
-        icon: "assessment",
-        collapsible: false,
-        requiredRole: "provider",
-      },
       {
         label: "System Settings",
         path: "/settings",

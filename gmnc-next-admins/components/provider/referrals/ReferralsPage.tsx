@@ -376,8 +376,8 @@ export default function ReferralsPage() {
     }
     setIsLoadingProviders(true);
     try {
-      // Use admin endpoint to get service providers by profession
-      const response = await fetch(`/api/admin/providers?profession=${encodeURIComponent(profession)}&limit=100`, {
+      // Get service providers by profession
+      const response = await fetch(`/api/service-provider?profession=${encodeURIComponent(profession)}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
