@@ -1,4 +1,4 @@
-image.png I will need "use client";
+"use client";
 
 import * as React from "react";
 import { Mail, Lock, Eye, EyeOff, MoveRight } from "lucide-react";
