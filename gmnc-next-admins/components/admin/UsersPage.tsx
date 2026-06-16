@@ -9,8 +9,9 @@ import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
-import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar } from 'lucide-react';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar , Trash2 } from 'lucide-react';
+
+// import RowActions from '../ui/RowActions';
 
 type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
 type RegistrationStep = 1 | 2 | 3;
@@ -23,7 +24,7 @@ type UserRecord = {
   email?: string | null;
   phoneNumber: string;
   userType: Exclude<UserType, 'ALL'>;
-  accountStatus: 'ACTIVE' | 'PENDING' | 'INVITED';
+  accountStatus: 'ACTIVE' | 'PENDING' | 'INVITED' | 'DEACTIVATED';
   updatedAt: string;
   gender?: Gender;
   dateOfBirth?: string;
@@ -64,6 +65,10 @@ function getStatusClass(status: UserRecord['accountStatus']) {
       return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
     case 'INVITED':
       return 'bg-amber-50 text-amber-700 ring-1 ring-amber-100';
+    case 'DEACTIVATED':
+      return 'bg-rose-50 text-rose-600 ring-1 ring-rose-100';
+    default:
+      return 'bg-slate-100 text-slate-500 ring-1 ring-slate-200';
   }
 }
 
@@ -137,11 +142,10 @@ function SmallDropdown<T extends string>({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                  active
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${active
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -155,19 +159,37 @@ function SmallDropdown<T extends string>({
 
 export default function UserRegistrationPage() {
   const { show } = useToast();
-  const { isLoading: authLoading } = useAuth();
+
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Confirmation Modal States for deactivate / delete actions
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    userId: string;
+    userType: Exclude<UserType, 'ALL'>;
+    isSelf: boolean;
+    userName: string;
+  }>({
+    isOpen: false,
+    userId: '',
+    userType: 'CAREGIVER',
+    isSelf: false,
+    userName: '',
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const { user: currentUser, logout, token, isLoading: authLoading } = useAuth();
+
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     setFetchError(null);
     try {
-        const response = await fetch('/api/admin/users', {
-          credentials: 'include',
-        });
+      const response = await fetch('/api/admin/users', {
+        credentials: 'include',
+      });
       const result = await response.json();
       if (result.success) {
         const rawData = result.data;
@@ -389,15 +411,15 @@ export default function UserRegistrationPage() {
             prev.map((u) =>
               u.id === editingUserId
                 ? {
-                    ...u,
-                    fullName: formData.fullName,
-                    email: formData.email || null,
-                    phoneNumber: formData.phoneNumber,
-                    gender: formData.gender,
-                    dateOfBirth: formData.dateOfBirth,
-                    otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
-                    updatedAt: new Date().toISOString(),
-                  }
+                  ...u,
+                  fullName: formData.fullName,
+                  email: formData.email || null,
+                  phoneNumber: formData.phoneNumber,
+                  gender: formData.gender,
+                  dateOfBirth: formData.dateOfBirth,
+                  otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+                  updatedAt: new Date().toISOString(),
+                }
                 : u
             )
           );
@@ -434,6 +456,114 @@ export default function UserRegistrationPage() {
         duration: 4000,
       });
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeactivate = (id: string) => {
+    const isSelf = currentUser?.id === id;
+    const userRecord = users.find((u) => u.id === id);
+    const userName = userRecord?.fullName || 'this user';
+
+    if (userRecord?.accountStatus === 'DEACTIVATED') {
+      show({
+        title: 'Account already deactivated',
+        message: `${userName}'s account is already deactivated.`,
+        duration: 3000,
+      });
+      return;
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      userId: id,
+      userType: userRecord?.userType || '',
+      isSelf,
+      userName,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    const { userId, userType, isSelf } = confirmModal;
+    setIsProcessing(true);
+
+    try {
+      if (isSelf) {
+        // Self-deactivation flow with Authorization header
+        const res = await fetch('/api/user/deactivate-account', {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        });
+        const result = await res.json().catch(() => null);
+
+        if (res.ok && (result?.success || result?.status === 'SUCCESS')) {
+          show({
+            title: 'Deactivated',
+            message: 'Your account has been deactivated. Logging out...',
+            duration: 3000,
+          });
+          setTimeout(() => {
+            logout();
+          }, 1500);
+        } else {
+          show({
+            title: 'Error',
+            message: result?.message || 'Failed to deactivate account.',
+            duration: 4000,
+          });
+        }
+      } else {
+        const isDeleteAction = userType === 'CAREGIVER' || userType === 'SERVICE_PROVIDER';
+
+        const res = await fetch(
+          isDeleteAction ? '/api/user/delete-account' : '/api/user/deactivate-account',
+          {
+            method: 'POST',
+            credentials: 'include',
+            cache: 'no-store',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ userId, type: userType }),
+          },
+        );
+        const result = await res.json().catch(() => null);
+
+        if (res.ok && (result?.success || result?.status === 'SUCCESS')) {
+          show({
+            title: isDeleteAction ? 'Deleted' : 'Deactivated',
+            message: isDeleteAction
+              ? `${formatUserType(userType)} account has been permanently deleted.`
+              : `${formatUserType(userType)} account has been deactivated and access revoked until reactivation.`,
+            duration: 3000,
+          });
+          if (isDeleteAction) {
+            setUsers((prev) => prev.filter((u) => u.id !== userId));
+          } else {
+            setUsers((prev) =>
+              prev.map((u) => (u.id === userId ? { ...u, accountStatus: 'DEACTIVATED' } : u)),
+            );
+          }
+          await fetchUsers();
+        } else {
+          show({
+            title: 'Error',
+            message: result?.message || (isDeleteAction ? 'Failed to delete user.' : 'Failed to deactivate user.'),
+            duration: 4000,
+          });
+        }
+      }
+    } catch (err) {
+      show({
+        title: 'Error',
+        message: 'A network error occurred.',
+        duration: 4000,
+      });
+    } finally {
+      setIsProcessing(false);
+      setConfirmModal((prev) => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -517,9 +647,8 @@ export default function UserRegistrationPage() {
                         {paginatedUsers.map((user, index) => (
                           <tr
                             key={user.id}
-                            className={`transition ${
-                              index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                            } hover:bg-emerald-50`}
+                            className={`transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                              } hover:bg-emerald-50`}
                           >
                             <td className="border-b border-slate-100 px-4 py-3">
                               <div className="flex items-center gap-3">
@@ -570,6 +699,10 @@ export default function UserRegistrationPage() {
                               onClick={(event) => event.stopPropagation()}
                             >
                               <div className="flex justify-center">
+                                <RowActions
+                                  onEdit={() => handleEdit(user)}
+                                  onDelete={() => handleDeactivate(user.id)}
+                                />
                                 <button
                                   type="button"
                                   onClick={() => setDeleteConfirm({ open: true, userId: user.id, userName: user.fullName, userType: user.userType })}
@@ -743,10 +876,10 @@ export default function UserRegistrationPage() {
                     <span className="flex-1 text-left">
                       {selectedDate
                         ? selectedDate.toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
                         : 'Select date'}
                     </span>
                   </button>
@@ -858,10 +991,10 @@ export default function UserRegistrationPage() {
                       <span className="font-medium text-slate-900">Date of birth:</span>{' '}
                       {formData.dateOfBirth
                         ? new Date(formData.dateOfBirth).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
                         : '—'}
                     </p>
                     {!isEditMode && (
@@ -935,6 +1068,75 @@ export default function UserRegistrationPage() {
                 {isSubmitting ? 'Saving...' : 'Save'}
               </Button>
             )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => !isProcessing && setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      >
+        <div className="space-y-6 p-8 text-center bg-white rounded-3xl shadow-2xl border border-slate-100">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[2.5rem] border border-rose-100 bg-rose-50 text-rose-500">
+            <Plus size={40} className="rotate-45" />
+          </div>
+          <div>
+            {(() => {
+              const isDelete = !confirmModal.isSelf && (confirmModal.userType === 'CAREGIVER' || confirmModal.userType === 'SERVICE_PROVIDER');
+              return (
+                <>
+                  <h2 className="text-xl font-black tracking-tight text-slate-900">
+                    {confirmModal.isSelf ? 'Deactivate Account' : isDelete ? 'Delete User' : 'Deactivate User'}
+                  </h2>
+                  <p className="mt-2 text-sm font-medium text-slate-500">
+                    {confirmModal.isSelf ? (
+                      <>
+                        Are you sure you want to deactivate your account{' '}
+                        <span className="font-bold text-rose-500">({confirmModal.userName})</span>? You
+                        will lose access to all portal features immediately and be logged out.
+                      </>
+                    ) : isDelete ? (
+                      <>
+                        Are you sure you want to permanently delete{' '}
+                        <span className="font-bold text-slate-900">{confirmModal.userName}</span>? This
+                        action cannot be undone and will remove their data from the system.
+                      </>
+                    ) : (
+                      <>
+                        Are you sure you want to deactivate{' '}
+                        <span className="font-bold text-slate-900">{confirmModal.userName}</span>? This
+                        will deactivate their account and revoke access.
+                      </>
+                    )}
+                  </p>
+                </>
+              );
+            })()}
+          </div>
+          <div className="flex gap-4 pt-4">
+            <button
+              type="button"
+              disabled={isProcessing}
+              className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+            >
+              {confirmModal.isSelf ? 'Keep Active' : 'Cancel'}
+            </button>
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={handleConfirmAction}
+              className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 font-bold text-white transition-colors hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center"
+            >
+              {isProcessing ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                (() => {
+                  const isDelete = !confirmModal.isSelf && (confirmModal.userType === 'CAREGIVER' || confirmModal.userType === 'SERVICE_PROVIDER');
+                  return isDelete ? 'Yes, Delete' : 'Yes, Deactivate';
+                })()
+              )}
+            </button>
           </div>
         </div>
       </Modal>
