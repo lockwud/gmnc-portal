@@ -1,4 +1,4 @@
-import { AppointmentSettingsType } from './types';
+import { AppointmentSettingsType, WorkingHoursItem } from './types';
 
 export const DEFAULT_SETTINGS: AppointmentSettingsType = {
   allowPatientBooking: true,
@@ -450,6 +450,70 @@ export async function updateFaqSettings(
   token?: string | null
 ): Promise<FaqSettings> {
   return updatePlatformSetting<FaqSettings>('/api/settings/faqs', settings, token);
+}
+
+// ── Provider Appointment Settings ───────────────────────────────────────
+
+export type ProviderAppointmentSettingsType = {
+  id?: string;
+  providerId?: string;
+  allowPatientBooking: boolean;
+  minAppointmentNotice: number;
+  defaultDuration: number;
+  bufferTime: number;
+  maxDailyAppointments: number;
+  enableReminders: boolean;
+  reminderLeadTime: number;
+  requireConfirmation: boolean;
+  enableWaitlist: boolean;
+  slotInterval: number;
+  workingHours: WorkingHoursItem[];
+}
+
+export const PROVIDER_DEFAULT_SETTINGS: ProviderAppointmentSettingsType = {
+  allowPatientBooking: true,
+  minAppointmentNotice: 24,
+  defaultDuration: 30,
+  bufferTime: 15,
+  maxDailyAppointments: 20,
+  enableReminders: true,
+  reminderLeadTime: 2,
+  requireConfirmation: false,
+  enableWaitlist: true,
+  slotInterval: 30,
+  workingHours: [
+    { day: 'Monday', enabled: true, start: '09:00', end: '17:00' },
+    { day: 'Tuesday', enabled: true, start: '09:00', end: '17:00' },
+    { day: 'Wednesday', enabled: true, start: '09:00', end: '17:00' },
+    { day: 'Thursday', enabled: true, start: '09:00', end: '17:00' },
+    { day: 'Friday', enabled: true, start: '09:00', end: '17:00' },
+    { day: 'Saturday', enabled: false, start: '10:00', end: '14:00' },
+    { day: 'Sunday', enabled: false, start: '10:00', end: '14:00' },
+  ],
+};
+
+export async function getProviderAppointmentSettings(token?: string | null): Promise<ProviderAppointmentSettingsType> {
+  try {
+    const res = await apiGet<{
+      status: boolean;
+      data: Partial<ProviderAppointmentSettingsType>;
+    }>('/api/settings/provider-appointments', token);
+    return { ...PROVIDER_DEFAULT_SETTINGS, ...res.data };
+  } catch {
+    return PROVIDER_DEFAULT_SETTINGS;
+  }
+}
+
+export async function updateProviderAppointmentSettings(
+  settings: ProviderAppointmentSettingsType,
+  token?: string | null
+): Promise<ProviderAppointmentSettingsType> {
+  const res = await apiPut<{
+    status: boolean;
+    message?: string;
+    data: ProviderAppointmentSettingsType;
+  }>('/api/settings/provider-appointments', settings, token);
+  return res.data;
 }
 
 // ── User Appearance Settings ────────────────────────────────────────────
