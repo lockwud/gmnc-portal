@@ -10,6 +10,7 @@ export const sessionUserSchema = z.object({
   roles: z.array(roleSchema).default([]),
   permissions: z.array(z.string()).default([]),
   userType: userTypeSchema.optional(),
+  accountStatus: z.string().optional(),
   avatar: z.string().nullable().optional().transform((value) => value ?? null),
 });
 

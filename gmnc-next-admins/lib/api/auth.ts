@@ -209,6 +209,11 @@ export async function loginRequest(payload: LoginRequest): Promise<LoginResult> 
     throw new ApiError('Login response did not include an access token', 502, response.data);
   }
 
+  const rawUser = getRawUser(response.data);
+  if (rawUser.accountStatus === 'DEACTIVATED') {
+    throw new ApiError('Your account has been deactivated. Please contact an administrator.', 403);
+  }
+
   return {
     accessToken,
     user: normalizeUser(response.data, accessToken),
@@ -235,6 +240,11 @@ export async function getProfileRequest(token: string) {
     method: 'GET',
     token,
   });
+
+  const rawUser = getRawUser(response.data);
+  if (rawUser.accountStatus === 'DEACTIVATED') {
+    throw new ApiError('Your account has been deactivated. Please contact an administrator.', 403);
+  }
 
   console.log('[AUTH/GET_PROFILE] Backend response data:', JSON.stringify(response.data, null, 2));
   return normalizeUser(response.data, token);
