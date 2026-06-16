@@ -466,7 +466,52 @@ export default function RolesAccessPage() {
       <RoleCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSave={async () => {}}
+        onSave={async (roleData) => {
+          try {
+            const slug = roleData.name
+              .toUpperCase()
+              .replace(/[^A-Z0-9_]/g, '_')
+              .replace(/_+/g, '_')
+              .replace(/^_|_$/g, '');
+
+            const response = await fetch('/api/admin/rbac/roles', {
+              method: 'POST',
+              headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                slug,
+                name: roleData.name,
+                description: roleData.description,
+              }),
+            });
+
+            if (!response.ok) {
+              const errData = await response.json();
+              throw new Error(errData.message || 'Failed to create role');
+            }
+
+            const newRole = await response.json();
+            const newRoleData = newRole.data || newRole;
+
+            setRoles((prev) => [...prev, newRoleData]);
+
+            show({
+              title: 'Success',
+              message: 'Role created successfully',
+              type: 'success',
+              duration: 3000,
+            });
+          } catch (err) {
+            show({
+              title: 'Error',
+              message: err instanceof Error ? err.message : 'Failed to create role',
+              type: 'error',
+              duration: 4000,
+            });
+          }
+        }}
       />
     </>
   );

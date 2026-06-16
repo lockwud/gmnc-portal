@@ -8,18 +8,43 @@ import Link from "next/link";
 import Image from "next/image";
 import { AuthBackground } from "@/components/auth/AuthBackground";
 import { useAuth } from "@/lib/context/AuthContext";
+import { useTheme } from "@/lib/context/ThemeContext";
 
 export default function LoginPage() {
   const { login, isLoading, error } = useAuth();
+  const { preferences, isDark } = useTheme();
   const [identifier, setIdentifier] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
-  const [rememberMe, setRememberMe] = React.useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await login(identifier, password);
   };
+
+  React.useEffect(() => {
+    const root = document.documentElement;
+    // Login page always uses light mode or follows system preference,
+    // ignoring any previously stored dark mode preference
+    root.classList.remove('dark');
+
+    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemChange = (e: MediaQueryListEvent) => {
+      if (preferences.themeMode === 'system') {
+        e.matches ? root.classList.add('dark') : root.classList.remove('dark');
+      }
+    };
+
+    // For system mode, respect the system preference on the login page
+    if (preferences.themeMode === 'system' && darkModeQuery.matches) {
+      root.classList.add('dark');
+    }
+
+    darkModeQuery.addEventListener('change', handleSystemChange);
+    return () => {
+      darkModeQuery.removeEventListener('change', handleSystemChange);
+    };
+  }, [preferences.themeMode]);
 
   return (
     <AuthBackground>
@@ -29,6 +54,7 @@ export default function LoginPage() {
         transition={{ type: "spring", stiffness: 100, damping: 20 }}
         className="relative grid w-full max-w-4xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]"
       >
+        {/* Branding Panel */}
         <div className="hidden overflow-hidden px-6 py-8 lg:flex lg:flex-col lg:justify-center">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -36,7 +62,7 @@ export default function LoginPage() {
             transition={{ delay: 0.3 }}
             className="relative z-10 flex items-center gap-4"
           >
-            <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
+            <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
               <Image
                 src="/logo.png"
                 alt="GmNC Logo"
@@ -81,6 +107,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Form Card */}
         <div className="flex justify-center lg:justify-end">
           <div className="w-full max-w-md rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-[0_20px_60px_-25px_rgba(15,23,42,0.18)] backdrop-blur-sm sm:p-8">
             <div className="mb-8">
@@ -108,7 +135,7 @@ export default function LoginPage() {
                 animate={{ opacity: 1, height: "auto" }}
                 className="mb-6 flex items-center gap-2 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-xs font-bold text-rose-600"
               >
-                <div className="h-2 w-2 rounded-full bg-rose-500" />
+                <div className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />
                 {error}
               </motion.div>
             )}
@@ -167,8 +194,6 @@ export default function LoginPage() {
                 <label className="group flex cursor-pointer items-start gap-2">
                   <input
                     type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                   />
                   <div>
@@ -179,7 +204,7 @@ export default function LoginPage() {
 
                 <Link
                   href="/forgot-password"
-                  className="text-sm font-bold text-emerald-600 hover:underline"
+                  className="text-sm font-bold text-emerald-600 hover:underline shrink-0"
                 >
                   Forgot password
                 </Link>
@@ -202,9 +227,7 @@ export default function LoginPage() {
                       <span>loading permissions</span>
                     </div>
                   ) : (
-                    <>
-                      Sign In
-                    </>
+                    "Sign In"
                   )}
                 </button>
               </motion.div>

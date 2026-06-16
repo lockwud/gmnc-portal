@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Link from 'next/link';
 import { ChevronLeft, Bell, CheckCircle, Archive } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -60,6 +61,8 @@ export default function NotificationsSettingsPage() {
   };
 
   return (
+    <ProtectedRoute>
+      
     <div className="w-full pb-8 pt-4">
       <div className="w-full px-6">
         <header className="mb-5 flex items-center gap-3">
@@ -126,5 +129,6 @@ export default function NotificationsSettingsPage() {
         )}
       </div>
     </div>
-  );
+    </ProtectedRoute>
+)
 }

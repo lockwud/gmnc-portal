@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getDashboardRoute, getDefaultRoleForUserType, getEffectiveRoles } from '../rbac';
+import { getDashboardRoute, getDefaultRoleForUserType, getEffectiveRoles, hasAnyRole } from '../rbac';
 import { useRouter } from 'next/navigation';
 
 // =========================================
@@ -37,6 +37,7 @@ export interface User {
     };
   };
   avatar?: string | null;
+  hasNoRole?: boolean;
 }
 
 interface AuthContextType {
@@ -92,13 +93,19 @@ function getTokenUserType(token?: string | null): string | undefined {
 
 function normaliseUser(raw: Record<string, unknown>, token?: string | null): User {
   const name = (raw.name as string | undefined) ?? (raw.fullName as string | undefined) ?? '';
+  const roles: string[] = Array.isArray(raw.roles) ? (raw.roles as string[]) : [];
+  const permissions: string[] = Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [];
+  const userType = (raw.userType as string | undefined) ?? getTokenUserType(token);
+  const isProviderWithoutRole = userType === 'SERVICE_PROVIDER' && roles.length === 0;
+
   return {
     ...((raw as unknown) as User),
     name,
     fullName: name,
-    roles: Array.isArray(raw.roles) ? (raw.roles as string[]) : [],
-    permissions: Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [],
-    userType: (raw.userType as string | undefined) ?? getTokenUserType(token),
+    roles,
+    permissions,
+    userType,
+    hasNoRole: isProviderWithoutRole,
   };
 }
 
@@ -126,7 +133,11 @@ function clearAuth() {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('gmnc_selected_role');
-    const keysToRemove = Object.keys(localStorage).filter((k) => k.startsWith('gmnc_'));
+    // Remove gmnc_* keys EXCEPT theme preferences so the login page
+    // can render with the same theme the user logged out with.
+    const keysToRemove = Object.keys(localStorage).filter(
+      (k) => k.startsWith('gmnc_') && !k.startsWith('gmnc_theme_'),
+    );
     keysToRemove.forEach((k) => localStorage.removeItem(k));
     const sessionKeysToRemove = Object.keys(sessionStorage).filter((k) =>
       k.startsWith('gmnc_'),
@@ -140,11 +151,19 @@ function clearAuth() {
 function resolveSelectedRole(user: User, storedRole?: string | null): Role | null {
   const effectiveRoles = getEffectiveRoles(user);
 
-  if (storedRole && effectiveRoles.includes(storedRole as Role)) {
-    return storedRole as Role;
+  if (effectiveRoles.length > 0) {
+    if (storedRole && effectiveRoles.includes(storedRole as Role)) {
+      return storedRole as Role;
+    }
+    if (effectiveRoles.includes('admin')) return 'admin';
+    return (effectiveRoles[0] as Role) ?? null;
   }
-  if (effectiveRoles.includes('admin')) return 'admin';
-  return (user.roles[0] as Role) ?? getDefaultRoleForUserType(user.userType);
+
+  // No assigned roles — fall back to userType-based workspace
+  if ((user.userType || '').toUpperCase() === 'SERVICE_PROVIDER') return 'provider';
+  if ((user.userType || '').toUpperCase() === 'ADMIN') return 'admin';
+  if ((user.userType || '').toUpperCase() === 'CAREGIVER') return 'support';
+  return null;
 }
 
 // =========================================
@@ -222,6 +241,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void hydrateAuth();
     return () => { isMounted = false; };
   }, []);
+
+  // =========================================
+  // PERMISSION STATE REFRESH (every 5 minutes)
+  // =========================================
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json() as {
+          user?: Record<string, unknown> | null;
+          accessToken?: string | null;
+        };
+        if (!data.user) return;
+        const normalisedUser = normaliseUser(data.user, data.accessToken ?? token);
+        setUser(normalisedUser);
+        if (data.accessToken) setToken(data.accessToken);
+      } catch {
+        // silently ignore polling errors
+      }
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   // =========================================
   // LOGIN

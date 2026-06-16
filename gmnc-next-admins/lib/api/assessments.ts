@@ -381,3 +381,55 @@ export async function getAssessmentById(assessmentId: string): Promise<{ id: str
 
   return res.data;
 }
+
+export type SuggestedClassification = {
+  classifierType: string;
+  suggestedLevel: string;
+  confidence: number;
+  source: string;
+};
+
+export function getSuggestedClassification(reportScores: Record<string, unknown>, toolCode: string): SuggestedClassification | null {
+  const scores = reportScores ?? {};
+  const code = String(toolCode || '').toUpperCase();
+
+  if (code === 'GMFM_88') {
+    const total = typeof scores.total === 'number' ? scores.total : (typeof scores.percentage === 'number' ? scores.percentage : null);
+    if (total == null) return null;
+
+    let level = 'LEVEL_I';
+    if (total < 20) level = 'LEVEL_V';
+    else if (total < 35) level = 'LEVEL_IV';
+    else if (total < 55) level = 'LEVEL_III';
+    else if (total < 75) level = 'LEVEL_II';
+
+    return {
+      classifierType: 'GMFCS',
+      suggestedLevel: level,
+      confidence: total > 0 ? Math.min(total, 100) : 0,
+      source: 'GMFM-88 total score heuristic',
+    };
+  }
+
+  if (code === 'OT_CP_CLINICAL_ASSESSMENT' || code === 'OT_CP_CLINICAL') {
+    const adlKey = Object.keys(scores).find((key) => /adl|self.?care|feeding|dressing/i.test(key));
+    if (!adlKey) return null;
+    const adlValue = scores[adlKey];
+    if (typeof adlValue !== 'string') return null;
+
+    const normalized = adlKey.toLowerCase();
+    let level = 'LEVEL_I';
+    if (/unable|unable/i.test(adlValue)) level = 'LEVEL_V';
+    else if (/need adaptations/i.test(adlValue)) level = 'LEVEL_III';
+    else if (/difficulties|with difficulties/i.test(adlValue)) level = 'LEVEL_II';
+
+    return {
+      classifierType: 'GMFCS',
+      suggestedLevel: level,
+      confidence: 0.65,
+      source: `OT ADL section heuristic (${adlKey})`,
+    };
+  }
+
+  return null;
+}

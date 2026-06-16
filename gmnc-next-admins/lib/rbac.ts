@@ -110,17 +110,34 @@ export function getDefaultRoleForUserType(userType?: string | null): Role | null
   return USER_TYPE_ROLES[userType.trim().toUpperCase()] ?? null;
 }
 
+/**
+ * Returns the effective roles for a user.
+ * Only uses explicitly assigned roles from the backend — does NOT
+ * inject a default role based on userType.  This ensures that when
+ * an admin revokes a role, the user truly has no role until one is
+ * re-assigned via the RBAC admin panel.
+ */
 export function getEffectiveRoles(user: User): Role[] {
-  const roles = user.roles
+  return user.roles
     .map((role) => role.trim().toLowerCase() as Role)
     .filter((role) => BUILT_IN_ROLES.has(role));
-  const defaultRole = getDefaultRoleForUserType(user.userType);
-
-  return [...new Set(defaultRole ? [...roles, defaultRole] : roles)];
 }
 
 export function hasRole(user: User, role: Role): boolean {
-  return getEffectiveRoles(user).includes(role.toLowerCase() as Role);
+  if (getEffectiveRoles(user).includes(role.toLowerCase() as Role)) return true;
+
+  // Fallback: infer role from userType (e.g. SERVICE_PROVIDER → provider)
+  const defaultRole = getDefaultRoleForUserType(user.userType);
+  if (defaultRole && defaultRole.toLowerCase() === role.toLowerCase()) return true;
+
+  return false;
+}
+
+/**
+ * Returns true if the user has any assigned RBAC role (from the backend).
+ */
+export function hasAnyRole(user: User): boolean {
+  return getEffectiveRoles(user).length > 0;
 }
 
 export function hasWorkspaceAccess(user: User, role: Role): boolean {
@@ -132,37 +149,52 @@ function pathMatches(pathname: string, prefix: string): boolean {
 }
 
 export function canAccessDashboardPath(user: User, pathname: string): boolean {
+  const effectiveRoles = getEffectiveRoles(user);
+
+  // Admin and tester can access any dashboard path
+  if (effectiveRoles.includes('admin') || effectiveRoles.includes('tester')) {
+    return true;
+  }
+
+  // Common pages accessible to all authenticated users
   if (
-    pathMatches(pathname, '/dashboard')
-    || pathMatches(pathname, '/profile')
-    || pathMatches(pathname, '/notifications')
+    pathMatches(pathname, '/dashboard') ||
+    pathMatches(pathname, '/profile') ||
+    pathMatches(pathname, '/notifications')
   ) {
     return true;
   }
 
-  if (hasRole(user, 'admin') || hasRole(user, 'tester')) {
-    return true;
-  }
-
-  // Allow user-facing support pages for service providers and caregivers
-  // while keeping the top-level /support dashboard restricted to support role.
-  if (
-    pathMatches(pathname, '/support/tickets') ||
-    pathMatches(pathname, '/support/faqs')
-  ) {
+  // SERVICE_PROVIDER userType gets access to provider workspace even without an assigned role
+  const isServiceProvider = (user.userType || '').toUpperCase() === 'SERVICE_PROVIDER';
+  if (isServiceProvider) {
     if (
-      hasRole(user, 'admin') ||
-      hasRole(user, 'tester') ||
-      hasRole(user, 'provider')
+      pathMatches(pathname, '/provider') ||
+      pathMatches(pathname, '/support/tickets') ||
+      pathMatches(pathname, '/support/faqs') ||
+      pathMatches(pathname, '/settings') ||
+      pathMatches(pathname, '/admin/reports')
     ) {
       return true;
     }
   }
 
-  if (pathMatches(pathname, '/provider')) return hasRole(user, 'provider');
-  if (pathMatches(pathname, '/support')) return hasRole(user, 'support');
-  if (pathMatches(pathname, '/settings')) return hasRole(user, 'provider');
-  if (pathMatches(pathname, '/reports')) return hasRole(user, 'provider');
+  if (effectiveRoles.length === 0) return false;
+
+  // Allow user-facing support pages for providers
+  if (
+    pathMatches(pathname, '/support/tickets') ||
+    pathMatches(pathname, '/support/faqs')
+  ) {
+    if (effectiveRoles.includes('provider')) {
+      return true;
+    }
+  }
+
+  if (pathMatches(pathname, '/provider')) return effectiveRoles.includes('provider');
+  if (pathMatches(pathname, '/support')) return effectiveRoles.includes('support');
+  if (pathMatches(pathname, '/settings')) return effectiveRoles.includes('provider');
+  if (pathMatches(pathname, '/reports')) return effectiveRoles.includes('provider');
 
   return false;
 }
@@ -173,7 +205,14 @@ export function canAccessDashboardPath(user: User, pathname: string): boolean {
 export function hasPermission(user: User, permission: Permission): boolean {
   if (user.permissions.includes(permission)) return true;
 
-  return getEffectiveRoles(user).some((role) =>
+  // Check both explicitly assigned roles and userType-inferred role
+  const effectiveRoles = getEffectiveRoles(user);
+  const defaultRole = getDefaultRoleForUserType(user.userType);
+  const allRoles = defaultRole && !effectiveRoles.includes(defaultRole)
+    ? [...effectiveRoles, defaultRole]
+    : effectiveRoles;
+
+  return allRoles.some((role) =>
     ROLE_PERMISSIONS[role]?.includes(permission),
   );
 }

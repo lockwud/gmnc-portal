@@ -1,7 +1,5 @@
 import { env } from '@/lib/env';
 
-const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
-
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;

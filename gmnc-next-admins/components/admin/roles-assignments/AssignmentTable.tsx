@@ -6,10 +6,11 @@ import { formatDate } from '@/utils/role-access';
 
 interface AssignmentTableProps {
   assignments: UserAssignmentRecord[];
-  onRevokeRole?: (assignment: UserAssignmentRecord) => void;
+  onRevoke?: (assignment: UserAssignmentRecord) => Promise<void>;
+  onEdit?: (assignment: UserAssignmentRecord) => void;
 }
 
-export default function AssignmentTable({ assignments, onRevokeRole }: AssignmentTableProps) {
+export default function AssignmentTable({ assignments, onRevoke, onEdit }: AssignmentTableProps) {
   return (
     <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 bg-white">
       <div className="h-full overflow-auto scrollbar-none">
@@ -70,8 +71,8 @@ export default function AssignmentTable({ assignments, onRevokeRole }: Assignmen
                 >
                   <div className="flex justify-center">
                     <RowActions
-                      hideEdit
-                      onDelete={() => onRevokeRole?.(assignment)}
+                      onEdit={() => onEdit?.(assignment)}
+                      onDelete={() => onRevoke?.(assignment)}
                     />
                   </div>
                 </td>

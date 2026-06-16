@@ -250,7 +250,7 @@ export async function getProfileRequest(token: string) {
   return normalizeUser(response.data, token);
 }
 
-export async function updateProfileRequest(payload: any, token: string) {
+export async function updateProfileRequest(payload: unknown, token: string) {
   const response = await apiClient<BackendLoginResponse>('/user/profile', {
     method: 'PUT',
     body: payload,
@@ -260,7 +260,7 @@ export async function updateProfileRequest(payload: any, token: string) {
   return normalizeUser(response.data, token);
 }
 
-export async function changePasswordRequest(payload: any, token: string) {
+export async function changePasswordRequest(payload: unknown, token: string) {
   await apiClient<unknown>('/auth/change-password', {
     method: 'POST',
     body: payload,

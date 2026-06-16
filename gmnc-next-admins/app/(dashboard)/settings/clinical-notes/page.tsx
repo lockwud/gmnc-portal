@@ -1,29 +1,40 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { ClipboardList } from 'lucide-react';
+import PlatformSettingsPage from '@/components/settings/PlatformSettingsPage';
+import {
+  getClinicalNotesSettings,
+  updateClinicalNotesSettings,
+  type ClinicalNotesSettings,
+} from '@/lib/api/settings';
 
-export default function ClinicalNotesSettingsPage() {
+const FIELDS = [
+  { key: 'requireAssessmentNotes', label: 'Require Assessment Notes', type: 'toggle' as const, description: 'Require notes for every assessment' },
+  { key: 'requireSessionDocumentation', label: 'Require Session Documentation', type: 'toggle' as const, description: 'Require notes for telehealth sessions' },
+  { key: 'enableNoteTemplates', label: 'Enable Note Templates', type: 'toggle' as const, description: 'Allow using pre-built note templates' },
+  { key: 'enableAutoSave', label: 'Enable Auto-Save', type: 'toggle' as const, description: 'Automatically save notes while editing' },
+  { key: 'autoSaveIntervalSeconds', label: 'Auto-Save Interval', type: 'number' as const, description: 'Seconds between auto-saves', min: 10, max: 300, unit: 'sec' },
+  { key: 'requireSignatureForNotes', label: 'Require Signature for Notes', type: 'toggle' as const, description: 'Provider must sign clinical notes' },
+  { key: 'noteRetentionDays', label: 'Note Retention Period', type: 'number' as const, description: 'Days to retain clinical notes', min: 30, max: 3650, unit: 'days' },
+  { key: 'enableClinicalTags', label: 'Enable Clinical Tags', type: 'toggle' as const, description: 'Allow tagging notes with categories' },
+];
+
+export default function ClinicalNotesSettingsRoute() {
+  const fetch = useCallback(() => getClinicalNotesSettings() as Promise<Record<string, unknown>>, []);
+  const update = useCallback(
+    (data: Record<string, unknown>) => updateClinicalNotesSettings(data as Partial<ClinicalNotesSettings>),
+    []
+  );
+
   return (
-    <div className="w-full pb-8 pt-4">
-      <div className="w-full px-6">
-        <header className="mb-5 flex items-center gap-3">
-          <Link href="/settings" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100">
-            <ChevronLeft className="h-4 w-4 text-slate-600" />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-900">Clinical Notes & Tasks Settings</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Configure clinical notes and task settings.
-            </p>
-          </div>
-        </header>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <p className="text-slate-600">Clinical notes and tasks settings configuration coming soon.</p>
-        </div>
-      </div>
-    </div>
+    <PlatformSettingsPage
+      title="Clinical Notes & Tasks Settings"
+      description="Configure clinical notes and task settings."
+      icon={ClipboardList}
+      fields={FIELDS}
+      fetchSettings={fetch}
+      updateSettings={update}
+    />
   );
 }
