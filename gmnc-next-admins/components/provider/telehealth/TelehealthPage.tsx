@@ -8,6 +8,9 @@ import {
   createTelehealthRoom,
   updateTelehealthRoom,
   cancelTelehealthRoom,
+  joinTelehealthRoom,
+  inviteToTelehealthRoom,
+  getRoomParticipants,
   type TelehealthRoomType,
 } from '@/lib/api/telehealth';
 import { useCountdown } from '@/lib/hooks/useCountdown';

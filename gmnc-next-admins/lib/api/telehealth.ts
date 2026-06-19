@@ -1,4 +1,5 @@
 import type { TelehealthRoomType } from './types';
+export type { TelehealthRoomType } from './types';
 import { env } from '@/lib/env';
 
 const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';

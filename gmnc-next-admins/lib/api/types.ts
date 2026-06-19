@@ -37,7 +37,7 @@ export type RegisterResult = {
   raw: BackendRegisterResponse;
 };
 
-// appointments
+export type AssessmentStatus = 'DRAFT' | 'PENDING_REVIEW' | 'COMPLETED' | 'REVIEWED' | 'REVIEWED_NEEDS_REVISION' | 'APPROVED';
 
 export type AppointmentStatus = 'PENDING' | 'APPROVED' | 'RESCHEDULED' | 'CANCELLED';
 
@@ -251,10 +251,6 @@ export type UserAssignmentRecord = {
 };
 
 export type RolePermissionMap = Record<string, string[]>;
-
-// appointments
-
-export type AppointmentStatus = 'PENDING' | 'APPROVED' | 'RESCHEDULED' | 'CANCELLED';
 
 export type AppointmentListItem = {
   id: string;

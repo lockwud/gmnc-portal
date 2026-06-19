@@ -3,7 +3,7 @@ import { env } from '@/lib/env';
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
-  token?: string;
+  token?: string | null;
   headers?: HeadersInit;
   cache?: RequestCache;
   timeoutMs?: number;

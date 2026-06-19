@@ -26,7 +26,7 @@ export async function removePushToken(token?: string): Promise<void> {
 }
 
 export async function getNotifications(token?: string | null): Promise<NotificationListResponse> {
-  const res = await apiClient<{
+  type NotificationApiResponse = {
     status: boolean;
     message?: string;
     data: NotificationItem[] | {
@@ -40,19 +40,24 @@ export async function getNotifications(token?: string | null): Promise<Notificat
     total?: number;
     page?: number;
     pageSize?: number;
-  }>("/notification?limit=50", {
+  };
+
+  const res = await apiClient<NotificationApiResponse>("/notification?limit=50", {
     method: "GET",
     token,
   });
 
-  const nestedData = typeof res.data === 'object' && !Array.isArray(res.data) ? res.data : null;
-  const notifications = Array.isArray(res.data) ? res.data : nestedData?.data ?? [];
+  const apiData = res.data;
+  const innerData = typeof apiData.data === 'object' && !Array.isArray(apiData.data)
+    ? apiData.data
+    : null;
+  const notifications = Array.isArray(apiData.data) ? apiData.data : innerData?.data ?? [];
 
   return {
     notifications,
-    total: res.total || nestedData?.pagination?.total || notifications.length,
-    page: res.page || nestedData?.pagination?.page,
-    pageSize: res.pageSize || nestedData?.pagination?.limit,
+    total: apiData.total || innerData?.pagination?.total || notifications.length,
+    page: apiData.page || innerData?.pagination?.page,
+    pageSize: apiData.pageSize || innerData?.pagination?.limit,
   };
 }
 
@@ -61,7 +66,7 @@ export async function getUnreadNotificationCount(token?: string | null): Promise
     method: "GET",
     token,
   });
-  return typeof res.data?.count === 'number' ? res.data.count : 0;
+  return typeof res.data.data?.count === 'number' ? res.data.data.count : 0;
 }
 
 export async function markNotificationAsRead(id: string, token?: string | null): Promise<void> {
