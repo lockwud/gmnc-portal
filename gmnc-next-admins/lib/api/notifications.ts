@@ -25,7 +25,7 @@ export async function removePushToken(token?: string): Promise<void> {
   });
 }
 
-export async function getNotifications(token?: string): Promise<NotificationListResponse> {
+export async function getNotifications(token?: string | null): Promise<NotificationListResponse> {
   const res = await apiClient<{
     status: boolean;
     message?: string;
@@ -56,7 +56,7 @@ export async function getNotifications(token?: string): Promise<NotificationList
   };
 }
 
-export async function getUnreadNotificationCount(token?: string): Promise<number> {
+export async function getUnreadNotificationCount(token?: string | null): Promise<number> {
   const res = await apiClient<{ status: boolean; data: { count?: number }; message?: string }>("/notification/unread-count", {
     method: "GET",
     token,
@@ -64,14 +64,14 @@ export async function getUnreadNotificationCount(token?: string): Promise<number
   return typeof res.data?.count === 'number' ? res.data.count : 0;
 }
 
-export async function markNotificationAsRead(id: string, token?: string): Promise<void> {
+export async function markNotificationAsRead(id: string, token?: string | null): Promise<void> {
   await apiClient(`/notification/${id}/read`, {
     method: "PUT",
     token,
   });
 }
 
-export async function markAllNotificationsAsRead(token?: string): Promise<void> {
+export async function markAllNotificationsAsRead(token?: string | null): Promise<void> {
   await apiClient("/notification/read-all", {
     method: "PUT",
     token,
