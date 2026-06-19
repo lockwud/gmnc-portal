@@ -5,7 +5,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Link from 'next/link';
 import { ChevronLeft, Bell, CheckCircle, Archive } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api/telehealth';
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api/notifications';
 import type { NotificationItem, NotificationPriority } from '@/lib/api/types';
 
 export default function NotificationsSettingsPage() {

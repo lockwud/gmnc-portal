@@ -9,7 +9,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationCount,
-} from '@/lib/api/telehealth';
+} from '@/lib/api/notifications';
 import type { NotificationItem } from '@/lib/api/types';
 
 type Props = {

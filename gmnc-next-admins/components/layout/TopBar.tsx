@@ -5,7 +5,7 @@ import Link from 'next/link';
 import NotificationsPanel from '@/components/ui/NotificationsPanel';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useTheme } from '@/lib/context/ThemeContext';
-import { getUnreadNotificationCount } from '@/lib/api/telehealth';
+import { getUnreadNotificationCount } from '@/lib/api/notifications';
 
 type Props = {
   onToggleSidebar: () => void;

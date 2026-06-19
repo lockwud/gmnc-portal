@@ -37,10 +37,9 @@ export type RegisterResult = {
   raw: BackendRegisterResponse;
 };
 
+// appointments
 
-// assessments 
-
-export type AssessmentStatus = 'DRAFT' | 'PENDING_REVIEW' | 'COMPLETED' | 'REVIEWED' | 'REVIEWED_NEEDS_REVISION' | 'APPROVED';
+export type AppointmentStatus = 'PENDING' | 'APPROVED' | 'RESCHEDULED' | 'CANCELLED';
 
 export type AssessmentListItem = {
   id: string;
@@ -351,16 +350,12 @@ export type TelehealthRoomStatus = 'scheduled' | 'live' | 'completed' | 'cancele
 export type TelehealthRoomType = {
   id: string;
   title?: string;
-  description?: string;
+  status: TelehealthRoomStatus;
+  joinUrl?: string;
   scheduledStart?: string;
   scheduledEnd?: string;
-  status: TelehealthRoomStatus;
-  maxParticipants: number;
-  externalMeetingId?: string;
-  joinUrl?: string;
   isRecordingEnabled: boolean;
-  createdAt: string;
-  updatedAt: string;
+  participants: Array<{ id: string; name: string; email: string; role: string }>;
 };
 
 export type NotificationType = 'info' | 'warning' | 'success' | 'error';
