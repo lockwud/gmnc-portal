@@ -8,7 +8,7 @@ interface RequirePermissionProps {
   permission?: Permission;
   anyPermission?: Permission[];
   allPermissions?: Permission[];
-  fallback?: React.ReactNode;
+  deniedContent?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -16,7 +16,7 @@ export const RequirePermission: React.FC<RequirePermissionProps> = ({
   permission,
   anyPermission,
   allPermissions,
-  fallback = null,
+  deniedContent = null,
   children,
 }) => {
   const {
@@ -29,7 +29,7 @@ export const RequirePermission: React.FC<RequirePermissionProps> = ({
     && (!anyPermission || hasAnyPermission(anyPermission))
     && (!allPermissions || hasAllPermissions(allPermissions));
 
-  if (!allowed) return <>{fallback}</>;
+  if (!allowed) return <>{deniedContent}</>;
 
   return <>{children}</>;
 };

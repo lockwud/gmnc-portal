@@ -2,10 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import NotificationsPanel from '@/components/ui/NotificationsPanel';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useTheme } from '@/lib/context/ThemeContext';
-import { getUnreadNotificationCount } from '@/lib/api/telehealth';
+import { getUnreadNotificationCount } from '@/lib/api/notifications';
 
 type Props = {
   onToggleSidebar: () => void;
@@ -14,16 +15,15 @@ type Props = {
 const ToggleIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     className={className}
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
     fill="none"
     aria-hidden
     xmlns="http://www.w3.org/2000/svg"
   >
-    <rect x="2" y="3" width="20" height="18" rx="2" stroke="currentColor" strokeWidth="1.6" />
-    <path d="M9 12L7 10L9 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1.2" opacity="0.05" />
+    <rect x="3.25" y="4" width="11.5" height="10" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M7.25 4.25V13.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 
@@ -35,7 +35,21 @@ function getErrorStatus(error: unknown): number | null {
   return null;
 }
 
+const SEARCH_ROUTES = [
+  { label: 'Users', path: '/admin/users', keywords: 'accounts admin staff provider support tester' },
+  { label: 'Role Assignments', path: '/admin/role-assignments', keywords: 'rbac roles access assignments' },
+  { label: 'Roles & Access', path: '/admin/roles-access', keywords: 'permissions roles access rbac' },
+  { label: 'Provider Verification', path: '/admin/approvals/providers', keywords: 'providers verification approvals' },
+  { label: 'Reports', path: '/admin/reports', keywords: 'assessment reports patients' },
+  { label: 'Patient List', path: '/provider/cp-patient', keywords: 'patients cerebral palsy cp' },
+  { label: 'Assessments', path: '/provider/assessments', keywords: 'clinical assessment tools' },
+  { label: 'Appointments', path: '/provider/appointments', keywords: 'schedule booking calendar' },
+  { label: 'Support Tickets', path: '/support/tickets', keywords: 'help tickets support' },
+  { label: 'System Settings', path: '/settings', keywords: 'configuration settings platform' },
+];
+
 const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
+  const router = useRouter();
   const { user, logout, selectedRole, token, isLoading } = useAuth();
   const { isDark, setThemeMode, preferences } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -115,10 +129,20 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
   };
 
   const themeIcon = isDark ? 'dark_mode' : preferences.themeMode === 'system' ? 'brightness_6' : 'light_mode';
+  const searchResults = SEARCH_ROUTES.filter((item) => {
+    const value = query.trim().toLowerCase();
+    if (!value) return false;
+    return `${item.label} ${item.keywords}`.toLowerCase().includes(value);
+  }).slice(0, 6);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Search for', query);
+    const value = query.trim();
+    if (!value) return;
+    const firstResult = searchResults[0];
+    const target = firstResult?.path ?? `/admin/users?search=${encodeURIComponent(value)}`;
+    router.push(target === '/admin/users' ? `/admin/users?search=${encodeURIComponent(value)}` : target);
+    setSearchOpen(false);
   };
 
   return (
@@ -135,11 +159,10 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
           <button
             onClick={onToggleSidebar}
             aria-label="Toggle sidebar"
-            className="p-1 rounded hover:opacity-80 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-950 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             type="button"
-            style={{ color: 'var(--topbar-text)' }}
           >
-            <ToggleIcon className="text-xs" />
+            <ToggleIcon />
           </button>
         </div>
 
@@ -156,7 +179,7 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
                 }}
                 className="flex items-center gap-2 rounded-xl px-2 py-1 transition-all duration-200 shadow-sm cursor-text"
                 style={{
-                  width: searchOpen ? '208px' : '40px',
+                  width: searchOpen ? '300px' : '40px',
                   backgroundColor: 'var(--input-bg)',
                   border: '1px solid var(--input-border)',
                   color: 'var(--input-text)',
@@ -178,6 +201,40 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
                 />
               </div>
             </form>
+            {searchOpen && query.trim() && (
+              <div
+                className="absolute right-0 top-[calc(100%+8px)] z-50 w-[360px] overflow-hidden rounded-2xl shadow-xl"
+                style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    router.push(`/admin/users?search=${encodeURIComponent(query.trim())}`);
+                    setSearchOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:opacity-80"
+                  style={{ color: 'var(--card-text)' }}
+                >
+                  <span className="material-icons text-sm" style={{ color: 'var(--card-muted)' }}>person_search</span>
+                  <span className="min-w-0 flex-1 truncate">Search users for &quot;{query.trim()}&quot;</span>
+                </button>
+                {searchResults.map((item) => (
+                  <button
+                    key={item.path}
+                    type="button"
+                    onClick={() => {
+                      router.push(item.path);
+                      setSearchOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 border-t px-4 py-3 text-left text-sm transition hover:opacity-80"
+                    style={{ color: 'var(--card-text)', borderColor: 'var(--card-border)' }}
+                  >
+                    <span className="material-icons text-sm" style={{ color: 'var(--card-muted)' }}>search</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <button
@@ -284,7 +341,7 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
         </div>
       </div>
 
-      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} width="w-64" />
+      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </>
   );
 };

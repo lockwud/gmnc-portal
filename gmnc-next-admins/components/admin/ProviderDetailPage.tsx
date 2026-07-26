@@ -21,6 +21,7 @@ import {
   Briefcase,
   FileCheck,
   Image as ImageIcon,
+  ExternalLink,
 } from 'lucide-react';
 
 import {
@@ -51,6 +52,11 @@ interface ProviderData {
   verifiedAt: string;
   verifiedBy: string;
   verifiedByName?: string;
+  documents?: Array<{
+    url?: string;
+    name?: string;
+    type?: string;
+  }>;
   user: {
     id: string;
     fullName: string;
@@ -170,6 +176,13 @@ export default function ProviderDetailPage({
           text: 'text-rose-700',
           icon: <AlertCircle size={14} />,
         };
+      case 'SUSPENDED':
+        return {
+          label: 'Suspended',
+          bg: 'bg-orange-50',
+          text: 'text-orange-700',
+          icon: <AlertCircle size={14} />,
+        };
       default:
         return null;
     }
@@ -217,6 +230,17 @@ export default function ProviderDetailPage({
     const separator = url.includes('?') ? '&' : '?';
     return `${url}${separator}token=${token}`;
   };
+
+  const verificationDocuments = [
+    ...(provider.licenseImage
+      ? [{
+          name: 'Professional license image',
+          type: provider.licenseType || 'License',
+          url: provider.licenseImage,
+        }]
+      : []),
+    ...(provider.documents ?? []).filter((document) => document.url),
+  ];
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
@@ -271,9 +295,8 @@ export default function ProviderDetailPage({
                   </div>
                 </div>
 
-                {/* Action Buttons - Only show for pending review */}
-                {provider.verificationStatus === 'PENDING_REVIEW' && (
-                  <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {provider.verificationStatus !== 'VERIFIED' && (
                     <Button
                       onClick={() => openActionModal('APPROVE')}
                       className="h-8 rounded-full bg-emerald-600 px-3 text-[10px] font-medium text-white hover:bg-emerald-700"
@@ -283,6 +306,19 @@ export default function ProviderDetailPage({
                         Approve
                       </div>
                     </Button>
+                  )}
+                  {provider.verificationStatus === 'PENDING_REVIEW' && (
+                    <Button
+                      onClick={() => openActionModal('REQUEST_CHANGES')}
+                      className="h-8 rounded-full border border-amber-200 bg-amber-50 px-3 text-[10px] font-medium text-amber-700 hover:bg-amber-100"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle size={12} />
+                        Request changes
+                      </div>
+                    </Button>
+                  )}
+                  {provider.verificationStatus !== 'REJECTED' && (
                     <Button
                       onClick={() => openActionModal('REJECT')}
                       className="h-8 rounded-full border border-rose-200 bg-rose-50 px-3 text-[10px] font-medium text-rose-700 hover:bg-rose-100"
@@ -292,8 +328,19 @@ export default function ProviderDetailPage({
                         Reject
                       </div>
                     </Button>
-                  </div>
-                )}
+                  )}
+                  {provider.verificationStatus !== 'SUSPENDED' && (
+                    <Button
+                      onClick={() => openActionModal('SUSPEND')}
+                      className="h-8 rounded-full border border-orange-200 bg-orange-50 px-3 text-[10px] font-medium text-orange-700 hover:bg-orange-100"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle size={12} />
+                        Suspend
+                      </div>
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -504,9 +551,59 @@ export default function ProviderDetailPage({
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
                     <FileText size={14} className="text-amber-600" /> Verification Documents
                   </h3>
-                  <div className="bg-gradient-to-br from-amber-50/60 to-white rounded-xl p-6 text-center border border-amber-100 shadow-sm">
-                    <FileCheck size={36} className="text-amber-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500">No documents uploaded.</p>
+                  <div className="rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50/70 to-white p-4 shadow-sm">
+                    {verificationDocuments.length > 0 ? (
+                      <div className="space-y-3">
+                        {verificationDocuments.map((document, index) => {
+                          const documentUrl = document.url ? getAuthenticatedImageUrl(document.url) : '';
+                          const isImage = /\.(png|jpe?g|webp|gif)$/i.test(document.url ?? '') || index === 0;
+
+                          return (
+                            <div key={`${document.url}-${index}`} className="overflow-hidden rounded-xl border border-amber-100 bg-white shadow-sm">
+                              {isImage && documentUrl ? (
+                                <div className="relative h-36 w-full bg-slate-50">
+                                  <Image
+                                    src={documentUrl}
+                                    alt={document.name || 'Verification document'}
+                                    fill
+                                    className="object-contain"
+                                    unoptimized
+                                  />
+                                </div>
+                              ) : null}
+                              <div className="flex items-start justify-between gap-3 border-t border-amber-50 p-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <FileCheck size={14} className="shrink-0 text-amber-600" />
+                                    <p className="truncate text-sm font-semibold text-slate-900">
+                                      {document.name || `Verification document ${index + 1}`}
+                                    </p>
+                                  </div>
+                                  <p className="mt-1 text-[11px] text-slate-500">
+                                    {document.type || 'Uploaded document'}
+                                  </p>
+                                </div>
+                                {documentUrl ? (
+                                  <a
+                                    href={documentUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                                  >
+                                    View <ExternalLink size={12} />
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-6 text-center">
+                        <FileCheck size={36} className="text-amber-400 mx-auto mb-2" />
+                        <p className="text-sm text-slate-500">No verification document found in the provider record.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -553,12 +650,18 @@ export default function ProviderDetailPage({
           <h2 className="text-lg font-semibold text-slate-900">
             {pendingAction === 'APPROVE' && 'Approve Provider'}
             {pendingAction === 'REJECT' && 'Reject Provider'}
+            {pendingAction === 'REQUEST_CHANGES' && 'Request Changes'}
+            {pendingAction === 'SUSPEND' && 'Suspend Provider'}
           </h2>
           <p className="mt-2 text-xs text-slate-500">
             {pendingAction === 'APPROVE' &&
               'This provider will become publicly active and verified.'}
             {pendingAction === 'REJECT' &&
               'This action will reject the provider application.'}
+            {pendingAction === 'REQUEST_CHANGES' &&
+              'The provider will remain pending while they address the requested changes.'}
+            {pendingAction === 'SUSPEND' &&
+              'This action will suspend the provider verification until an administrator reviews it again.'}
           </p>
           <div className="mt-5">
             <label className="text-[11px] font-medium uppercase tracking-wide text-slate-600">
@@ -584,6 +687,10 @@ export default function ProviderDetailPage({
               className={`h-9 rounded-full px-5 text-[11px] font-medium text-white transition-all ${
                 pendingAction === 'APPROVE'
                   ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : pendingAction === 'REQUEST_CHANGES'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : pendingAction === 'SUSPEND'
+                      ? 'bg-orange-600 hover:bg-orange-700'
                   : 'bg-rose-600 hover:bg-rose-700'
               }`}
             >

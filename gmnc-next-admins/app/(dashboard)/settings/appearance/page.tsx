@@ -240,7 +240,7 @@ export default function AppearanceSettingsPage() {
   const currentThemeColorName = preferences.colorPreset;
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole={["admin", "provider"]}>
       <div className="w-full pb-8 pt-4">
         <div className="w-full px-6">
           {/* ── Header ─────────────────────────────────────────── */}

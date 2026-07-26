@@ -2,226 +2,148 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { COLORS } from '@/lib/colors';
+import {
+  ArrowLeftRight,
+  Bell,
+  CalendarClock,
+  ClipboardCheck,
+  ClipboardList,
+  Database,
+  FileQuestion,
+  Gamepad2,
+  Headphones,
+  LayoutDashboard,
+  LifeBuoy,
+  LockKeyhole,
+  MessageSquareWarning,
+  Palette,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+  UserCog,
+  UsersRound,
+  Video,
+  type LucideIcon,
+} from 'lucide-react';
 
 type SettingItem = {
-  id: string;
   label: string;
   href: string;
-  icon?: string;
+  icon: LucideIcon;
 };
 
-type Section = {
-  id: string;
+type SettingSection = {
   title: string;
+  icon: LucideIcon;
   items: SettingItem[];
 };
 
-const sections: Section[] = [
+const sections: SettingSection[] = [
   {
-    id: 'platform',
-    title: 'Configuration',
+    title: 'General Settings',
+    icon: Settings,
     items: [
-      {
-        id: 'general-platform',
-        label: 'General Platform Settings',
-        href: '/settings/platform',
-        icon: 'settings',
-      },
-      {
-        id: 'workspace',
-        label: 'Workspace Preferences',
-        href: '/settings/workspace',
-        icon: 'dashboard_customize',
-      },
-      {
-        id: 'appearance',
-        label: 'Appearance',
-        href: '/settings/appearance',
-        icon: 'palette',
-      },
+      { label: 'Configurations', href: '/settings/platform', icon: Settings },
+      { label: 'Code Settings', href: '/settings/assessment', icon: ClipboardCheck },
+      { label: 'Workflow Questions', href: '/settings/assessment', icon: FileQuestion },
+      { label: 'Templates', href: '/settings/clinical-notes', icon: ClipboardList },
+      { label: 'Appearance', href: '/settings/appearance', icon: Palette },
+      { label: 'Alert & Notifications', href: '/settings/notifications', icon: Bell },
     ],
   },
   {
-    id: 'users-access',
-    title: 'Users',
+    title: 'User Account Management',
+    icon: UserCog,
     items: [
-      {
-        id: 'user-management',
-        label: 'Profiles',
-        href: '/profile',
-        icon: 'groups',
-      },
-      {
-        id: 'security',
-        label: 'Security',
-        href: '/settings/security',
-        icon: 'lock',
-      },
+      { label: 'My Profile Settings', href: '/profile', icon: UsersRound },
+      { label: 'User Management', href: '/admin/users', icon: UserCog },
+      { label: 'Roles & Access', href: '/admin/roles-access', icon: ShieldCheck },
+      { label: 'Role Assignments', href: '/admin/role-assignments', icon: UserCog },
+      { label: 'Security', href: '/settings/security', icon: LockKeyhole },
     ],
   },
   {
-    id: 'clinical-provider',
-    title: 'Clinical & Provider Settings',
+    title: 'Clinical Workflow Management',
+    icon: Stethoscope,
     items: [
-      {
-        id: 'appointments',
-        label: 'Appointment Configuration',
-        href: '/settings/appointments',
-        icon: 'event',
-      },
-      {
-        id: 'referrals',
-        label: 'Referral Workflow Settings',
-        href: '/settings/referrals',
-        icon: 'compare_arrows',
-      },
-      {
-        id: 'clinical-notes',
-        label: 'Clinical Notes & Tasks',
-        href: '/settings/clinical-notes',
-        icon: 'assignment',
-      },
+      { label: 'Assessment Tools', href: '/settings/assessment', icon: ClipboardCheck },
+      { label: 'Referral Workflow', href: '/settings/referrals', icon: ArrowLeftRight },
+      { label: 'Clinical Notes & Tasks', href: '/settings/clinical-notes', icon: ClipboardList },
+      { label: 'Care Plans', href: '/provider/care-plans', icon: ClipboardList },
+      { label: 'Provider Reports', href: '/admin/reports', icon: Database },
     ],
   },
   {
-    id: 'support-kb',
-    title: 'Support & Knowledge Base',
+    title: 'Scheduling & Provider Operations',
+    icon: CalendarClock,
     items: [
-      {
-        id: 'faq',
-        label: 'FAQ Management',
-        href: '/settings/faqs',
-        icon: 'help_center',
-      },
-      {
-        id: 'support-workflows',
-        label: 'Support Workflow Rules',
-        href: '/settings/support',
-        icon: 'support_agent',
-      },
-      {
-        id: 'issue-categories',
-        label: 'Issue Categories & Escalations',
-        href: '/settings/escalations',
-        icon: 'report_problem',
-      },
+      { label: 'Appointment Configuration', href: '/settings/appointments', icon: CalendarClock },
+      { label: 'Provider Appointment Rules', href: '/settings/provider-appointments', icon: Stethoscope },
+      { label: 'Working Hours', href: '/settings/working-hours', icon: CalendarClock },
+      { label: 'Telehealth', href: '/settings/telehealth', icon: Video },
+      { label: 'Workspace Preferences', href: '/settings/workspace', icon: LayoutDashboard },
     ],
   },
   {
-    id: 'security',
-    title: 'Security, Audit & Compliance',
+    title: 'Mobile Experience Management',
+    icon: Gamepad2,
     items: [
-      {
-        id: 'audit',
-        label: 'Audit Log Settings',
-        href: '/settings/audit',
-        icon: 'history',
-      },
-      {
-        id: 'compliance',
-        label: 'Compliance & Consent',
-        href: '/settings/compliance',
-        icon: 'verified_user',
-      },
-      {
-        id: 'data-retention',
-        label: 'Data Retention Policies',
-        href: '/settings/data-retention',
-        icon: 'storage',
-      },
+      { label: 'Games & Wellbeing', href: '/settings/games', icon: Gamepad2 },
+      { label: 'Caregiver Notifications', href: '/settings/notifications', icon: Bell },
+      { label: 'Assessment Instructions', href: '/settings/assessment', icon: ClipboardCheck },
+      { label: 'FAQ Management', href: '/settings/faqs', icon: FileQuestion },
+      { label: 'Support Workflow', href: '/settings/support', icon: LifeBuoy },
+    ],
+  },
+  {
+    title: 'Governance & Data Policies',
+    icon: ShieldCheck,
+    items: [
+      { label: 'Data Retention Policies', href: '/settings/data-retention', icon: Database },
+      { label: 'Issue Categories & Escalations', href: '/settings/escalations', icon: MessageSquareWarning },
+      { label: 'Support Rules', href: '/settings/support', icon: Headphones },
+      { label: 'Platform Workspace', href: '/settings/workspace', icon: LayoutDashboard },
     ],
   },
 ];
 
-const sectionIcons: Record<string, string> = {
-  platform: 'tune',
-  'users-access': 'admin_panel_settings',
-  'clinical-provider': 'medical_services',
-  'support-kb': 'support_agent',
-  security: 'shield',
-};
-
-const SystemSettings: React.FC = () => {
-  const sectionIconColor = 'var(--sidebar-active-bg)';
-  const itemIconColor = 'var(--card-text)';
-
+export default function SystemSettings() {
   return (
-    <div className="w-full pb-8 pt-4">
-      <div className="w-full px-6">
-        <header className="mb-5">
-          <h1 className="text-3xl font-semibold" style={{ color: 'var(--card-text)' }}>
-            System Settings
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--card-muted)' }}>
-            Configure core platform modules, operational rules, access policies, and communication preferences.
-          </p>
-        </header>
+    <div className="min-h-full bg-white px-6 py-6">
+      <header className="mb-7">
+        <h1 className="text-3xl font-black tracking-tight text-slate-950">System Settings</h1>
+        <p className="mt-2 max-w-4xl text-sm text-slate-500">
+          Configure the admin portal, provider workflows, and mobile experiences for providers and caregivers.
+        </p>
+      </header>
 
-        <main className="space-y-8 max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-none">
-          {sections.map((section) => (
-            <section
-              key={section.id}
-              aria-labelledby={`section-${section.id}`}
-              className="space-y-3"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="material-icons text-base"
-                  style={{ color: sectionIconColor }}
-                  aria-hidden
-                >
-                  {sectionIcons[section.id] ?? 'settings'}
-                </span>
-                <h2
-                  id={`section-${section.id}`}
-                  className="text-sm font-semibold"
-                  style={{ color: 'var(--card-muted)' }}
-                >
-                  {section.title}
-                </h2>
+      <main className="space-y-8 pb-10">
+        {sections.map((section) => {
+          const SectionIcon = section.icon;
+          return (
+            <section key={section.title}>
+              <div className="mb-3 flex items-center gap-3">
+                <SectionIcon className="h-4 w-4 text-slate-500" />
+                <h2 className="text-lg font-black text-slate-950">{section.title}</h2>
               </div>
 
-              <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {section.items.map((item) => (
-                  <Link
-                    href={item.href}
-                    key={item.id}
-                    className="block"
-                    aria-label={item.label}
-                  >
-                    <div
-                      className="flex items-center gap-3 rounded-full px-6 py-3 transition-shadow transition-colors hover:shadow-sm"
-                      style={{
-                        backgroundColor: 'var(--card-bg)',
-                        border: '1px solid var(--card-border)',
-                        color: 'var(--card-text)',
-                      }}
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md" style={{ backgroundColor: 'var(--input-bg)' }} aria-hidden>
-                        <span
-                          className="material-icons"
-                          style={{ color: itemIconColor, fontSize: 16 }}
-                        >
-                          {item.icon ?? 'tune'}
-                        </span>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
+                {section.items.map((item) => {
+                  const ItemIcon = item.icon;
+                  return (
+                    <Link key={`${section.title}-${item.label}`} href={item.href} className="group">
+                      <div className="flex h-12 items-center gap-4 rounded-md border border-slate-200 bg-white px-4 shadow-sm transition hover:border-slate-300 hover:bg-white hover:shadow-md">
+                        <ItemIcon className="h-4 w-4 shrink-0 text-slate-500" />
+                        <span className="text-sm font-bold text-slate-950">{item.label}</span>
                       </div>
-
-                      <div className="flex-1">
-                        <div className="text-sm font-medium" style={{ color: 'var(--card-text)' }}>
-                          {item.label}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             </section>
-          ))}
-        </main>
-      </div>
+          );
+        })}
+      </main>
     </div>
   );
-};
-
-export default SystemSettings;
+}

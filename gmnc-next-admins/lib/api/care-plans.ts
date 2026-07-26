@@ -36,13 +36,24 @@ export type CarePlanResponse = {
   data: CarePlan;
 };
 
+type RawCarePlan = CarePlan & {
+  primaryProvider?: CarePlan['provider'];
+};
+
+function normalizeCarePlan(plan: RawCarePlan): CarePlan {
+  return {
+    ...plan,
+    provider: plan.provider ?? plan.primaryProvider,
+  };
+}
+
 export async function getCarePlan(patientId: string, token?: string | null) {
   const response = await apiClient<CarePlanResponse>(`/care-plan?patientId=${encodeURIComponent(patientId)}`, {
     method: 'GET',
     token: token ?? undefined,
   });
 
-  return response.data.data;
+  return normalizeCarePlan(response.data.data as RawCarePlan);
 }
 
 export async function listCarePlans(patientId?: string, token?: string | null) {
@@ -52,7 +63,7 @@ export async function listCarePlans(patientId?: string, token?: string | null) {
     token: token ?? undefined,
   });
 
-  return response.data.data;
+  return response.data.data.map((plan) => normalizeCarePlan(plan as RawCarePlan));
 }
 
 export async function generateCarePlan(assessmentId: string, token?: string | null) {
@@ -61,7 +72,7 @@ export async function generateCarePlan(assessmentId: string, token?: string | nu
     token: token ?? undefined,
   });
 
-  return response.data.data;
+  return normalizeCarePlan(response.data.data as RawCarePlan);
 }
 
 export async function updateCarePlanStatus(carePlanId: string, status: CarePlanStatus, token?: string | null) {
@@ -71,7 +82,7 @@ export async function updateCarePlanStatus(carePlanId: string, status: CarePlanS
     token: token ?? undefined,
   });
 
-  return response.data.data;
+  return normalizeCarePlan(response.data.data as RawCarePlan);
 }
 
 export async function updateCarePlanContent(carePlanId: string, payload: Record<string, unknown>, token?: string | null) {

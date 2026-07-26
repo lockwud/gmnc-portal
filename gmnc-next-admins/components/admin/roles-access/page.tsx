@@ -41,7 +41,7 @@ function readTokenFromStorage(): string {
   try {
     const token = localStorage.getItem("token") ?? "";
     if (token) return token;
-    // Fallback: read from cookie if localStorage is empty
+    // Read from cookie if localStorage is empty.
     const match = document.cookie.match(/(?:^|; )gmnc_access_token=([^;]*)/);
     return match ? decodeURIComponent(match[1]) : "";
   } catch {
@@ -88,77 +88,57 @@ export default function RolesAccessPage() {
   // Falls back to /api/auth/me if localStorage is empty.
   // =========================================
   useEffect(() => {
-    const user = readUserFromStorage();
-    const token = readTokenFromStorage();
+    const timeout = window.setTimeout(() => {
+      const user = readUserFromStorage();
+      const token = readTokenFromStorage();
 
-    if (user) {
-      setCurrentUser(user);
-      setInitialized(true);
-    } else {
-      fetch("/api/auth/me", {
-        cache: "no-store",
-        credentials: 'include',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then(
-          (
-            data: {
-              user?: Record<string, unknown>;
-              accessToken?: string;
-            } | null,
-          ) => {
-            if (!data?.user) return;
+      if (user) {
+        setCurrentUser(user);
+        setInitialized(true);
+      } else {
+        fetch("/api/auth/me", {
+          cache: "no-store",
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then(
+            (
+              data: {
+                user?: Record<string, unknown>;
+                accessToken?: string;
+              } | null,
+            ) => {
+              if (!data?.user) return;
 
-            const normalised = data.user as AuthUser;
+              const normalised = data.user as AuthUser;
 
-            try {
-              localStorage.setItem("user", JSON.stringify(normalised));
-              if (data.accessToken) {
-                localStorage.setItem("token", data.accessToken);
+              try {
+                localStorage.setItem("user", JSON.stringify(normalised));
+                if (data.accessToken) {
+                  localStorage.setItem("token", data.accessToken);
+                }
+              } catch {
+                // ignore
               }
-            } catch {
-              // ignore
-            }
 
-            setCurrentUser(normalised);
-            setInitialized(true);
-          },
-        )
-        .catch(console.error);
-    }
+              setCurrentUser(normalised);
+              setInitialized(true);
+            },
+          )
+          .catch(console.error);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, []);
 
-  // =========================================
-  // BOOTSTRAP RBAC
-  // =========================================
   useEffect(() => {
-    if (!currentUser?.id) return;
+    const timeout = window.setTimeout(() => {
+      if (currentUser?.id) setBootstrapped(true);
+    }, 0);
 
-    const bootstrapAdmin = async () => {
-      try {
-     const response = await fetch("/api/admin/rbac/bootstrap", {
-       method: "POST",
-       headers: getAuthHeaders(),
-       credentials: 'include',
-       body: JSON.stringify({ userId: currentUser.id }),
-     });
-
-        setBootstrapped(response.ok);
-      } catch (err) {
-        console.error("Bootstrap failed:", err);
-        setBootstrapped(false);
-        show({
-          title: "Bootstrap failed",
-          message: "Failed to initialize RBAC system.",
-          type: "error",
-          duration: 4000,
-        });
-      }
-    };
-
-    bootstrapAdmin();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => window.clearTimeout(timeout);
   }, [currentUser]);
 
   // =========================================
@@ -222,7 +202,6 @@ export default function RolesAccessPage() {
     };
 
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bootstrapped]);
 
   // =========================================
@@ -260,7 +239,6 @@ export default function RolesAccessPage() {
     };
 
     fetchRolePermissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoleSlug, roles]);
 
   // =========================================

@@ -51,9 +51,21 @@ const BUILT_IN_ROLES = new Set<Role>([
   'tester',
 ]);
 
+function normalizeRoleSlug(role: unknown): Role | null {
+  if (typeof role === 'string') return role.trim().toLowerCase() as Role;
+
+  if (role && typeof role === 'object') {
+    const roleRecord = role as { slug?: unknown; role?: { slug?: unknown } };
+    const slug = roleRecord.slug ?? roleRecord.role?.slug;
+    return typeof slug === 'string' ? slug.trim().toLowerCase() as Role : null;
+  }
+
+  return null;
+}
+
 // =========================================
 // ROLE → PERMISSION MAP (frontend defaults)
-// This is used as a fallback; real permissions come from the API.
+// Runtime permission checks should use roles and permissions returned by the API.
 // =========================================
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   admin: [
@@ -119,14 +131,14 @@ export function getDefaultRoleForUserType(userType?: string | null): Role | null
  */
 export function getEffectiveRoles(user: User): Role[] {
   return user.roles
-    .map((role) => role.trim().toLowerCase() as Role)
-    .filter((role) => BUILT_IN_ROLES.has(role));
+    .map(normalizeRoleSlug)
+    .filter((role): role is Role => !!role && BUILT_IN_ROLES.has(role));
 }
 
 export function hasRole(user: User, role: Role): boolean {
   if (getEffectiveRoles(user).includes(role.toLowerCase() as Role)) return true;
 
-  // Fallback: infer role from userType (e.g. SERVICE_PROVIDER → provider)
+  // Infer workspace role from userType when no explicit RBAC role is assigned.
   const defaultRole = getDefaultRoleForUserType(user.userType);
   if (defaultRole && defaultRole.toLowerCase() === role.toLowerCase()) return true;
 
@@ -141,7 +153,7 @@ export function hasAnyRole(user: User): boolean {
 }
 
 export function hasWorkspaceAccess(user: User, role: Role): boolean {
-  return hasRole(user, 'admin') || hasRole(user, 'tester') || hasRole(user, role);
+  return hasRole(user, 'tester') || hasRole(user, role);
 }
 
 function pathMatches(pathname: string, prefix: string): boolean {
@@ -150,9 +162,17 @@ function pathMatches(pathname: string, prefix: string): boolean {
 
 export function canAccessDashboardPath(user: User, pathname: string): boolean {
   const effectiveRoles = getEffectiveRoles(user);
+  const userType = (user.userType || '').toUpperCase();
+  if (userType === 'CAREGIVER') {
+    return pathMatches(pathname, '/access-denied');
+  }
 
-  // Admin and tester can access any dashboard path
-  if (effectiveRoles.includes('admin') || effectiveRoles.includes('tester')) {
+  const isAdmin = hasRole(user, 'admin');
+  const isProvider = hasRole(user, 'provider');
+  const isSupport = hasRole(user, 'support');
+  const isTester = hasRole(user, 'tester');
+
+  if (isTester || isAdmin) {
     return true;
   }
 
@@ -160,13 +180,14 @@ export function canAccessDashboardPath(user: User, pathname: string): boolean {
   if (
     pathMatches(pathname, '/dashboard') ||
     pathMatches(pathname, '/profile') ||
-    pathMatches(pathname, '/notifications')
+    pathMatches(pathname, '/notifications') ||
+    pathMatches(pathname, '/access-denied')
   ) {
     return true;
   }
 
   // SERVICE_PROVIDER userType gets access to provider workspace even without an assigned role
-  const isServiceProvider = (user.userType || '').toUpperCase() === 'SERVICE_PROVIDER';
+  const isServiceProvider = userType === 'SERVICE_PROVIDER';
   if (isServiceProvider) {
     if (
       pathMatches(pathname, '/provider') ||
@@ -179,22 +200,23 @@ export function canAccessDashboardPath(user: User, pathname: string): boolean {
     }
   }
 
-  if (effectiveRoles.length === 0) return false;
+  if (effectiveRoles.length === 0 && !isAdmin && !isProvider && !isSupport) return false;
 
   // Allow user-facing support pages for providers
   if (
     pathMatches(pathname, '/support/tickets') ||
     pathMatches(pathname, '/support/faqs')
   ) {
-    if (effectiveRoles.includes('provider')) {
+    if (isProvider) {
       return true;
     }
   }
 
-  if (pathMatches(pathname, '/provider')) return effectiveRoles.includes('provider');
-  if (pathMatches(pathname, '/support')) return effectiveRoles.includes('support');
-  if (pathMatches(pathname, '/settings')) return effectiveRoles.includes('provider');
-  if (pathMatches(pathname, '/reports')) return effectiveRoles.includes('provider');
+  if (pathMatches(pathname, '/provider')) return isProvider;
+  if (pathname === '/support') return isSupport;
+  if (pathMatches(pathname, '/support')) return isSupport || isProvider;
+  if (pathMatches(pathname, '/settings')) return isAdmin || isProvider;
+  if (pathMatches(pathname, '/reports')) return isProvider;
 
   return false;
 }

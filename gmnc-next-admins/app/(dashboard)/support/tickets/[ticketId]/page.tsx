@@ -6,15 +6,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
-import { addMessage, closeTicket, getTicket } from '@/lib/api/support';
+import { addMessage, adminAddMessage, adminGetTicket, adminUpdateTicket, closeTicket, getTicket } from '@/lib/api/support';
 import type { SupportMessage, SupportTicket, SupportTicketStatus } from '@/lib/api/types';
 import { useAuth } from '@/lib/context/AuthContext';
+import { hasRole } from '@/lib/rbac';
 
 export default function SupportTicketDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { show } = useToast();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const managesSupportQueue = user ? hasRole(user, 'admin') || hasRole(user, 'support') : false;
   const ticketId = typeof params?.ticketId === 'string' ? params.ticketId : '';
 
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
@@ -28,7 +30,9 @@ export default function SupportTicketDetailPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getTicket(ticketId, token ?? undefined);
+      const data = managesSupportQueue
+        ? await adminGetTicket(ticketId, token ?? undefined)
+        : await getTicket(ticketId, token ?? undefined);
       setTicket(data);
     } catch (err) {
       const messageText = err instanceof Error ? err.message : 'Failed to load ticket';
@@ -37,10 +41,11 @@ export default function SupportTicketDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [ticketId, show, token]);
+  }, [managesSupportQueue, ticketId, show, token]);
 
   useEffect(() => {
-    void loadTicket();
+    const timeout = window.setTimeout(() => void loadTicket(), 0);
+    return () => window.clearTimeout(timeout);
   }, [loadTicket]);
 
   const sortedMessages = useMemo(() => {
@@ -56,7 +61,9 @@ export default function SupportTicketDetailPage() {
     if (!ticketId) return;
     try {
       setLoading(true);
-      const data = await closeTicket(ticketId, token ?? undefined);
+      const data = managesSupportQueue
+        ? await adminUpdateTicket(ticketId, { status: 'CLOSED' }, token ?? undefined)
+        : await closeTicket(ticketId, token ?? undefined);
       setTicket(data);
       show({
         type: 'success',
@@ -71,7 +78,7 @@ export default function SupportTicketDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [show, ticketId, token]);
+  }, [managesSupportQueue, show, ticketId, token]);
 
   const handleSendMessage = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -80,9 +87,10 @@ export default function SupportTicketDetailPage() {
       try {
         setIsSubmitting(true);
         setError(null);
-        const data = await addMessage(ticketId, {
-          content: message.trim(),
-        });
+        const payload = { content: message.trim() };
+        const data = managesSupportQueue
+          ? await adminAddMessage(ticketId, payload, token ?? undefined)
+          : await addMessage(ticketId, payload, token ?? undefined);
         setTicket(data);
         setMessage('');
         show({
@@ -99,7 +107,7 @@ export default function SupportTicketDetailPage() {
         setIsSubmitting(false);
       }
     },
-    [message, show, ticketId]
+    [managesSupportQueue, message, show, ticketId, token]
   );
 
   const formatDateTime = (value?: string | null) => {

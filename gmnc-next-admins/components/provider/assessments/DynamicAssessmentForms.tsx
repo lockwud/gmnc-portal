@@ -4,6 +4,7 @@ import React from 'react';
 import { AssessmentToolFormResponse } from '@/lib/api/types';
 import AssessmentSection from './AssessmentSection';
 import OtAssessmentSection from './OtAssessmentSection';
+import type { OtAssessmentSectionData } from './OtAssessmentSection';
 
 type Props = {
   schema: AssessmentToolFormResponse;
@@ -59,7 +60,7 @@ export default function DynamicAssessmentForm({
         return (
           <OtAssessmentSection
             key={`${section.title}-${index}`}
-            section={section as any}
+            section={section as OtAssessmentSectionData}
             values={values}
             onFieldChange={onFieldChange}
           />

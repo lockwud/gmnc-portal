@@ -37,10 +37,9 @@ export type RegisterResult = {
   raw: BackendRegisterResponse;
 };
 
-
-// assessments 
-
 export type AssessmentStatus = 'DRAFT' | 'PENDING_REVIEW' | 'COMPLETED' | 'REVIEWED' | 'REVIEWED_NEEDS_REVISION' | 'APPROVED';
+
+export type AppointmentStatus = 'PENDING' | 'APPROVED' | 'RESCHEDULED' | 'CANCELLED';
 
 export type AssessmentListItem = {
   id: string;
@@ -253,10 +252,6 @@ export type UserAssignmentRecord = {
 
 export type RolePermissionMap = Record<string, string[]>;
 
-// appointments
-
-export type AppointmentStatus = 'PENDING' | 'APPROVED' | 'RESCHEDULED' | 'CANCELLED';
-
 export type AppointmentListItem = {
   id: string;
   patientId: string;
@@ -351,16 +346,12 @@ export type TelehealthRoomStatus = 'scheduled' | 'live' | 'completed' | 'cancele
 export type TelehealthRoomType = {
   id: string;
   title?: string;
-  description?: string;
+  status: TelehealthRoomStatus;
+  joinUrl?: string;
   scheduledStart?: string;
   scheduledEnd?: string;
-  status: TelehealthRoomStatus;
-  maxParticipants: number;
-  externalMeetingId?: string;
-  joinUrl?: string;
   isRecordingEnabled: boolean;
-  createdAt: string;
-  updatedAt: string;
+  participants: Array<{ id: string; name: string; email: string; role: string }>;
 };
 
 export type NotificationType = 'info' | 'warning' | 'success' | 'error';
@@ -635,38 +626,4 @@ export type CarePlan = {
       fullName: string;
     };
   };
-};
-
-export type ConsentType = 'TREATMENT' | 'DATA_SHARING' | 'RECORDING' | 'PHOTO_VIDEO' | 'RESEARCH';
-
-export type ConsentMethod = 'DIGITAL_SIGNATURE' | 'SMS' | 'PAPER';
-
-export type ConsentRecord = {
-  id: string;
-  patientId: string;
-  grantedByUserId: string;
-  consentType: ConsentType;
-  scope?: string | null;
-  documentId?: string | null;
-  method: ConsentMethod;
-  grantedAt: string;
-  revokedAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  patient?: {
-    id: string;
-    fullName: string;
-  };
-  grantedBy?: {
-    id: string;
-    fullName: string;
-    email: string;
-  };
-};
-
-export type TelehealthRecordingConsent = {
-  participantId: string;
-  isRecordingConsented: boolean;
-  recordingConsentedAt?: string | null;
-  recordingConsentedByUserId?: string | null;
 };

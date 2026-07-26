@@ -1,6 +1,6 @@
-import { env } from '@/lib/env';
+import { requireApiBaseUrl } from '@/lib/env';
 
-const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = requireApiBaseUrl();
 
 async function parseJson<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);

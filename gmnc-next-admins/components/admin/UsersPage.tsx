@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import CalendarPopover from '@/components/ui/CalendarPopover';
 import EmptyState from '@/components/ui/EmptyState';
@@ -12,7 +13,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { ChevronDown, Eye, EyeOff, Mail, Phone, Plus, User, X, Calendar } from 'lucide-react';
 import { Trash2 } from 'lucide-react';
 
-type UserType = 'ALL' | 'CAREGIVER' | 'SERVICE_PROVIDER' | 'ADMIN';
+type UserType = 'ALL' | 'SERVICE_PROVIDER' | 'ADMIN' | 'SUPPORT' | 'TESTER';
 type RegistrationStep = 1 | 2 | 3;
 type Gender = 'MALE' | 'FEMALE';
 type OtpChannel = 'sms' | 'email';
@@ -30,21 +31,43 @@ type UserRecord = {
   otpChannel?: OtpChannel;
 };
 
+type ApiUserRecord = Partial<UserRecord> & {
+  _id?: string;
+  name?: string;
+  phone?: string;
+  portalRole?: string;
+  user?: ApiUserRecord;
+};
+
+type UserSavePayload = {
+  fullName: string;
+  email?: string;
+  phoneNumber: string;
+  gender: Gender;
+  role: UserType;
+  dateOfBirth?: string;
+  otpChannel: OtpChannel;
+  password?: string;
+};
+
 const roleOptions: { value: UserType; label: string }[] = [
   { value: 'ALL', label: 'All user types' },
-  { value: 'CAREGIVER', label: 'Caregiver' },
   { value: 'SERVICE_PROVIDER', label: 'Service provider' },
   { value: 'ADMIN', label: 'Admin' },
+  { value: 'SUPPORT', label: 'Support' },
+  { value: 'TESTER', label: 'Tester' },
 ];
 
 function formatUserType(role: Exclude<UserType, 'ALL'>) {
   switch (role) {
-    case 'CAREGIVER':
-      return 'Caregiver';
     case 'SERVICE_PROVIDER':
       return 'Service provider';
     case 'ADMIN':
       return 'Admin';
+    case 'SUPPORT':
+      return 'Support';
+    case 'TESTER':
+      return 'Tester';
   }
 }
 
@@ -156,47 +179,57 @@ function SmallDropdown<T extends string>({
 export default function UserRegistrationPage() {
   const { show } = useToast();
   const { isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams?.get('search') ?? undefined;
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (search?: string) => {
     setIsLoadingUsers(true);
     setFetchError(null);
     try {
-        const response = await fetch('/api/admin/users', {
+        const params = new URLSearchParams();
+        if (search?.trim()) params.set('search', search.trim());
+        params.set('limit', '200');
+        const response = await fetch(`/api/admin/users?${params.toString()}`, {
           credentials: 'include',
         });
       const result = await response.json();
       if (result.success) {
         const rawData = result.data;
-        const usersList: any[] = Array.isArray(rawData)
+        const usersList: ApiUserRecord[] = Array.isArray(rawData)
           ? rawData
-          : Array.isArray(rawData?.users)
-            ? rawData.users
+        : Array.isArray(rawData?.users)
+            ? rawData.users as ApiUserRecord[]
             : [];
 
-        const normalized: UserRecord[] = usersList.map((u: any) => {
+        const normalized = usersList.map((u): UserRecord | null => {
           const userObj = u.user || u;
+          const rawUserType = String(userObj.portalRole || userObj.userType || 'SERVICE_PROVIDER').toUpperCase();
+          if (rawUserType === 'CAREGIVER') return null;
+          const userType: Exclude<UserType, 'ALL'> = rawUserType === 'ADMIN' || rawUserType === 'SUPPORT' || rawUserType === 'TESTER'
+            ? rawUserType
+            : 'SERVICE_PROVIDER';
           return {
             id: userObj.id || userObj._id || Math.random().toString(),
             fullName: userObj.fullName || userObj.name || 'Unknown User',
             email: userObj.email || null,
             phoneNumber: userObj.phoneNumber || userObj.phone || 'N/A',
-            userType: (userObj.userType || 'CAREGIVER') as Exclude<UserType, 'ALL'>,
+            userType,
             accountStatus: (userObj.accountStatus || 'ACTIVE') as UserRecord['accountStatus'],
             updatedAt: userObj.updatedAt || new Date().toISOString(),
             gender: (userObj.gender?.toUpperCase() as Gender) || 'MALE',
             dateOfBirth: userObj.dateOfBirth || '',
             otpChannel: (userObj.otpChannel?.toLowerCase() as OtpChannel) || 'sms',
           };
-        });
+        }).filter((user): user is UserRecord => Boolean(user));
         setUsers(normalized);
       } else {
         setFetchError(result.message || 'Failed to fetch users');
       }
-    } catch (err) {
+    } catch {
       setFetchError('A network error occurred while fetching users');
     } finally {
       setIsLoadingUsers(false);
@@ -204,8 +237,9 @@ export default function UserRegistrationPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    const timeout = window.setTimeout(() => void fetchUsers(searchQuery), 0);
+    return () => window.clearTimeout(timeout);
+  }, [searchQuery]);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -215,7 +249,7 @@ export default function UserRegistrationPage() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   const [step, setStep] = useState<RegistrationStep>(1);
-  const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('CAREGIVER');
+  const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('SERVICE_PROVIDER');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -287,7 +321,7 @@ export default function UserRegistrationPage() {
   const resetModalState = () => {
     setIsCreateModalOpen(false);
     setStep(1);
-    setModalRole('CAREGIVER');
+    setModalRole('SERVICE_PROVIDER');
     setShowPassword(false);
     setIsSubmitting(false);
     setIsCalendarOpen(false);
@@ -354,14 +388,14 @@ export default function UserRegistrationPage() {
       const url = isEditMode ? `/api/admin/users/${editingUserId}` : '/api/admin/users';
       const method = isEditMode ? 'PATCH' : 'POST';
 
-      const payload: any = {
+      const payload: UserSavePayload = {
         fullName: formData.fullName,
         email: formData.email || undefined,
         phoneNumber: formData.phoneNumber,
         gender: formData.gender,
         role: modalRole,
         dateOfBirth: formData.dateOfBirth || undefined,
-        otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+        otpChannel: modalRole === 'ADMIN' || modalRole === 'SUPPORT' || modalRole === 'TESTER' ? 'email' : formData.otpChannel,
       };
 
       if (formData.password) {
@@ -395,7 +429,7 @@ export default function UserRegistrationPage() {
                     phoneNumber: formData.phoneNumber,
                     gender: formData.gender,
                     dateOfBirth: formData.dateOfBirth,
-                    otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+                    otpChannel: modalRole === 'ADMIN' || modalRole === 'SUPPORT' || modalRole === 'TESTER' ? 'email' : formData.otpChannel,
                     updatedAt: new Date().toISOString(),
                   }
                 : u
@@ -412,13 +446,13 @@ export default function UserRegistrationPage() {
             updatedAt: new Date().toISOString(),
             gender: formData.gender,
             dateOfBirth: formData.dateOfBirth,
-            otpChannel: modalRole === 'ADMIN' ? 'email' : formData.otpChannel,
+            otpChannel: modalRole === 'ADMIN' || modalRole === 'SUPPORT' || modalRole === 'TESTER' ? 'email' : formData.otpChannel,
           };
           setUsers((prev) => [newUser, ...prev]);
         }
 
         resetModalState();
-        fetchUsers();
+        fetchUsers(searchQuery);
       } else {
         show({
           title: 'Error',
@@ -480,7 +514,7 @@ export default function UserRegistrationPage() {
                   <p className="mb-1 text-sm font-medium text-red-600">Could not load users</p>
                   <p className="text-xs text-red-400">{fetchError}</p>
                   <button
-                    onClick={fetchUsers}
+                    onClick={() => void fetchUsers(searchQuery)}
                     className="mt-3 text-xs text-emerald-600 underline hover:text-emerald-800"
                   >
                     Retry
@@ -751,7 +785,7 @@ export default function UserRegistrationPage() {
                     </span>
                   </button>
                   <CalendarPopover
-                    anchorRef={calendarButtonRef.current}
+                    anchorRef={calendarButtonRef}
                     open={isCalendarOpen}
                     selected={selectedDate}
                     onSelect={setSelectedDate}
@@ -769,9 +803,9 @@ export default function UserRegistrationPage() {
                 {!isEditMode && (
                   <div className="space-y-3 md:col-span-2">
                     <label className="text-sm font-medium text-slate-700">OTP Channel</label>
-                    {modalRole === 'ADMIN' ? (
+                    {modalRole === 'ADMIN' || modalRole === 'SUPPORT' || modalRole === 'TESTER' ? (
                       <div className="flex h-10 w-full items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
-                        Email (Auto-configured for Admin)
+                        Email (Auto-configured for portal staff)
                       </div>
                     ) : (
                       <SmallDropdown
@@ -820,12 +854,11 @@ export default function UserRegistrationPage() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
                   <p className="text-base font-semibold text-slate-900">Review information</p>
 
-                  {modalRole === 'ADMIN' && (
+                  {(modalRole === 'ADMIN' || modalRole === 'SUPPORT' || modalRole === 'TESTER') && (
                     <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
                       <p className="text-sm text-emerald-700">
-                        <span className="font-medium">Admin Account:</span> This account will be
-                        pre-verified and profile completion will be marked as done. No OTP
-                        verification needed.
+                        <span className="font-medium">Portal Account:</span> This account follows the backend
+                        registration flow and uses RBAC for portal access.
                       </p>
                     </div>
                   )}
@@ -867,7 +900,7 @@ export default function UserRegistrationPage() {
                     {!isEditMode && (
                       <p>
                         <span className="font-medium text-slate-900">OTP Channel:</span>{' '}
-                        {modalRole === 'ADMIN'
+                        {modalRole === 'ADMIN' || modalRole === 'SUPPORT' || modalRole === 'TESTER'
                           ? 'Email (Auto)'
                           : formData.otpChannel.toUpperCase()}
                       </p>
@@ -876,6 +909,7 @@ export default function UserRegistrationPage() {
                       <span className="font-medium text-slate-900">Password:</span> ••••••••
                     </p>
                   </div>
+
                 </div>
               </div>
             )}

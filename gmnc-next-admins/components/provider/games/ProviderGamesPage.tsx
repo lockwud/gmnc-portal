@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Edit3,
   ExternalLink,
@@ -14,7 +14,6 @@ import {
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
-import { Select } from '@/components/ui/Select';
 import { useAuth } from '@/lib/context/AuthContext';
 import {
   createGame,
@@ -239,26 +238,14 @@ function CreateGameModal({
   loading,
   onClose,
   onSubmit,
-  catalogGames,
 }: {
   isOpen: boolean;
   loading: boolean;
   onClose: () => void;
   onSubmit: (formData: FormData) => void;
-  catalogGames: GameResource[];
 }) {
   const [source, setSource] = useState<GameSourceFiltered>('UPLOADED');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedCatalogGame, setSelectedCatalogGame] = useState('');
-
-  const catalogGameOptions = useMemo(
-    () =>
-      catalogGames.map((game) => ({
-        value: game.id,
-        label: `${game.title}${game.embedUrl ? ' (external)' : ''}`,
-      })),
-    [catalogGames]
-  );
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -276,12 +263,7 @@ function CreateGameModal({
     parseTags(raw.get('tags')).forEach((tag) => payload.append('tags', tag));
 
     if (source === 'EXTERNAL') {
-      const selectedGame = catalogGames.find((g) => g.id === selectedCatalogGame);
-      if (selectedGame?.embedUrl) {
-        payload.append('externalUrl', selectedGame.embedUrl);
-      } else if (selectedGame?.files?.[0]) {
-        payload.append('externalUrl', selectedGame.files[0]);
-      }
+      payload.append('externalUrl', String(raw.get('externalUrl') ?? '').trim());
     }
 
     if (source === 'UPLOADED') {
@@ -338,7 +320,6 @@ function CreateGameModal({
                     onClick={() => {
                       setSource(option.value);
                       setSelectedFile(null);
-                      setSelectedCatalogGame('');
                     }}
                     className={`flex h-10 items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition ${
                       active
@@ -371,15 +352,15 @@ function CreateGameModal({
             </div>
           ) : (
             <div>
-              <label className="mb-1 block text-[11px] font-semibold text-slate-700">Select from Game Library</label>
-              <Select
-                options={catalogGameOptions}
-                value={selectedCatalogGame}
-                onChange={(event) => setSelectedCatalogGame(event.target.value)}
+              <label className="mb-1 block text-[11px] font-semibold text-slate-700">Game URL</label>
+              <input
+                type="url"
+                name="externalUrl"
+                required
+                className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-50"
+                placeholder="https://example.com/game"
               />
-              {catalogGameOptions.length === 0 ? (
-                <p className="mt-2 text-[11px] text-slate-400">No games available in the catalog yet. Create upload games first.</p>
-              ) : null}
+              <p className="mt-2 text-[11px] text-slate-400">Use a playable web game, YouTube, or externally hosted therapeutic activity URL.</p>
             </div>
           )}
 
@@ -655,7 +636,6 @@ export default function ProviderGamesPage() {
         loading={saving}
         onClose={() => setShowCreateModal(false)}
         onSubmit={(formData) => void handleCreate(formData)}
-        catalogGames={games}
       />
 
       <EditGameModal

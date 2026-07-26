@@ -2,8 +2,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import SignaturePad from '../../../../components/ui/SignaturePad'
 import { uploadSignature, listSignatures } from '../../../../lib/api/signatures'
+import { useAuth } from '@/lib/context/AuthContext'
 
 export default function SignaturePage() {
+  const { user } = useAuth()
+  const userId = user?.id
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -13,20 +16,25 @@ export default function SignaturePage() {
   const loadPreview = useCallback(async () => {
     setLoadingPreview(true)
     try {
-      const res = await listSignatures('self')
+      if (!userId) return
+      const res = await listSignatures(userId)
       const json = await res.json().catch(() => null)
+      const signatures = Array.isArray(json?.data?.signatures) ? json.data.signatures : []
+      const defaultSignature = signatures.find((item: { isDefault?: boolean }) => item.isDefault) ?? signatures[0]
       const src = typeof json?.data?.dataUrl === 'string'
         ? json.data.dataUrl
         : typeof json?.dataUrl === 'string'
           ? json.dataUrl
           : typeof json?.signature?.dataUrl === 'string'
             ? json.signature.dataUrl
-            : null
+            : typeof defaultSignature?.dataUrl === 'string'
+              ? defaultSignature.dataUrl
+              : null
       if (src) setPreview(src)
     } catch { /* ignore */ } finally {
       setLoadingPreview(false)
     }
-  }, [])
+  }, [userId])
 
   useEffect(() => { void Promise.resolve().then(() => loadPreview()); }, [loadPreview])
 

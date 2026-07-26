@@ -7,15 +7,19 @@ import {
   ChevronDown,
   Clock3,
   FileText,
+  Pause,
+  Play,
   Plus,
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import AppointmentsSkeleton from '@/components/layout/skeletons/AppointmentsSkeleton';
-import { getAppointments, createAppointment } from '@/lib/api/appointments';
+import { getAppointments, createAppointment, getProviderAvailability } from '@/lib/api/appointments';
 import { getPatients } from '@/lib/api/patients';
 import { useAuth } from '@/lib/context/AuthContext';
+import { getEffectiveRoles } from '@/lib/rbac';
 import type { User } from '@/lib/context/AuthContext';
 import type { Appointment, AppointmentStatus } from './types';
+import type { ProviderAvailabilitySlot } from '@/lib/api/appointments';
 
 type Patient = { id: string; fullName: string };
 type Provider = {
@@ -193,10 +197,47 @@ function getProfessionLabel(profession: string) {
 }
 
 function AppointmentCard({ appointment }: { appointment: Appointment }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioError, setAudioError] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handlePlayAudio = () => {
+    if (!appointment.reasonAudio) return;
+
+    if (!appointment.reasonAudio.startsWith('http')) {
+      setAudioError(true);
+      return;
+    }
+
+    const existingAudio = audioRef.current;
+    if (existingAudio && isPlaying) {
+      existingAudio.pause();
+      return;
+    }
+
+    const audio = existingAudio?.src === appointment.reasonAudio
+      ? existingAudio
+      : new Audio(appointment.reasonAudio);
+    audioRef.current = audio;
+    audio.onplay = () => setIsPlaying(true);
+    audio.onpause = () => setIsPlaying(false);
+    audio.onended = () => setIsPlaying(false);
+    audio.onerror = () => {
+      setAudioError(true);
+      setIsPlaying(false);
+    };
+    
+    audio.play().catch(err => {
+      console.error('Failed to play audio:', err);
+      setAudioError(true);
+      setIsPlaying(false);
+    });
+  };
+
   return (
     <article className="group rounded-[18px] border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_8px_18px_rgba(15,23,42,0.14)]">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-medium text-slate-400">
             {new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
               weekday: 'short',
@@ -227,6 +268,33 @@ function AppointmentCard({ appointment }: { appointment: Appointment }) {
           {getProfessionLabel(appointment.provider.profession)}
         </p>
       </div>
+
+      {appointment.reasonAudio && appointment.reasonAudio.startsWith('http') && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={handlePlayAudio}
+            className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-100"
+          >
+            {isPlaying ? (
+              <>
+                <Pause size={12} />
+                <span>Playing...</span>
+              </>
+            ) : audioError ? (
+              <>
+                <Play size={12} />
+                <span>Retry Audio</span>
+              </>
+            ) : (
+              <>
+                <Play size={12} />
+                <span>Play Audio Reason</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center">
@@ -452,7 +520,7 @@ function CreateAppointmentModal({
   token: string | null;
   appointmentScope: 'admin' | 'provider' | 'caregiver';
 }) {
-  const [openDropdown, setOpenDropdown] = useState<'patient' | 'provider' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'patient' | 'provider' | 'availability' | null>(null);
   const [formData, setFormData] = useState({
     patientId: '',
     providerId: '',
@@ -460,6 +528,8 @@ function CreateAppointmentModal({
     appointmentTime: '',
     reasonText: '',
   });
+  const [availability, setAvailability] = useState<ProviderAvailabilitySlot[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -470,6 +540,7 @@ function CreateAppointmentModal({
     setSubmitError(null);
     setPatients([]);
     setProviders([]);
+    setAvailability([]);
     setFormData({
       patientId: '',
       providerId: '',
@@ -547,6 +618,15 @@ function CreateAppointmentModal({
         [name]: '',
       }));
     }
+  };
+
+  const handleAvailabilitySelect = (time: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      appointmentTime: time,
+    }));
+    setErrors((prev) => ({ ...prev, appointmentTime: '' }));
+    setOpenDropdown(null);
   };
 
   const handleModalClose = () => {
@@ -640,6 +720,40 @@ function CreateAppointmentModal({
     };
   }, [appointmentScope, isOpen, token]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadAvailability() {
+      if (!isOpen || !token || !formData.providerId || !formData.appointmentDate) {
+        setAvailability([]);
+        return;
+      }
+
+      setLoadingAvailability(true);
+      try {
+        const data = await getProviderAvailability(formData.providerId, formData.appointmentDate, token);
+        if (!active) return;
+        setAvailability(data.slots);
+      } catch (err) {
+        if (!active) return;
+        const message = err instanceof Error ? err.message : '';
+        // Only log non-permission errors
+        if (!message.includes('404') && !message.includes('permission') && !message.includes('access')) {
+          console.error('Failed to load provider availability:', err);
+        }
+        setAvailability([]);
+      } finally {
+        if (active) setLoadingAvailability(false);
+      }
+    }
+
+    loadAvailability();
+    return () => {
+      active = false;
+    };
+  }, [isOpen, token, formData.providerId, formData.appointmentDate]);
+
+
   const patientOptions = patients.map((patient) => ({
     value: patient.id,
     label: patient.fullName,
@@ -713,7 +827,8 @@ function CreateAppointmentModal({
                   value={formData.providerId}
                   options={providerOptions}
                   onChange={(value) => {
-                    setFormData((prev) => ({ ...prev, providerId: value }));
+                    setFormData((prev) => ({ ...prev, providerId: value, appointmentTime: '' }));
+                    setAvailability([]);
                     setErrors((prev) => ({ ...prev, providerId: '' }));
                   }}
                   ariaLabel="Select provider"
@@ -730,43 +845,75 @@ function CreateAppointmentModal({
               </div>
 
               {/* Date and Time */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Date</label>
-                  <div className="relative">
-                    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="date"
-                      name="appointmentDate"
-                      value={formData.appointmentDate}
-                      onChange={handleChange}
-                      className={`h-8 w-full rounded-xl border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${
-                        errors.appointmentDate ? 'border-red-500' : ''
-                      }`}
-                    />
-                  </div>
-                  {errors.appointmentDate && (
-                    <p className="mt-1 text-xs text-red-600">{errors.appointmentDate}</p>
-                  )}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Date</label>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="date"
+                    name="appointmentDate"
+                    value={formData.appointmentDate}
+                    onChange={(event) => {
+                      handleChange(event);
+                      setFormData((prev) => ({ ...prev, appointmentTime: '' }));
+                      setAvailability([]);
+                    }}
+                    className={`h-8 w-full rounded-xl border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${
+                      errors.appointmentDate ? 'border-red-500' : ''
+                    }`}
+                  />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Time</label>
+                {errors.appointmentDate && (
+                  <p className="mt-1 text-xs text-red-600">{errors.appointmentDate}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Time</label>
+                {!formData.providerId ? (
+                  <p className="text-xs text-slate-400">Select a provider first</p>
+                ) : !formData.appointmentDate ? (
+                  <p className="text-xs text-slate-400">Select a date first</p>
+                ) : loadingAvailability ? (
+                  <p className="text-xs text-slate-500">Loading availability...</p>
+                ) : availability.length === 0 ? (
+                  <p className="text-xs text-red-500">No available time slots for this date.</p>
+                ) : (
                   <div className="relative">
                     <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="time"
-                      name="appointmentTime"
-                      value={formData.appointmentTime}
-                      onChange={handleChange}
-                      className={`h-8 w-full rounded-xl border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-600 outline-none transition hover:border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${
-                        errors.appointmentTime ? 'border-red-500' : ''
-                      }`}
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setOpenDropdown(openDropdown === 'availability' ? null : 'availability')}
+                      className="flex h-8 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-700 transition hover:border-slate-300"
+                    >
+                      <span className="truncate">
+                        {formData.appointmentTime || 'Select a time slot'}
+                      </span>
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openDropdown === 'availability' ? 'rotate-180' : ''}`} />
+                    </button>
+                    {openDropdown === 'availability' && (
+                      <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg max-h-64 overflow-y-auto">
+                        {availability.map((slot) => (
+                          <button
+                            key={slot.id}
+                            type="button"
+                            onClick={() => handleAvailabilitySelect(slot.startTime)}
+                            className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${
+                              formData.appointmentTime === slot.startTime
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            {slot.startTime} - {slot.endTime}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {errors.appointmentTime && (
-                    <p className="mt-1 text-xs text-red-600">{errors.appointmentTime}</p>
-                  )}
-                </div>
+                )}
+                {errors.appointmentTime && (
+                  <p className="mt-1 text-xs text-red-600">{errors.appointmentTime}</p>
+                )}
               </div>
 
               {/* Reason */}
@@ -825,12 +972,14 @@ function CreateAppointmentModal({
 export default function AppointmentAdminPage() {
   const { token, user, selectedRole } = useAuth();
   const appointmentScope = getAppointmentScope(user, selectedRole);
+  const canViewKanban = user ? getEffectiveRoles(user).includes('admin') : false;
+  const isServiceProvider = user?.userType === 'SERVICE_PROVIDER';
   const [filters, setFilters] = useState({
     status: 'all',
   });
   const [statusPickerOpen, setStatusPickerOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('calendar');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -865,8 +1014,14 @@ export default function AppointmentAdminPage() {
     if (error) return [];
     return appointments.filter(appointment => {
       // Status filter
-      if (filters.status !== 'all' && appointment.status !== filters.status) {
-        return false;
+      if (filters.status !== 'all') {
+        if (filters.status === 'PAST') {
+          const aptDate = new Date(appointment.appointmentDate);
+          const now = new Date();
+          if (aptDate >= now) return false;
+        } else if (appointment.status !== filters.status) {
+          return false;
+        }
       }
       // Calendar filter
       if (viewMode === 'calendar' && selectedDate) {
@@ -984,17 +1139,19 @@ export default function AppointmentAdminPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Create Button */}
-          <button
-            type="button"
-            onClick={handleOpenModal}
-            className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
-              <Plus size={16} />
-            </span>
-            Create Appointment
-          </button>
+          {/* Create Button - Only show for non-service providers */}
+          {!isServiceProvider && (
+            <button
+              type="button"
+              onClick={handleOpenModal}
+              className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <Plus size={16} />
+              </span>
+              Create Appointment
+            </button>
+          )}
 
           {/* Status Filter */}
           <div className="relative">
@@ -1025,6 +1182,15 @@ export default function AppointmentAdminPage() {
                   </button>
                   <button
                     onClick={() => {
+                      handleFilterChange({ status: 'PAST' });
+                      setStatusPickerOpen(false);
+                    }}
+                    className={`flex w-full px-3 py-1 text-left text-[9px] ${filters.status === 'PAST' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    Past
+                  </button>
+                  <button
+                    onClick={() => {
                       handleFilterChange({ status: 'PENDING' });
                       setStatusPickerOpen(false);
                     }}
@@ -1050,35 +1216,28 @@ export default function AppointmentAdminPage() {
                   >
                     Rescheduled
                   </button>
-                  <button
-                    onClick={() => {
-                      handleFilterChange({ status: 'CANCELLED' });
-                      setStatusPickerOpen(false);
-                    }}
-                    className={`flex w-full px-3 py-1 text-left text-[9px] ${filters.status === 'CANCELLED' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    Cancelled
-                  </button>
                 </div>
               </div>
             )}
           </div>
 
           {/* View Toggle */}
-          <div>
-            <button
-              className={`rounded-full px-4 py-2 text-xs font-bold mr-2 ${viewMode === 'kanban' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}
-              onClick={() => setViewMode('kanban')}
-            >
-              Kanban View
-            </button>
-            <button
-              className={`rounded-full px-4 py-2 text-xs font-bold ${viewMode === 'calendar' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}
-              onClick={() => setViewMode('calendar')}
-            >
-              Calendar View
-            </button>
-          </div>
+          {canViewKanban && (
+            <div>
+              <button
+                className={`rounded-full px-4 py-2 text-xs font-bold mr-2 ${viewMode === 'kanban' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                onClick={() => setViewMode('kanban')}
+              >
+                Kanban View
+              </button>
+              <button
+                className={`rounded-full px-4 py-2 text-xs font-bold ${viewMode === 'calendar' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                onClick={() => setViewMode('calendar')}
+              >
+                Calendar View
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1091,7 +1250,7 @@ export default function AppointmentAdminPage() {
         <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-center text-[11px] font-medium text-red-600">
           {error}
         </div>
-      ) : viewMode === 'kanban' ? (
+      ) : canViewKanban && viewMode === 'kanban' ? (
         <div
           onWheel={handleBoardWheel}
           className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-auto overflow-y-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
