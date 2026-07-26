@@ -45,9 +45,9 @@ export async function getPendingProviderApprovals(token?: string | null): Promis
     status: boolean;
     message?: string;
     data: ProviderApprovalItem[];
-  }>('/api/admin/providers/pending', { token: token ?? undefined });
+  }>('/api/admin/providers?verificationStatus=PENDING_REVIEW', { token: token ?? undefined });
 
-  return res.data.data || [];
+  return (res.data.data || []).filter((provider) => provider.verificationStatus === 'PENDING_REVIEW');
 }
 
 export async function approveProvider(id: string, note?: string, token?: string | null): Promise<ProviderApprovalItem> {
@@ -55,7 +55,11 @@ export async function approveProvider(id: string, note?: string, token?: string 
     status: boolean;
     message?: string;
     data: ProviderApprovalItem;
-  }>(`/api/admin/providers/${id}/approve`, { method: 'PATCH', body: { note }, token: token ?? undefined });
+  }>(`/api/admin/providers/${id}/verification`, {
+    method: 'PATCH',
+    body: { action: 'APPROVE', verificationNote: note, licenseStatus: 'ACTIVE' },
+    token: token ?? undefined,
+  });
 
   return res.data.data;
 }
@@ -65,7 +69,11 @@ export async function rejectProvider(id: string, reason: string, token?: string 
     status: boolean;
     message?: string;
     data: ProviderApprovalItem;
-  }>(`/api/admin/providers/${id}/reject`, { method: 'PATCH', body: { reason }, token: token ?? undefined });
+  }>(`/api/admin/providers/${id}/verification`, {
+    method: 'PATCH',
+    body: { action: 'REJECT', verificationNote: reason, licenseStatus: 'INACTIVE' },
+    token: token ?? undefined,
+  });
 
   return res.data.data;
 }

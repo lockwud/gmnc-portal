@@ -8,20 +8,12 @@
   color: var(--sidebar-active-text) !important;
 }
 
-.sidebar-selected .material-icons {
-  color: var(--sidebar-active-text) !important;
-}
-
 .sidebar-hovered {
   background: var(--sidebar-hover) !important;
   color: var(--sidebar-text) !important;
 }
 
 .sidebar-hovered span {
-  color: var(--sidebar-text) !important;
-}
-
-.sidebar-hovered .material-icons {
   color: var(--sidebar-text) !important;
 }
 
@@ -34,8 +26,13 @@
 }
 
 .sidebar-width {
-  width: 220px;
-  min-width: 220px;
+  width: 280px;
+  min-width: 280px;
+}
+
+.sidebar-width-collapsed {
+  width: 76px;
+  min-width: 76px;
 }
 
 /* Ensure sidebar items always show text properly */

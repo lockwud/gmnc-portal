@@ -435,7 +435,8 @@ export default function AdminReportsPage() {
   }, [token, user]);
 
   useEffect(() => {
-    void load();
+    const timeout = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timeout);
   }, [load]);
 
   const filtered = useMemo(() => {
@@ -450,7 +451,12 @@ export default function AdminReportsPage() {
   const safePage = Math.min(page, totalPages);
   const paginated = useMemo(() => filtered.slice((safePage - 1) * pageSize, safePage * pageSize), [filtered, safePage, pageSize]);
 
-  useEffect(() => { setPage((p) => Math.min(p, Math.max(1, Math.ceil(filtered.length / pageSize)))); }, [filtered.length, pageSize]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setPage((p) => Math.min(p, Math.max(1, Math.ceil(filtered.length / pageSize))));
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [filtered.length, pageSize]);
 
   const handleXlsxUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -507,7 +513,7 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <ProtectedRoute requiredRole="provider">
+    <ProtectedRoute requiredRole="admin">
       <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
         <div className="shrink-0 border-b border-slate-200 px-4 py-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

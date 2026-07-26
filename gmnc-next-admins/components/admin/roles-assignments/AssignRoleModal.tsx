@@ -133,8 +133,8 @@ export default function AssignRoleModal(props: AssignRoleModalProps) {
                     : 'Select date'}
                 </span>
               </button>
-               <CalendarPopover
-                 anchorRef={calendarButtonRef.current}
+                 <CalendarPopover
+                  anchorRef={calendarButtonRef}
                  open={isCalendarOpen}
                  selected={expiryDate ?? undefined}
                  onSelect={(date) => setExpiryDate(date ?? null)}

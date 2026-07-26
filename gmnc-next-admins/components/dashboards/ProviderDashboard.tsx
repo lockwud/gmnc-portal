@@ -27,42 +27,6 @@ import { cn } from '@/lib/utils';
 import { getProviderAnalytics } from '@/lib/api/analytics';
 import ProviderDashboardSkeleton from '@/components/layout/skeletons/ProviderDashboardSkeleton';
 
-const FALLBACK_IMPROVEMENT_DATA = [
-  { name: 'Mon', value: 42 },
-  { name: 'Tue', value: 46 },
-  { name: 'Wed', value: 51 },
-  { name: 'Thu', value: 56 },
-  { name: 'Fri', value: 61 },
-  { name: 'Sat', value: 64 },
-  { name: 'Sun', value: 69 },
-];
-
-const FALLBACK_ADHERENCE_DATA = [
-  { name: 'Mon', value: 68 },
-  { name: 'Tue', value: 70 },
-  { name: 'Wed', value: 73 },
-  { name: 'Thu', value: 76 },
-  { name: 'Fri', value: 78 },
-  { name: 'Sat', value: 81 },
-  { name: 'Sun', value: 84 },
-];
-
-const FALLBACK_TASK_DATA = [
-  { name: 'Mon', assigned: 8 },
-  { name: 'Tue', assigned: 10 },
-  { name: 'Wed', assigned: 9 },
-  { name: 'Thu', assigned: 11 },
-  { name: 'Fri', assigned: 7 },
-  { name: 'Sat', assigned: 5 },
-  { name: 'Sun', assigned: 4 },
-];
-
-const FALLBACK_RECOVERY_DATA = [
-  { label: 'Improving Patients', value: '18', note: 'Responding well to therapy', color: 'emerald' },
-  { label: 'Stable Cases', value: '7', note: 'Routine monitoring ongoing', color: 'blue' },
-  { label: 'Needs Review', value: '3', note: 'Closer clinical attention', color: 'amber' },
-];
-
 type CompactStatCardProps = {
   title: string;
   value: string;
@@ -261,10 +225,10 @@ export function ProviderDashboard() {
     return () => clearTimeout(timeoutId);
   }, [loadMetrics, activeFilter]);
 
-  const improvementTrendData = metrics?.improvementTrend ?? FALLBACK_IMPROVEMENT_DATA;
-  const adherenceTrendData = metrics?.adherenceTrend ?? FALLBACK_ADHERENCE_DATA;
-  const dailyTasksData = metrics?.dailyTasks ?? FALLBACK_TASK_DATA;
-  const patientRecoveryData = metrics?.patientRecovery ?? FALLBACK_RECOVERY_DATA;
+  const improvementTrendData = metrics?.improvementTrend ?? [];
+  const adherenceTrendData = metrics?.adherenceTrend ?? [];
+  const dailyTasksData = metrics?.dailyTasks ?? [];
+  const patientRecoveryData = metrics?.patientRecovery ?? [];
 
   if (isLoadingMetrics && !metrics) {
     return <ProviderDashboardSkeleton />;
@@ -522,6 +486,11 @@ export function ProviderDashboard() {
                 </div>
               </div>
             ))}
+            {patientRecoveryData.length === 0 ? (
+              <p className="rounded-md border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-400">
+                No recovery data returned by the API.
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-4 border-t border-slate-100 pt-3">

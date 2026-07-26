@@ -10,9 +10,6 @@ import {
 } from '@/lib/api/settings';
 
 const FIELDS = [
-  { key: 'requireConsentForDataSharing', label: 'Require Data Sharing Consent', type: 'toggle' as const, description: 'Consent required for data sharing' },
-  { key: 'requireConsentForRecording', label: 'Require Recording Consent', type: 'toggle' as const, description: 'Consent required for session recording' },
-  { key: 'requireConsentForPhoto', label: 'Require Photo/Video Consent', type: 'toggle' as const, description: 'Consent required for photo/video capture' },
   { key: 'enableHipaaCompliance', label: 'Enable HIPAA Compliance', type: 'toggle' as const, description: 'Enforce HIPAA compliance rules' },
   { key: 'dataEncryptionAtRest', label: 'Data Encryption at Rest', type: 'toggle' as const, description: 'Encrypt stored data' },
   { key: 'dataEncryptionInTransit', label: 'Data Encryption in Transit', type: 'toggle' as const, description: 'Encrypt data during transfer' },
@@ -32,8 +29,8 @@ export default function ComplianceRoute() {
 
   return (
     <PlatformSettingsPage
-      title="Compliance & Consent"
-      description="Configure compliance and consent settings."
+      title="Compliance"
+      description="Configure privacy, encryption, audit, and data-rights settings."
       icon={ShieldCheck}
       fields={FIELDS}
       fetchSettings={fetch}

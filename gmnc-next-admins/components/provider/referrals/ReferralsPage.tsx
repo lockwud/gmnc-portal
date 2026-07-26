@@ -32,8 +32,14 @@ interface Provider {
   userType?: string;
   user: {
     fullName: string;
+    profession?: string;
   };
 }
+
+type PatientApiRecord = Patient & {
+  _id?: string;
+  name?: string;
+};
 
 interface Assessment {
   id: string;
@@ -266,12 +272,6 @@ export default function ReferralsPage() {
   const [isLoadingAssessments, setIsLoadingAssessments] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<'patient' | 'profession' | 'provider' | 'assessment' | null>(null);
 
-  useEffect(() => {
-      if (token) {
-      fetchReferrals();
-    }
-  }, [token]);
-
   const fetchReferrals = async () => {
     setIsLoading(true);
     try {
@@ -287,7 +287,7 @@ export default function ReferralsPage() {
       ]);
 
       if (!incomingRes.ok) {
-        console.error('Incoming referrals API error:', incomingRes.status);
+        console.warn('Incoming referrals API error:', incomingRes.status);
         setIncomingReferrals([]);
       } else {
         const incomingData = await incomingRes.json();
@@ -297,7 +297,7 @@ export default function ReferralsPage() {
       }
 
       if (!outgoingRes.ok) {
-        console.error('Outgoing referrals API error:', outgoingRes.status);
+        console.warn('Outgoing referrals API error:', outgoingRes.status);
         setOutgoingReferrals([]);
       } else {
         const outgoingData = await outgoingRes.json();
@@ -342,10 +342,10 @@ export default function ReferralsPage() {
         return;
       }
       const data = await response.json();
-      const patientList = (data.data?.data || data.data || []) as any[];
-      const formatted = patientList.map((p: any) => ({
-        id: p.id,
-        fullName: p.fullName,
+      const patientList = (data.data?.data || data.data || []) as PatientApiRecord[];
+      const formatted = patientList.map((p) => ({
+        id: p.id || p._id || '',
+        fullName: p.fullName || p.name || '',
         assessmentCount: 0,
         hasAssessments: true,
       }));
@@ -391,14 +391,14 @@ export default function ReferralsPage() {
       if (data.status === "SUCCESS" || data.success) {
         const allProviders = data.data?.data || data.data || [];
         // Filter by profession
-        let filteredProviders = (Array.isArray(allProviders) ? allProviders : []).filter((p: any) => {
+        let filteredProviders = (Array.isArray(allProviders) ? allProviders : []).filter((p: Provider) => {
           const providerProfession = p.profession || p.user?.profession;
           return providerProfession === profession;
         });
 
         // Add current provider to the list if they match the profession (for self-referral)
         if (currentProvider && currentProvider.profession === profession) {
-          const isAlreadyInList = filteredProviders.some((p: any) => p.id === currentProvider.id);
+          const isAlreadyInList = filteredProviders.some((p: Provider) => p.id === currentProvider.id);
           if (!isAlreadyInList) {
             filteredProviders = [
               ...filteredProviders,
@@ -425,6 +425,13 @@ export default function ReferralsPage() {
       setIsLoadingProviders(false);
     }
   };
+
+  useEffect(() => {
+    if (token) {
+      const timeout = window.setTimeout(() => void fetchReferrals(), 0);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [token]);
 
   const fetchPatientAssessments = async (patientId: string) => {
     setIsLoadingAssessments(true);
@@ -474,13 +481,20 @@ export default function ReferralsPage() {
       return;
     }
     try {
-      const response = await fetch(`/api/providers?userId=${user.id}`, {
+      const response = await fetch('/api/service-provider?limit=200', {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
       const data = await response.json();
-      if ((data.status === "SUCCESS" || data.success) && Array.isArray(data.data?.data) && data.data.data.length > 0) {
-        const providerData = data.data.data[0];
+      const providers = Array.isArray(data.data?.data)
+        ? data.data.data
+        : Array.isArray(data.data)
+          ? data.data
+          : [];
+      const providerData = providers.find((provider: { userId?: string; user?: { id?: string } }) => (
+        provider.userId === user.id || provider.user?.id === user.id
+      ));
+      if (providerData) {
         setCurrentProvider({
           id: providerData.id,
           profession: providerData.profession,

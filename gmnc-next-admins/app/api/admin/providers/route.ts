@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { env } from '@/lib/env';
+import { requireApiBaseUrl } from '@/lib/env';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session';
 
 function getToken(request: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   const url = new URL(request.url);
-  const response = await fetch(`${env.API_BASE_URL}/admin/providers${url.search}`, {
+  const response = await fetch(`${requireApiBaseUrl()}/admin/providers${url.search}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,

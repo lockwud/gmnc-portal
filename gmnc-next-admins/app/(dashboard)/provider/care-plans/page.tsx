@@ -76,15 +76,16 @@ export default function ProviderCarePlansPage() {
   }, [token]);
 
   useEffect(() => {
-    void loadPlans();
+    const timeout = window.setTimeout(() => void loadPlans(), 0);
+    return () => window.clearTimeout(timeout);
   }, [loadPlans]);
 
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) ?? null;
 
   useEffect(() => {
     if (!selectedPlan) {
-      setDetailPlan(null);
-      return;
+      const timeout = window.setTimeout(() => setDetailPlan(null), 0);
+      return () => window.clearTimeout(timeout);
     }
 
     const planId = selectedPlan.patientId;
@@ -136,7 +137,7 @@ export default function ProviderCarePlansPage() {
   };
 
   return (
-    <ProtectedRoute requiredRole="provider">
+    <ProtectedRoute requiredRole={["admin", "provider"]}>
       <div className="flex h-[calc(100vh-76px)] min-h-0 overflow-hidden bg-white">
         <aside className="flex w-[340px] shrink-0 flex-col border-r border-slate-200 bg-white">
           <div className="border-b border-slate-200 px-4 py-3">

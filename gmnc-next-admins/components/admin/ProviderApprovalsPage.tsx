@@ -5,7 +5,15 @@ import { useRouter } from 'next/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { getProvidersWaitingVerification, Provider } from '@/lib/api/providers';
+import { getProvidersForVerification, Provider, type ProviderVerificationStatus } from '@/lib/api/providers';
+
+const STATUS_FILTERS: Array<{ value: 'ALL' | ProviderVerificationStatus; label: string }> = [
+  { value: 'ALL', label: 'All' },
+  { value: 'PENDING_REVIEW', label: 'Pending' },
+  { value: 'VERIFIED', label: 'Verified' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'SUSPENDED', label: 'Suspended' },
+];
 
 export default function ProviderApprovalsPage() {
   const router = useRouter();
@@ -13,18 +21,15 @@ export default function ProviderApprovalsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | ProviderVerificationStatus>('PENDING_REVIEW');
 
   useEffect(() => {
     const loadProviders = async () => {
       setIsLoading(true);
       try {
-        const data = await getProvidersWaitingVerification();
+        const data = await getProvidersForVerification();
         setProviders(data);
-        setTotalItems(data.length);
-        setTotalPages(Math.max(1, Math.ceil(data.length / pageSize)));
       } catch (err) {
         console.error('Failed to load providers:', err);
         show({
@@ -38,7 +43,15 @@ export default function ProviderApprovalsPage() {
       }
     };
     loadProviders();
-  }, [show, pageSize]);
+  }, [show]);
+
+  const filteredProviders = providers.filter((provider) => (
+    statusFilter === 'ALL' || provider.verificationStatus === statusFilter
+  ));
+
+  const totalItems = filteredProviders.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const formatDate = (value: string) =>
     new Date(value).toLocaleDateString(undefined, {
@@ -55,6 +68,8 @@ export default function ProviderApprovalsPage() {
         return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
       case 'REJECTED':
         return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
+      case 'SUSPENDED':
+        return 'bg-orange-50 text-orange-700 ring-1 ring-orange-100';
       default:
         return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
     }
@@ -65,9 +80,9 @@ export default function ProviderApprovalsPage() {
   };
 
   const getPaginatedProviders = () => {
-    const startIndex = (currentPage - 1) * pageSize;
+    const startIndex = (safeCurrentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    return providers.slice(startIndex, endIndex);
+    return filteredProviders.slice(startIndex, endIndex);
   };
 
   const handlePageChange = (page: number) => {
@@ -79,14 +94,35 @@ export default function ProviderApprovalsPage() {
     setCurrentPage(1);
   };
 
+  const handleStatusFilterChange = (status: 'ALL' | ProviderVerificationStatus) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
   const paginatedProviders = getPaginatedProviders();
 
   return (
     <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
         <div>
           <h1 className="text-[15px] font-semibold text-slate-900">Provider Approvals</h1>
           <p className="text-xs text-slate-400">Review and manage provider registrations</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {STATUS_FILTERS.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => handleStatusFilterChange(filter.value)}
+              className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
+                statusFilter === filter.value
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -96,18 +132,17 @@ export default function ProviderApprovalsPage() {
             <div className="flex flex-1 items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
             </div>
-          ) : providers.length === 0 ? (
+          ) : filteredProviders.length === 0 ? (
             <div className="flex flex-1 items-center justify-center border border-dashed border-slate-300 bg-white rounded-lg">
               <div className="w-full max-w-md">
                 <EmptyState
-                  title="No pending providers"
-                  description="All provider registrations have been processed."
+                  title="No providers found"
+                  description="There are no provider registrations for the selected verification status."
                 />
               </div>
             </div>
           ) : (
             <>
-              {/* Table Container with independent scroll */}
               <div className="min-h-0 flex-1 overflow-hidden border border-slate-200 rounded-t-lg bg-white">
                 <div className="h-full overflow-auto scrollbar-none">
                   <table className="w-full min-w-[980px] border-collapse">
@@ -158,10 +193,9 @@ export default function ProviderApprovalsPage() {
                 </div>
               </div>
 
-              {/* Pagination outside the scrollable area */}
               <div className="border border-slate-200 border-t-0 rounded-b-lg bg-white">
                 <Pagination
-                  page={currentPage}
+                  page={safeCurrentPage}
                   totalPages={totalPages}
                   pageSize={pageSize}
                   totalItems={totalItems}

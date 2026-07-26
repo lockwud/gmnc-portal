@@ -3,7 +3,7 @@ import { ProviderDashboard } from '@/components/dashboards/ProviderDashboard';
 
 export default function ProviderPage() {
   return (
-    <ProtectedRoute requiredRole="provider">
+    <ProtectedRoute requiredRole={["admin", "provider"]}>
       <ProviderDashboard />
     </ProtectedRoute>
   );

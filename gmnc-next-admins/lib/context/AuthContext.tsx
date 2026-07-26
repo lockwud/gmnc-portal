@@ -52,7 +52,7 @@ interface AuthContextType {
     password: string;
     phoneNumber: string;
     gender: 'MALE' | 'FEMALE';
-    role: 'SERVICE_PROVIDER' | 'ADMIN';
+    role: 'SERVICE_PROVIDER' | 'CAREGIVER' | 'ADMIN';
     profileImage?: string;
     address?: string;
     digitalAddress?: string;
@@ -93,7 +93,19 @@ function getTokenUserType(token?: string | null): string | undefined {
 
 function normaliseUser(raw: Record<string, unknown>, token?: string | null): User {
   const name = (raw.name as string | undefined) ?? (raw.fullName as string | undefined) ?? '';
-  const roles: string[] = Array.isArray(raw.roles) ? (raw.roles as string[]) : [];
+  const roles: string[] = Array.isArray(raw.roles)
+    ? raw.roles
+      .map((role) => {
+        if (typeof role === 'string') return role.trim().toLowerCase();
+        if (role && typeof role === 'object') {
+          const roleRecord = role as { slug?: unknown; role?: { slug?: unknown } };
+          const slug = roleRecord.slug ?? roleRecord.role?.slug;
+          return typeof slug === 'string' ? slug.trim().toLowerCase() : '';
+        }
+        return '';
+      })
+      .filter(Boolean)
+    : [];
   const permissions: string[] = Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [];
   const userType = (raw.userType as string | undefined) ?? getTokenUserType(token);
   const isProviderWithoutRole = userType === 'SERVICE_PROVIDER' && roles.length === 0;
@@ -159,10 +171,9 @@ function resolveSelectedRole(user: User, storedRole?: string | null): Role | nul
     return (effectiveRoles[0] as Role) ?? null;
   }
 
-  // No assigned roles — fall back to userType-based workspace
+  // No assigned roles: infer the workspace from userType.
   if ((user.userType || '').toUpperCase() === 'SERVICE_PROVIDER') return 'provider';
   if ((user.userType || '').toUpperCase() === 'ADMIN') return 'admin';
-  if ((user.userType || '').toUpperCase() === 'CAREGIVER') return 'support';
   return null;
 }
 
@@ -178,12 +189,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const router = useRouter();
 
   useEffect(() => {
-    const caregiverBlocked = sessionStorage.getItem('gmnc_caregiver_blocked');
-    if (caregiverBlocked) {
-      sessionStorage.removeItem('gmnc_caregiver_blocked');
-      setError('Caregivers cannot access this portal.');
-      router.replace('/login');
-    }
+    const timeout = window.setTimeout(() => {
+      const caregiverBlocked = sessionStorage.getItem('gmnc_caregiver_blocked');
+      if (caregiverBlocked) {
+        sessionStorage.removeItem('gmnc_caregiver_blocked');
+        setError('Caregivers cannot access this portal.');
+        router.replace('/login');
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [router]);
 
   // =========================================
@@ -220,6 +235,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const accessToken = data.accessToken ?? '';
         const normalisedUser = normaliseUser(data.user, accessToken);
+        if ((normalisedUser.userType ?? '').toUpperCase() === 'CAREGIVER') {
+          clearAuth();
+          if (isMounted) {
+            setUser(null);
+            setToken(null);
+            setSelectedRoleState(null);
+            setError('Caregivers cannot access this portal.');
+            router.replace('/login');
+          }
+          return;
+        }
         const storedRole = localStorage.getItem('gmnc_selected_role');
 
         setUser(normalisedUser);

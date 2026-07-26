@@ -1,78 +1,58 @@
 import { NextResponse } from 'next/server';
-import { env } from '@/lib/env';
+import { requireApiBaseUrl } from '@/lib/env';
 
-export async function GET(request: Request) {
+function buildTarget(request: Request, path?: string[]) {
   const url = new URL(request.url);
-  const target = `${env.API_BASE_URL}/care-plan${url.pathname === '/care-plan' ? '' : ''}${url.search}`;
-
-  const authHeader = request.headers.get('authorization');
-  const res = await fetch(target, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authHeader ? { Authorization: authHeader } : {}),
-    },
-    credentials: 'include',
-  });
-
-  const text = await res.text();
-  let payload: unknown = text;
-  try { payload = JSON.parse(text); } catch { /* pass through raw text */ }
-
-  return new NextResponse(
-    typeof payload === 'string' ? JSON.stringify({ message: payload }) : JSON.stringify(payload),
-    { status: res.status, headers: { 'Content-Type': 'application/json' } }
-  );
+  const encodedPath = path?.length ? `/${path.map(encodeURIComponent).join('/')}` : '';
+  return `${requireApiBaseUrl()}/care-plan${encodedPath}${url.search}`;
 }
 
-export async function POST(request: Request) {
-  const url = new URL(request.url);
-  const body = await request.text();
-  const target = `${env.API_BASE_URL}/care-plan${url.pathname === '/care-plan' ? '' : ''}${url.search}`;
-
+async function proxyCarePlanRequest(
+  request: Request,
+  method: 'GET' | 'POST' | 'PATCH',
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  const { path } = await context.params;
+  const body = method === 'GET' ? undefined : await request.text();
   const authHeader = request.headers.get('authorization');
-  const res = await fetch(target, {
-    method: 'POST',
+
+  const res = await fetch(buildTarget(request, path), {
+    method,
     headers: {
       'Content-Type': 'application/json',
       ...(authHeader ? { Authorization: authHeader } : {}),
     },
     body,
     credentials: 'include',
+    cache: 'no-store',
   });
 
   const text = await res.text();
-  let payload: unknown = text;
-  try { payload = JSON.parse(text); } catch { /* pass through raw text */ }
+  const contentType = res.headers.get('content-type') ?? 'application/json';
 
-  return new NextResponse(
-    typeof payload === 'string' ? JSON.stringify({ message: payload }) : JSON.stringify(payload),
-    { status: res.status, headers: { 'Content-Type': 'application/json' } }
-  );
+  return new NextResponse(text, {
+    status: res.status,
+    headers: { 'Content-Type': contentType },
+  });
 }
 
-export async function PATCH(request: Request) {
-  const url = new URL(request.url);
-  const body = await request.text();
-  const target = `${env.API_BASE_URL}/care-plan${url.pathname === '/care-plan' ? '' : ''}${url.search}`;
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyCarePlanRequest(request, 'GET', context);
+}
 
-  const authHeader = request.headers.get('authorization');
-  const res = await fetch(target, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authHeader ? { Authorization: authHeader } : {}),
-    },
-    body,
-    credentials: 'include',
-  });
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyCarePlanRequest(request, 'POST', context);
+}
 
-  const text = await res.text();
-  let payload: unknown = text;
-  try { payload = JSON.parse(text); } catch { /* pass through raw text */ }
-
-  return new NextResponse(
-    typeof payload === 'string' ? JSON.stringify({ message: payload }) : JSON.stringify(payload),
-    { status: res.status, headers: { 'Content-Type': 'application/json' } }
-  );
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyCarePlanRequest(request, 'PATCH', context);
 }

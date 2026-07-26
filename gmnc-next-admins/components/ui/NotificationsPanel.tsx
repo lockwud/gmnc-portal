@@ -9,7 +9,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationCount,
-} from '@/lib/api/telehealth';
+} from '@/lib/api/notifications';
 import type { NotificationItem } from '@/lib/api/types';
 
 type Props = {
@@ -22,7 +22,7 @@ const PAGE_SIZE = 15;
 
 const FIVE_MINUTES = 5 * 60 * 1000;
 
-const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) => {
+const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-full max-w-[380px]' }) => {
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const { token } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -228,18 +228,18 @@ const NotificationsPanel: React.FC<Props> = ({ open, onClose, width = 'w-64' }) 
       />
 
       <aside
-        className={`${width} relative ml-auto h-full bg-white shadow-xl border-l flex flex-col`}
+        className={`${width} relative ml-auto h-full bg-white shadow-2xl border-l flex flex-col`}
         style={{ borderLeftColor: '#e6e9f2' }}
         role="document"
         onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
         <div
-          className="px-4 py-3 flex items-start justify-between border-b shrink-0"
+          className="px-6 py-5 flex items-start justify-between border-b shrink-0"
           style={{ borderColor: '#e6e9f2' }}
         >
           <div>
-            <h2 id="notifications-title" className="text-sm font-semibold" style={{ color: '#111827' }}>
+            <h2 id="notifications-title" className="text-lg font-bold" style={{ color: '#111827' }}>
               Notifications
             </h2>
             <p className="text-xs text-gray-500">

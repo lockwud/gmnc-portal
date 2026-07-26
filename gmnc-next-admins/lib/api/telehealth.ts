@@ -1,12 +1,8 @@
-import type {
-  TelehealthSettingsType,
-  TelehealthRoomType,
-  NotificationItem,
-  NotificationListResponse,
-} from './types';
-import { env } from '@/lib/env';
+import type { TelehealthRoomType } from './types';
+export type { TelehealthRoomType } from './types';
+import { requireApiBaseUrl } from '@/lib/env';
 
-const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = requireApiBaseUrl();
 
 class ApiRequestError extends Error {
   status: number;
@@ -69,10 +65,10 @@ async function apiPost<T>(path: string, body: unknown, token?: string | null): P
   return parseJson<T>(res);
 }
 
-async function apiPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+async function apiPatch<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const authToken = token ?? getToken();
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'PUT',
+    method: 'PATCH',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
@@ -96,59 +92,6 @@ async function apiDelete<T>(path: string, token?: string | null): Promise<T> {
   });
 
   return parseJson<T>(res);
-}
-
-async function localApiGet<T>(path: string, token?: string | null): Promise<T> {
-  const authToken = token ?? getToken();
-  const res = await fetch(path, {
-    method: 'GET',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    cache: 'no-store',
-  });
-
-  return parseJson<T>(res);
-}
-
-async function localApiPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
-  const authToken = token ?? getToken();
-  const res = await fetch(path, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-
-  return parseJson<T>(res);
-}
-
-export async function getTelehealthSettings(token?: string | null): Promise<TelehealthSettingsType> {
-  const res = await apiGet<{
-    status: boolean;
-    message?: string;
-    data: TelehealthSettingsType;
-  }>('/settings/telehealth', token);
-
-  return res.data;
-}
-
-export async function updateTelehealthSettings(
-  settings: Partial<TelehealthSettingsType>,
-  token?: string | null
-): Promise<TelehealthSettingsType> {
-  const res = await apiPut<{
-    status: boolean;
-    message?: string;
-    data: TelehealthSettingsType;
-  }>('/settings/telehealth', settings, token);
-
-  return res.data;
 }
 
 export async function getTelehealthRooms(token?: string | null): Promise<{ rooms: TelehealthRoomType[]; total: number }> {
@@ -177,6 +120,8 @@ export async function createTelehealthRoom(payload: {
   description?: string;
   scheduledStart?: string;
   scheduledEnd?: string;
+  attendees?: Array<{ userId?: string; email?: string | null; phone?: string | null }>;
+  providerId?: string;
 }, token?: string | null): Promise<TelehealthRoomType> {
   const res = await apiPost<{
     status: boolean;
@@ -187,51 +132,66 @@ export async function createTelehealthRoom(payload: {
   return res.data;
 }
 
+export async function updateTelehealthRoom(id: string, payload: {
+  title?: string;
+  description?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+}, token?: string | null): Promise<TelehealthRoomType> {
+  const res = await apiPatch<{
+    status: boolean;
+    message?: string;
+    data: TelehealthRoomType;
+  }>(`/telehealth/rooms/${id}`, payload, token);
+
+  return res.data;
+}
+
 export async function cancelTelehealthRoom(id: string, token?: string | null): Promise<void> {
   await apiDelete(`/telehealth/rooms/${id}`, token);
 }
 
-export async function getNotifications(token?: string | null): Promise<NotificationListResponse> {
-  const res = await localApiGet<{
+export async function joinTelehealthRoom(id: string, token?: string | null): Promise<{ joinUrl: string }> {
+  const res = await apiPost<{
     status: boolean;
     message?: string;
-    data: NotificationItem[] | {
-      data?: NotificationItem[];
-      pagination?: {
-        total?: number;
-        page?: number;
-        limit?: number;
-      };
+    data: { joinUrl: string };
+  }>(`/telehealth/rooms/${id}/join`, {}, token);
+
+  return res.data;
+}
+
+export async function inviteToTelehealthRoom(id: string, emails: string[], token?: string | null): Promise<void> {
+  await apiPost(`/telehealth/rooms/${id}/invite`, {
+    attendees: emails.map((email) => ({ email })),
+  }, token);
+}
+
+export async function getRoomParticipants(id: string, token?: string | null): Promise<Array<{ id: string; name: string; email: string; role: string }>> {
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: {
+      total: number;
+      participants: Array<{
+        id: string;
+        role: string;
+        user?: {
+          id: string;
+          fullName: string;
+          email?: string;
+          profileImage?: string;
+        };
+      }>;
     };
-    total?: number;
-    page?: number;
-    pageSize?: number;
-  }>('/api/notification?limit=50', token);
+  }>(`/telehealth/rooms/${id}/participants`, token);
 
-  const nestedData = typeof res.data === 'object' && !Array.isArray(res.data)
-    ? res.data
-    : null;
-  const notifications = Array.isArray(res.data)
-    ? res.data
-    : nestedData?.data ?? [];
+  const participants = (res.data?.participants || []).map((p) => ({
+    id: p.id,
+    name: p.user?.fullName || 'Unknown',
+    email: p.user?.email || '',
+    role: p.role,
+  }));
 
-  return {
-    notifications,
-    total: res.total || nestedData?.pagination?.total || notifications.length,
-    page: res.page || nestedData?.pagination?.page,
-    pageSize: res.pageSize || nestedData?.pagination?.limit,
-  };
-}
-
-export async function getUnreadNotificationCount(token?: string | null): Promise<number> {
-  const res = await localApiGet<{ status: boolean; data: { count?: number }; message?: string }>('/api/notification/unread-count', token);
-  return typeof res.data?.count === 'number' ? res.data.count : 0;
-}
-
-export async function markNotificationAsRead(id: string, token?: string | null): Promise<void> {
-  await localApiPut(`/api/notification/${id}/read`, {}, token);
-}
-
-export async function markAllNotificationsAsRead(token?: string | null): Promise<void> {
-  await localApiPut('/api/notification/read-all', {}, token);
+  return participants;
 }

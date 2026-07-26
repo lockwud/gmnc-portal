@@ -1,21 +1,81 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Activity,
+  BadgeCheck,
+  BellDot,
+  BookOpenCheck,
+  CalendarClock,
+  ClipboardCheck,
+  ClipboardList,
+  FileBadge,
+  FileText,
+  FolderOpen,
+  Gamepad2,
+  Gauge,
+  Headphones,
+  HelpCircle,
+  LayoutDashboard,
+  type LucideIcon,
+  MessagesSquare,
+  NotebookTabs,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+  TicketCheck,
+  UserCog,
+  UsersRound,
+  Video,
+} from "lucide-react";
 import { useAuth } from "@/lib/context/AuthContext";
-import { useTheme } from "@/lib/context/ThemeContext";
-import { hasRole, getEffectiveRoles, type Role } from "@/lib/rbac";
+import { hasRole, type Role } from "@/lib/rbac";
 
 type MenuItem = {
   label: string;
   path?: string;
-  icon?: string;
+  icon?: keyof typeof SIDEBAR_ICONS;
   children?: MenuItem[];
   collapsible?: boolean;
-  requiredRole?: Role;
+  requiredRole?: Role | Role[];
 };
+
+const SIDEBAR_ICONS = {
+  dashboard: LayoutDashboard,
+  admin_panel_settings: ShieldCheck,
+  medical_services: Stethoscope,
+  support_agent: Headphones,
+  shield: ShieldCheck,
+  task: ClipboardCheck,
+  verified_user: BadgeCheck,
+  groups: UsersRound,
+  manage_accounts: UserCog,
+  medical_information: NotebookTabs,
+  assignment: ClipboardList,
+  compare_arrows: Activity,
+  task_alt: BookOpenCheck,
+  check_circle: ClipboardCheck,
+  assessment: FileBadge,
+  event: CalendarClock,
+  videocam: Video,
+  folder: FolderOpen,
+  description: FileText,
+  sports_esports: Gamepad2,
+  confirmation_number: TicketCheck,
+  help_center: HelpCircle,
+  settings: Settings,
+  notifications: BellDot,
+  messages: MessagesSquare,
+  overview: Gauge,
+} satisfies Record<string, LucideIcon>;
+
+function SidebarIcon({ name, className }: { name?: keyof typeof SIDEBAR_ICONS; className?: string }) {
+  const Icon = name ? SIDEBAR_ICONS[name] : LayoutDashboard;
+  return <Icon className={className} strokeWidth={2} aria-hidden />;
+}
 
 const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
   {
@@ -55,154 +115,100 @@ const topSidebarSections: { title?: string; items: MenuItem[] }[] = [
     title: "WORKSPACES",
     items: [
       {
-        label: "Admin",
-        icon: "shield",
-        collapsible: true,
+        label: "Provider Verification",
+        path: "/admin/approvals/providers",
+        icon: "verified_user",
         requiredRole: "admin",
-        children: [
-          {
-            label: "Approvals",
-            path: "/admin/approvals",
-            icon: "task",
-            collapsible: true,
-            children: [
-              {
-                label: "Provider Verification",
-                path: "/admin/approvals/providers",
-                icon: "verified_user",
-              },
-            ],
-          },
-          {
-            label: "Users",
-            path: "/admin/users",
-            icon: "groups",
-          },
-          {
-            label: "Roles & Access",
-            path: "/admin/roles-access",
-            icon: "verified_user",
-          },
-          {
-            label: "Role Assignments",
-            path: "/admin/role-assignments",
-            icon: "manage_accounts",
-          },
-        ],
       },
       {
-        label: "Provider",
-        icon: "medical_services",
-        collapsible: true,
+        label: "Users",
+        path: "/admin/users",
+        icon: "groups",
+        requiredRole: "admin",
+      },
+      {
+        label: "Roles & Access",
+        path: "/admin/roles-access",
+        icon: "verified_user",
+        requiredRole: "admin",
+      },
+      {
+        label: "Role Assignments",
+        path: "/admin/role-assignments",
+        icon: "manage_accounts",
+        requiredRole: "admin",
+      },
+      {
+        label: "Patient List",
+        path: "/provider/cp-patient",
+        icon: "groups",
         requiredRole: "provider",
-        children: [
-          {
-            label: "Patients",
-            icon: "groups",
-            collapsible: true,
-            children: [
-              {
-                label: "Patient List",
-                path: "/provider/cp-patient",
-                icon: "groups",
-              },
-            ],
-          },
-          {
-            label: "Clinical Work",
-            icon: "medical_information",
-            collapsible: true,
-            children: [
-              {
-                label: "Assessments",
-                path: "/provider/assessments",
-                icon: "assignment",
-              },
-              {
-                label: "Referrals",
-                path: "/provider/referrals",
-                icon: "compare_arrows",
-              },
-              {
-                label: "Tasks & Notes",
-                path: "/provider/tasks",
-                icon: "task_alt",
-              },
-              {
-                label: "Approvals",
-                path: "/provider/approvals",
-                icon: "check_circle",
-              },
-              {
-                label: "Care Plans",
-                path: "/provider/care-plans",
-                icon: "assignment",
-              },
-              {
-                label: "Consent",
-                path: "/provider/consent",
-                icon: "verified_user",
-              },
-              {
-                label: "Reports",
-                path: "/admin/reports",
-                icon: "assessment",
-              },
-            ],
-          },
-          {
-            label: "Scheduling",
-            icon: "event",
-            collapsible: true,
-            children: [
-              {
-                label: "Appointments",
-                path: "/provider/appointments",
-                icon: "event",
-              },
-              {
-                label: "Telehealth",
-                path: "/provider/telehealth",
-                icon: "videocam",
-              },
-            ],
-          },
-          {
-            label: "Resources",
-            icon: "folder",
-            collapsible: true,
-            children: [
-            {
-              label: "Documents",
-              path: "/provider/resources",
-              icon: "description",
-            },
-              {
-                label: "Games & Wellbeing",
-                path: "/provider/games",
-                icon: "sports_esports",
-              },
-            ],
-          },
-        ],
       },
       {
-        label: "Support",
-        icon: "support_agent",
-        collapsible: true,
-        requiredRole: "support",
-        children: [
-          {
-            label: "My Tickets",
-            path: "/support/tickets",
-            icon: "confirmation_number",
-          },
-          {
-            label: "FAQ Database",
-            path: "/support/faqs",
-            icon: "help_center",
-          },
-        ],
+        label: "Assessments",
+        path: "/provider/assessments",
+        icon: "assignment",
+        requiredRole: "provider",
+      },
+      {
+        label: "Referrals",
+        path: "/provider/referrals",
+        icon: "compare_arrows",
+        requiredRole: "provider",
+      },
+      {
+        label: "Tasks & Notes",
+        path: "/provider/tasks",
+        icon: "task_alt",
+        requiredRole: "provider",
+      },
+      {
+        label: "Care Plans",
+        path: "/provider/care-plans",
+        icon: "assignment",
+        requiredRole: "provider",
+      },
+      {
+        label: "Reports",
+        path: "/admin/reports",
+        icon: "assessment",
+        requiredRole: ["admin", "provider"],
+      },
+      {
+        label: "Appointments",
+        path: "/provider/appointments",
+        icon: "event",
+        requiredRole: "provider",
+      },
+      {
+        label: "Telehealth",
+        path: "/provider/telehealth",
+        icon: "videocam",
+        requiredRole: "provider",
+      },
+      {
+        label: "Documents",
+        path: "/provider/resources",
+        icon: "description",
+        requiredRole: "provider",
+      },
+      {
+        label: "Games & Wellbeing",
+        path: "/provider/games",
+        icon: "sports_esports",
+        requiredRole: "provider",
+      },
+      {
+        label: "My Tickets",
+        path: "/support/tickets",
+        icon: "confirmation_number",
+        requiredRole: ["provider", "support"],
+      },
+      {
+        label: "FAQ Database",
+        path: "/support/faqs",
+        icon: "help_center",
+        requiredRole: ["provider", "support"],
       },
     ],
   },
@@ -217,7 +223,7 @@ const bottomSidebarSections: { title?: string; items: MenuItem[] }[] = [
         path: "/settings",
         icon: "settings",
         collapsible: false,
-        requiredRole: "provider",
+        requiredRole: ["admin", "provider"],
       },
     ],
   },
@@ -230,7 +236,6 @@ type Props = {
 const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const pathname = usePathname() ?? '';
   const { user } = useAuth();
-  const { preferences, isDark } = useTheme();
 
   /**
    * Menu visibility rules:
@@ -243,15 +248,15 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     if (!user) return false;
     // Items with no requiredRole are always visible (e.g. Dashboard, Profile)
     if (!item.requiredRole) return true;
-    
-    // Admin can view any workspace item
+    const requiredRoles = Array.isArray(item.requiredRole) ? item.requiredRole : [item.requiredRole];
+
     if (hasRole(user, 'admin')) return true;
     
     // Users with explicit roles get access to their role's workspace
-    if (hasRole(user, item.requiredRole)) return true;
+    if (requiredRoles.some((role) => hasRole(user, role))) return true;
     
     // SERVICE_PROVIDER userType gets access to provider workspace even without an assigned role
-    if (user.userType === 'SERVICE_PROVIDER' && item.requiredRole === 'provider') return true;
+    if (user.userType === 'SERVICE_PROVIDER' && requiredRoles.includes('provider')) return true;
     
     return false;
   }, [user]);
@@ -280,10 +285,6 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    setSelectedKey(pathname ?? null);
-  }, [pathname]);
 
   const isPathSelected = React.useCallback(
     (path?: string) => {
@@ -321,16 +322,16 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     return false;
   };
 
-  const iconSizeClass = "text-xs";
-  const itemFontClass = "text-[11px]";
-  const itemPadding = "px-2 py-1.5";
-  const itemGap = "gap-2";
+  const iconSizeClass = collapsed ? "h-4 w-4" : "h-[18px] w-[18px]";
+  const itemFontClass = "text-[12px]";
+  const itemPadding = collapsed ? "px-2 py-2" : "px-3 py-2.5";
+  const itemGap = "gap-3";
 
   const renderChildrenExpanded = (children: MenuItem[]) =>
     children.filter(canViewMenuItem).map((child) => {
       const key = child.path ?? `group:${child.label}`;
       const isSelected =
-        selectedKey === key || isPathSelected(child.path) || itemOrChildMatchesPath(child);
+        selectedKey === key || pathname === key || isPathSelected(child.path) || itemOrChildMatchesPath(child);
       const isHovered = hoveredKey === key;
 
       if (child.children) {
@@ -345,11 +346,9 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
               style={{ color: isSelected ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
               title={child.label}
             >
-              <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
+              <SidebarIcon name={child.icon} className={iconSizeClass} />
               <span className="flex-1 text-left">{child.label}</span>
-              <span className="material-icons text-[12px]" aria-hidden>
-                {open ? "expand_more" : "chevron_right"}
-              </span>
+              <span className="text-[12px]" aria-hidden>{open ? "⌄" : "›"}</span>
             </button>
             {open && (
               <div className="mt-1 space-y-1 pl-4">
@@ -371,7 +370,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           style={{ color: isSelected ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
           title={child.label}
         >
-          <span className={`material-icons ${iconSizeClass}`}>{child.icon}</span>
+          <SidebarIcon name={child.icon} className={iconSizeClass} />
           <span className="text-left">{child.label}</span>
         </Link>
       );
@@ -390,7 +389,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
               title={child.label}
               aria-label={child.label}
             >
-              <span className="material-icons text-xs">{child.icon}</span>
+              <SidebarIcon name={child.icon} className="h-4 w-4" />
             </button>
           </div>
         );
@@ -405,7 +404,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           title={child.label}
           aria-label={child.label}
         >
-          <span className="material-icons text-xs">{child.icon}</span>
+          <SidebarIcon name={child.icon} className="h-4 w-4" />
         </Link>
       );
     });
@@ -417,7 +416,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
     return (
       <div key={keyPrefix}>
         {!collapsed && section.title && (
-          <p className="mb-1 px-2 text-[10px] font-semibold uppercase" style={{ color: 'var(--color-brand)' }}>
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
             {section.title}
           </p>
         )}
@@ -439,19 +438,12 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                     style={{ color: groupSel ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
                     title={item.label}
                   >
-                    <span className={`material-icons ${iconSizeClass}`}>
-                      {item.icon}
-                    </span>
+                    <SidebarIcon name={item.icon} className={iconSizeClass} />
                     {!collapsed && (
                       <span className="flex-1 text-left">{item.label}</span>
                     )}
                     {!collapsed && (
-                      <span
-                        className="material-icons transition-transform"
-                        aria-hidden
-                      >
-                        {open ? "expand_less" : "expand_more"}
-                      </span>
+                      <span className="text-sm transition-transform" aria-hidden>{open ? "⌄" : "›"}</span>
                     )}
                   </button>
                   {!collapsed && open && (
@@ -476,7 +468,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
             }
 
             const key = item.path ?? groupKey;
-            const isSel = selectedKey === key || isPathSelected(item.path);
+            const isSel = selectedKey === key || pathname === key || isPathSelected(item.path);
             const isHoveredItem = hoveredKey === key;
 
             return (
@@ -490,9 +482,7 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
                 style={{ color: isSel ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)' }}
                 title={item.label}
               >
-                <span className={`material-icons ${iconSizeClass}`}>
-                  {item.icon}
-                </span>
+                <SidebarIcon name={item.icon} className={iconSizeClass} />
                 {!collapsed && <span className="text-left">{item.label}</span>}
               </Link>
             );
@@ -504,14 +494,14 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
 
   return (
     <aside
-      className={`flex h-screen flex-col sidebar-shadow sidebar-width`}
+      className={`flex h-screen flex-col sidebar-shadow ${collapsed ? 'sidebar-width-collapsed' : 'sidebar-width'}`}
       style={{
         backgroundColor: 'var(--sidebar-bg)',
         borderRight: '1px solid var(--sidebar-border)',
       }}
     >
-      <div className="flex items-center gap-2 px-2 py-2" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
-        <Link href="/" className="flex items-center gap-2">
+      <div className={`flex items-center px-4 py-4 ${collapsed ? 'justify-center' : 'justify-start'}`}>
+        <Link href="/" className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
           <div
             className={`relative shrink-0 ${collapsed ? "h-9 w-9 min-w-9 min-h-9" : "h-12 w-12 min-w-12 min-h-12"}`}
           >
@@ -528,12 +518,12 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span
-                className="text-sm font-semibold leading-tight"
+                className="text-sm font-black leading-tight tracking-wide"
                 style={{ color: 'var(--color-brand)' }}
               >
                 GMNC
               </span>
-              <span className="text-[11px]" style={{ color: 'var(--sidebar-muted)' }}>
+              <span className="text-[10px] font-semibold tracking-[0.08em]" style={{ color: 'var(--sidebar-muted)' }}>
                 GET MY NEURO CARE
               </span>
             </div>
@@ -543,14 +533,14 @@ const Sidebar: React.FC<Props> = ({ collapsed = false }) => {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <nav
-          className="no-scrollbar flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-1 py-2"
+          className="scrollbar-none flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-2"
         >
           {visibleTopSidebarSections.map((section, idx) =>
             renderSection(section, `top-${idx}`),
           )}
         </nav>
 
-        <div className="border-t px-1 pt-1.5 pb-1" style={{ borderColor: 'var(--sidebar-border)' }}>
+        <div className="px-3 pt-2 pb-3">
           <div className="space-y-2">
             {visibleBottomSidebarSections.map((section, idx) =>
               renderSection(section, `bottom-${idx}`)

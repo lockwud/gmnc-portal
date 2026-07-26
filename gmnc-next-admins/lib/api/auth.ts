@@ -10,17 +10,12 @@ import type {
 } from '@/lib/api/types';
 import { sessionUserSchema } from '@/lib/validators/auth';
 
-function normalizeRole(value: unknown, email: string | null = null): Role | null {
+function normalizeRole(value: unknown): Role | null {
   if (typeof value !== 'string') {
     return null;
   }
 
   const normalized = value.trim().toLowerCase();
-
-  // Grant admin access to the super tester account even if their userType is SERVICE_PROVIDER
-  if (email === 'oklement3@gmail.com' && (normalized === 'service_provider' || normalized === 'serviceprovider')) {
-    return 'admin';
-  }
 
   switch (normalized) {
     case 'admin':
@@ -169,7 +164,7 @@ function normalizeUser(payload: BackendLoginResponse, accessToken?: string | nul
   const normalizedRoles = [
     ...new Set(
       rawRoles
-        .map((r) => normalizeRole(r, email))
+        .map((r) => normalizeRole(r))
         .filter((r): r is Role => r !== null)
     )
   ];
@@ -182,9 +177,7 @@ function normalizeUser(payload: BackendLoginResponse, accessToken?: string | nul
         ? rawUser.fullName
         : typeof rawUser.name === 'string'
           ? rawUser.name
-          : email === 'oklement3@gmail.com'
-            ? 'Mohammed Ali'
-            : 'User',
+          : 'User',
     roles: normalizedRoles,
     permissions: collectPermissionValues(rawUser),
     userType,
@@ -236,7 +229,6 @@ export async function getProfileRequest(token: string) {
     token,
   });
 
-  console.log('[AUTH/GET_PROFILE] Backend response data:', JSON.stringify(response.data, null, 2));
   return normalizeUser(response.data, token);
 }
 

@@ -3,20 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/env';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session';
 
-function buildBackendUrl(pathSegments: string[], search: string, adminFallback = false) {
+function buildBackendUrl(pathSegments: string[], search: string) {
   const encodedPath = pathSegments.map(encodeURIComponent).join('/');
-  const prefix = adminFallback ? 'admin/assessment' : 'assessment';
-  return `${env.API_BASE_URL}/${prefix}/${encodedPath}${search}`;
+  return `${env.API_BASE_URL}/assessment/${encodedPath}${search}`;
 }
 
-function buildAdminPatientUrl(pathSegments: string[], search: string) {
-  const encodedPath = pathSegments.map(encodeURIComponent).join('/');
-  return `${env.API_BASE_URL}/admin/patients/${encodedPath}${search}`;
-}
-
-async function fetchWithFallback(
+async function fetchBackend(
   url: string,
-  fallbackUrl: string,
   method: string,
   headers: Record<string, string>,
   body?: string,
@@ -25,7 +18,7 @@ async function fetchWithFallback(
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    let response = await fetch(url, {
+    const response = await fetch(url, {
       method,
       headers,
       body,
@@ -34,41 +27,6 @@ async function fetchWithFallback(
     });
 
     clearTimeout(timeoutId);
-
-    if (response.status === 403) {
-      console.log(`[API/ASSESSMENT] 403 on ${url} — attempting admin bootstrap and fallback`);
-      try {
-        const bootstrapRes = await fetch(`${env.API_BASE_URL}/admin/bootstrap`, {
-          method: 'POST',
-          headers,
-        });
-        console.log(`[API/ASSESSMENT] Bootstrap response: ${bootstrapRes.status}`);
-
-        if (bootstrapRes.ok) {
-          response = await fetch(url, {
-            method,
-            headers,
-            body,
-            cache: 'no-store',
-          });
-          console.log(`[API/ASSESSMENT] Retry ${url} after bootstrap: ${response.status}`);
-        }
-
-        if (response.status === 403 && fallbackUrl) {
-          console.log(`[API/ASSESSMENT] Retry with admin assessment path ${fallbackUrl}`);
-          const fallbackResponse = await fetch(fallbackUrl, {
-            method,
-            headers,
-            body,
-            cache: 'no-store',
-          });
-          return fallbackResponse;
-        }
-      } catch (bootstrapError) {
-        console.error('[API/ASSESSMENT] admin/bootstrap failed:', bootstrapError);
-      }
-    }
-
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -98,39 +56,23 @@ async function proxyAssessmentRequest(
 
   const url = new URL(request.url);
   const backendUrl = buildBackendUrl(path ?? [], url.search);
-  const adminBackendUrl = buildBackendUrl(path ?? [], url.search, true);
-  const adminPatientUrl = buildAdminPatientUrl(path ?? [], url.search);
   const body = request.method === 'GET' || request.method === 'HEAD'
     ? undefined
     : await request.text();
 
-  console.log(`[API/ASSESSMENT] path: ${path?.join('/')}, backend: ${backendUrl}, admin: ${adminBackendUrl}, adminPatient: ${adminPatientUrl}`);
+  console.log(`[API/ASSESSMENT] path: ${path?.join('/')}, backend: ${backendUrl}`);
 
   const headers = {
     Authorization: `Bearer ${token}`,
     'Content-Type': request.headers.get('content-type') ?? 'application/json',
   };
 
-  let response = await fetchWithFallback(
+  const response = await fetchBackend(
     backendUrl,
-    adminBackendUrl,
     request.method,
     headers,
     body,
   );
-
-  if (response.status === 403) {
-    console.log(`[API/ASSESSMENT] Trying admin/patient fallback: ${adminPatientUrl}`);
-    const adminPatientRes = await fetch(adminPatientUrl, {
-      method: request.method,
-      headers,
-      body,
-      cache: 'no-store',
-    });
-    if (adminPatientRes.ok) {
-      response = adminPatientRes;
-    }
-  }
 
   const responseText = await response.text();
   const contentType = response.headers.get('content-type') ?? 'application/json';

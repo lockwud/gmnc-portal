@@ -131,17 +131,13 @@ async function apiPut<T>(path: string, body: unknown, token?: string | null): Pr
 // ── Appointment Settings ────────────────────────────────────────────────
 
 export async function getAppointmentSettings(token?: string | null): Promise<AppointmentSettingsType> {
-  try {
-    const res = await apiGet<{
-      status: boolean;
-      message?: string;
-      data: Partial<AppointmentSettingsType>;
-    }>('/api/settings/appointments', token);
+  const res = await apiGet<{
+    status: boolean;
+    message?: string;
+    data: AppointmentSettingsType;
+  }>('/api/settings/appointments', token);
 
-    return { ...DEFAULT_SETTINGS, ...res.data };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+  return res.data;
 }
 
 export async function updateAppointmentSettings(
@@ -206,6 +202,33 @@ export type ReferralSettings = {
   allowedTargetProfessions: string[];
 };
 
+export type AssessmentSettings = {
+  enableAssessmentModule: boolean;
+  requireCompletedReferralForAssessment: boolean;
+  allowDraftAssessments: boolean;
+  allowAssessmentResubmission: boolean;
+  requireClinicalNotesOnSubmit: boolean;
+  requireRegularPerformanceConfirmation: boolean;
+  autoGenerateReportOnSubmit: boolean;
+  defaultToolVersion: string;
+  activeAssessmentToolCodes: string[];
+  providerProfessionsAllowedToAssess: string[];
+  mobileAssessmentInstructions: string;
+};
+
+export type AssessmentToolAdminRecord = {
+  id: string;
+  toolCode: string;
+  toolName: string;
+  version: string;
+  description?: string | null;
+  schema?: Record<string, unknown> | null;
+  isActive: boolean;
+  professions?: Array<{ profession: string } | string>;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type ClinicalNotesSettings = {
   requireAssessmentNotes: boolean;
   requireSessionDocumentation: boolean;
@@ -247,9 +270,6 @@ export type EscalationSettings = {
 };
 
 export type ComplianceSettings = {
-  requireConsentForDataSharing: boolean;
-  requireConsentForRecording: boolean;
-  requireConsentForPhoto: boolean;
   enableHipaaCompliance: boolean;
   dataEncryptionAtRest: boolean;
   dataEncryptionInTransit: boolean;
@@ -295,6 +315,23 @@ export type FaqSettings = {
   faqsPerPage: number;
   enableFeedbackOnFaqs: boolean;
   requireApprovalForPublicFaq: boolean;
+};
+
+export type NotificationSettings = {
+  enableInAppNotifications: boolean;
+  enableEmailNotifications: boolean;
+  enableSmsNotifications: boolean;
+  notifyOnReferrals: boolean;
+  notifyOnAssessments: boolean;
+  notifyOnAppointments: boolean;
+  notifyOnSupportTickets: boolean;
+  notifyOnProviderApprovals: boolean;
+  notifyOnEscalations: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  digestFrequency: string;
+  retentionDays: number;
 };
 
 // ── Generic fetch/update helpers ────────────────────────────────────────
@@ -359,6 +396,73 @@ export async function updateReferralSettings(
   token?: string | null
 ): Promise<ReferralSettings> {
   return updatePlatformSetting<ReferralSettings>('/api/settings/referrals', settings, token);
+}
+
+// ── Assessment ──────────────────────────────────────────────────────────
+
+export async function getAssessmentSettings(token?: string | null): Promise<AssessmentSettings> {
+  return fetchPlatformSetting<AssessmentSettings>('/api/settings/assessment', token);
+}
+
+export async function updateAssessmentSettings(
+  settings: Partial<AssessmentSettings>,
+  token?: string | null
+): Promise<AssessmentSettings> {
+  return updatePlatformSetting<AssessmentSettings>('/api/settings/assessment', settings, token);
+}
+
+export async function getAdminAssessmentTools(token?: string | null): Promise<AssessmentToolAdminRecord[]> {
+  const res = await apiGet<{
+    status?: boolean;
+    data?: AssessmentToolAdminRecord[] | { data?: AssessmentToolAdminRecord[] };
+  }>('/api/admin/assessment-tools?limit=200', token);
+
+  if (Array.isArray(res.data)) return res.data;
+  return res.data?.data ?? [];
+}
+
+export async function createAdminAssessmentTool(
+  payload: {
+    toolCode: string;
+    toolName: string;
+    version?: string;
+    description?: string;
+    schema?: Record<string, unknown>;
+    professions?: string[];
+  },
+  token?: string | null
+): Promise<AssessmentToolAdminRecord> {
+  const authToken = token ?? getToken();
+  const res = await fetch('/api/admin/assessment-tools', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJson<{ data: AssessmentToolAdminRecord }>(res);
+  return data.data;
+}
+
+export async function updateAdminAssessmentTool(
+  id: string,
+  payload: Partial<Pick<AssessmentToolAdminRecord, 'isActive' | 'description' | 'schema'>>,
+  token?: string | null
+): Promise<AssessmentToolAdminRecord> {
+  const authToken = token ?? getToken();
+  const res = await fetch(`/api/admin/assessment-tools/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJson<{ data: AssessmentToolAdminRecord }>(res);
+  return data.data;
 }
 
 // ── Clinical Notes ──────────────────────────────────────────────────────
@@ -452,6 +556,19 @@ export async function updateFaqSettings(
   return updatePlatformSetting<FaqSettings>('/api/settings/faqs', settings, token);
 }
 
+// ── Notifications ───────────────────────────────────────────────────────
+
+export async function getNotificationSettings(token?: string | null): Promise<NotificationSettings> {
+  return fetchPlatformSetting<NotificationSettings>('/api/settings/notifications', token);
+}
+
+export async function updateNotificationSettings(
+  settings: Partial<NotificationSettings>,
+  token?: string | null
+): Promise<NotificationSettings> {
+  return updatePlatformSetting<NotificationSettings>('/api/settings/notifications', settings, token);
+}
+
 // ── Provider Appointment Settings ───────────────────────────────────────
 
 export type ProviderAppointmentSettingsType = {
@@ -493,15 +610,11 @@ export const PROVIDER_DEFAULT_SETTINGS: ProviderAppointmentSettingsType = {
 };
 
 export async function getProviderAppointmentSettings(token?: string | null): Promise<ProviderAppointmentSettingsType> {
-  try {
-    const res = await apiGet<{
-      status: boolean;
-      data: Partial<ProviderAppointmentSettingsType>;
-    }>('/api/settings/provider-appointments', token);
-    return { ...PROVIDER_DEFAULT_SETTINGS, ...res.data };
-  } catch {
-    return PROVIDER_DEFAULT_SETTINGS;
-  }
+  const res = await apiGet<{
+    status: boolean;
+    data: ProviderAppointmentSettingsType;
+  }>('/api/settings/provider-appointments', token);
+  return res.data;
 }
 
 export async function updateProviderAppointmentSettings(

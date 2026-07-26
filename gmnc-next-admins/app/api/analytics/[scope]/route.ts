@@ -1,33 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { env } from '@/lib/env';
+import { requireApiBaseUrl } from '@/lib/env';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session';
 
 const ALLOWED_SCOPES = new Set(['admin', 'provider', 'support']);
 const ALLOWED_FILTERS = new Set(['today', 'this_week', 'this_month', 'all_time']);
-
-async function fetchWithBootstrap(url: string, authHeader: Record<string, string>) {
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: authHeader,
-    cache: 'no-store',
-  });
-
-  if (response.status === 403) {
-    await fetch(`${env.API_BASE_URL}/admin/bootstrap`, {
-      method: 'POST',
-      headers: authHeader,
-    });
-
-    return fetch(url, {
-      method: 'GET',
-      headers: authHeader,
-      cache: 'no-store',
-    });
-  }
-
-  return response;
-}
 
 export async function GET(
   request: NextRequest,
@@ -43,13 +20,6 @@ export async function GET(
     );
   }
 
-  if (!env.API_BASE_URL) {
-    return NextResponse.json(
-      { success: false, message: 'API base URL not configured' },
-      { status: 500 },
-    );
-  }
-
   if (!ALLOWED_SCOPES.has(scope)) {
     return NextResponse.json(
       { success: false, message: 'Unknown analytics scope' },
@@ -60,14 +30,18 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const filter = searchParams.get('filter') ?? 'this_week';
   const normalizedFilter = ALLOWED_FILTERS.has(filter) ? filter : 'this_week';
-  const backendUrl = `${env.API_BASE_URL}/analytics/${scope}?filter=${encodeURIComponent(normalizedFilter)}`;
+  const backendUrl = `${requireApiBaseUrl()}/analytics/${scope}?filter=${encodeURIComponent(normalizedFilter)}`;
   const authHeader = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 
   try {
-    const response = await fetchWithBootstrap(backendUrl, authHeader);
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: authHeader,
+      cache: 'no-store',
+    });
     const responseText = await response.text();
     const contentType = response.headers.get('content-type') ?? 'application/json';
 

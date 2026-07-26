@@ -155,21 +155,46 @@ export async function updateAppointment(id: string, payload: Partial<CreateAppoi
 }
 
 export async function approveAppointment(id: string, payload: { status: string; notes?: string }, token?: string | null): Promise<CreateAppointmentResponse> {
+  void payload;
   const res = await apPatch<{
     status: boolean;
     message?: string;
     data: CreateAppointmentResponse;
-  }>('/api/appointment/approve', { appointmentId: id, ...payload }, token);
+  }>('/api/appointment/approve', { appointmentId: id }, token);
 
   return res.data;
 }
 
 export async function rescheduleAppointment(id: string, payload: { appointmentDate: string; notes?: string }, token?: string | null): Promise<CreateAppointmentResponse> {
+  const date = new Date(payload.appointmentDate);
+  const newDate = date.toISOString().slice(0, 10);
+  const newTime = date.toTimeString().slice(0, 5);
   const res = await apPatch<{
     status: boolean;
     message?: string;
     data: CreateAppointmentResponse;
-  }>('/api/appointment/reschedule', { appointmentId: id, ...payload }, token);
+  }>('/api/appointment/reschedule', { appointmentId: id, newDate, newTime }, token);
 
   return res.data;
+}
+
+export type ProviderAvailabilitySlot = {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+};
+
+export async function getProviderAvailability(
+  providerId: string,
+  date: string,
+  token?: string | null,
+): Promise<{ slots: ProviderAvailabilitySlot[] }> {
+  const res = await apGet<{
+    status: boolean;
+    message?: string;
+    data: { slots?: ProviderAvailabilitySlot[] };
+  }>(`/api/appointment/provider-availability?providerId=${encodeURIComponent(providerId)}&date=${encodeURIComponent(date)}`, token);
+
+  return { slots: Array.isArray(res.data?.slots) ? res.data.slots : [] };
 }

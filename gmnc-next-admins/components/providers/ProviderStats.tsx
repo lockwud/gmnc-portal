@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { User, Clock, ShieldCheck, AlertCircle } from "lucide-react";
+import { User, Clock, ShieldCheck, AlertCircle, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ interface StatItemProps {
   count: string | number;
   percentage?: string;
   description?: string;
-  icon: any;
+  icon: LucideIcon;
   iconColor: string;
   iconBg: string;
 }

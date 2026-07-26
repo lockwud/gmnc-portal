@@ -61,8 +61,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
+    const timeout = window.setTimeout(() => setMounted(true), 0);
+    return () => {
+      window.clearTimeout(timeout);
+      setMounted(false);
+    };
   }, []);
 
   const show = useCallback((o: ToastOptions) => {

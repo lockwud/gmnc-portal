@@ -409,10 +409,14 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
 
   // Load preferences when userId changes
   useEffect(() => {
-    const stored = loadPreferences(userId);
-    setPreferences(stored);
-    setIsLoading(false);
-    prevUserIdRef.current = userId ?? null;
+    const timeout = window.setTimeout(() => {
+      const stored = loadPreferences(userId);
+      setPreferences(stored);
+      setIsLoading(false);
+      prevUserIdRef.current = userId ?? null;
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [userId]);
 
   // Apply theme to document
@@ -431,7 +435,7 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
     } else if (preferences.themeMode === 'system') {
       dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
-    setIsDark(dark);
+    const darkTimeout = window.setTimeout(() => setIsDark(dark), 0);
 
     // Apply dark class
     if (dark) {
@@ -495,6 +499,7 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
 
     // Body
     root.style.setProperty('color-scheme', dark ? 'dark' : 'light');
+    return () => window.clearTimeout(darkTimeout);
   }, [preferences]);
 
   // Listen for system theme changes
@@ -505,7 +510,7 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
 
     const handler = () => {
       const dark = mq.matches;
-      setIsDark(dark);
+      window.setTimeout(() => setIsDark(dark), 0);
       document.documentElement.classList.toggle('dark', dark);
 
       // Re-apply all theme variables when system preference changes
@@ -620,14 +625,19 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
     if (!userId) return true;
 
     try {
-      const res = await fetch('/api/settings/appearance', {
+      const res = await fetch(`/api/settings/appearance/${encodeURIComponent(userId)}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
         },
-        body: JSON.stringify({ userId, preferences }),
+        body: JSON.stringify({
+          themeMode: preferences.themeMode,
+          colorPreset: preferences.colorPreset,
+          fontFamily: preferences.fontFamily,
+          fontSize: preferences.fontSize,
+        }),
       });
       if (!res.ok) {
         console.warn('Failed to save appearance preferences to server');
