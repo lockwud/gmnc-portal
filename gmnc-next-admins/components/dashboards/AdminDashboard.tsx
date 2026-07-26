@@ -29,38 +29,6 @@ import { cn } from '@/lib/utils';
 import { getAdminAnalytics } from '@/lib/api/analytics';
 import AdminDashboardSkeleton from '@/components/layout/skeletons/AdminDashboardSkeleton';
 
-const PIE_DATA = [
-  { name: 'Verified', value: 756, color: '#059669' },
-  { name: 'Pending', value: 82, color: '#f59e0b' },
-  { name: 'Flagged', value: 24, color: '#ef4444' },
-];
-
-const IMPROVEMENT_TREND_DATA = [
-  { name: 'Mon', improvement: 42 },
-  { name: 'Tue', improvement: 48 },
-  { name: 'Wed', improvement: 51 },
-  { name: 'Thu', improvement: 57 },
-  { name: 'Fri', improvement: 63 },
-  { name: 'Sat', improvement: 68 },
-  { name: 'Sun', improvement: 72 },
-];
-
-const DAILY_TASKS_DATA = [
-  { name: 'Mon', assigned: 18 },
-  { name: 'Tue', assigned: 22 },
-  { name: 'Wed', assigned: 20 },
-  { name: 'Thu', assigned: 26 },
-  { name: 'Fri', assigned: 24 },
-  { name: 'Sat', assigned: 16 },
-  { name: 'Sun', assigned: 14 },
-];
-
-const PATIENT_RECOVERY_DATA = [
-  { label: 'Improving', value: '68%', note: 'Steady therapy response', color: 'emerald' },
-  { label: 'Stable', value: '21%', note: 'Monitoring continues', color: 'blue' },
-  { label: 'Needs attention', value: '11%', note: 'Closer intervention required', color: 'amber' },
-];
-
 type SystemMetricsCard = {
   totalUsers?: number | string;
   verifiedProviders?: number | string;
@@ -237,12 +205,12 @@ export function AdminDashboard() {
         { name: 'Pending', value: metrics.providerVerification.pending ?? 0, color: '#f59e0b' },
         { name: 'Flagged', value: metrics.providerVerification.flagged ?? 0, color: '#ef4444' },
       ]
-    : PIE_DATA;
+    : [];
 
-  const improvementTrendData = metrics?.improvementTrend ?? IMPROVEMENT_TREND_DATA;
-  const dailyTasksData = metrics?.dailyTasks ?? DAILY_TASKS_DATA;
+  const improvementTrendData = metrics?.improvementTrend ?? [];
+  const dailyTasksData = metrics?.dailyTasks ?? [];
 
-  const patientRecoveryData = metrics?.patientRecovery ?? PATIENT_RECOVERY_DATA;
+  const patientRecoveryData = metrics?.patientRecovery ?? [];
 
   if (isLoadingMetrics && !metrics) {
     return <AdminDashboardSkeleton />;
@@ -346,10 +314,10 @@ export function AdminDashboard() {
           footer={
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
-                Tasks {metrics?.totalTasks !== undefined ? formatMetric(metrics.totalTasks) : '68%'}
+                Tasks {metrics?.totalTasks !== undefined ? formatMetric(metrics.totalTasks) : '—'}
               </span>
               <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-600">
-                At Risk {metrics?.adherenceAtRisk !== undefined ? `${metrics.adherenceAtRisk}%` : '16%'}
+                At Risk {metrics?.adherenceAtRisk !== undefined ? `${metrics.adherenceAtRisk}%` : '—'}
               </span>
             </div>
           }
@@ -532,6 +500,11 @@ export function AdminDashboard() {
                 </div>
               </div>
             ))}
+            {patientRecoveryData.length === 0 ? (
+              <p className="rounded-md border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-400">
+                No recovery data returned by the API.
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-4 border-t border-slate-100 pt-3">

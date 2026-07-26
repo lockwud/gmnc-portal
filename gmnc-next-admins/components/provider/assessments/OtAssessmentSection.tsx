@@ -16,7 +16,7 @@ type OtAssessmentField = {
   helperText?: string;
 };
 
-type OtAssessmentSection = {
+export type OtAssessmentSectionData = {
   title: string;
   description?: string;
   fields: OtAssessmentField[];
@@ -43,7 +43,7 @@ function toTitleFromId(value: string) {
 }
 
 type Props = {
-  section: OtAssessmentSection;
+  section: OtAssessmentSectionData;
   values: OtAssessmentValues;
   onFieldChange: (fieldKey: string, nextValue: unknown) => void;
 };

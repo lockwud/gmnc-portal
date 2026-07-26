@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 
 type Props = {
-  anchorRef: HTMLElement | null;
+  anchorRef: React.RefObject<HTMLElement | null>;
   open: boolean;
   selected?: Date;
   onSelect: (date?: Date) => void;
@@ -37,25 +37,33 @@ export default function CalendarPopover({
   });
 
   useEffect(() => {
-    prevRef.current = selected;
-    if (selected) {
-      setVisibleMonth(selected);
-      const y = selected.getFullYear();
-      setYearPageStart(y - centerOffset);
-    } else if (open) {
-      // If no date is selected and calendar is opened, show today
-      const today = new Date();
-      setVisibleMonth(today);
-      setYearPageStart(today.getFullYear() - centerOffset);
-    }
+    const timeout = window.setTimeout(() => {
+      prevRef.current = selected;
+      if (selected) {
+        setVisibleMonth(selected);
+        const y = selected.getFullYear();
+        setYearPageStart(y - centerOffset);
+      } else if (open) {
+        const today = new Date();
+        setVisibleMonth(today);
+        setYearPageStart(today.getFullYear() - centerOffset);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [selected, centerOffset, open]);
 
   useEffect(() => {
-    if (!open || !anchorRef) return;
-    const rect = anchorRef.getBoundingClientRect();
-    const left = Math.max(8, rect.left);
-    const top = rect.bottom + 6 + window.scrollY;
-    setPosition({ left, top });
+    if (!open || !anchorRef.current) return;
+    const timeout = window.setTimeout(() => {
+      if (!anchorRef.current) return;
+      const rect = anchorRef.current.getBoundingClientRect();
+      const left = Math.max(8, rect.left);
+      const top = rect.bottom + 6 + window.scrollY;
+      setPosition({ left, top });
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [open, anchorRef]);
 
   useEffect(() => {
@@ -89,7 +97,7 @@ export default function CalendarPopover({
       .slice(0, 10)
     : '';
 
-  function Header() {
+  function renderHeader() {
 
     function setMonth(m: number) {
       // If a date is selected, preserve the day, otherwise use 1
@@ -181,7 +189,7 @@ export default function CalendarPopover({
         boxShadow: '0 4px 24px 0 rgba(0,0,0,0.08)',
       }}
     >
-      <Header />
+      {renderHeader()}
 
       <div className="space-y-2 rounded-lg border border-slate-100 p-2 bg-slate-50">
         <input

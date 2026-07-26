@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ACCESS_TOKEN_COOKIE } from '../../../../lib/session';
 import { changePasswordRequest } from '../../../../lib/api/auth';
+import { getErrorMessage, getErrorStatus } from '@/lib/errors';
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -14,10 +15,10 @@ export async function POST(request: NextRequest) {
     await changePasswordRequest(payload, token);
 
     return NextResponse.json({ success: true, message: 'Password changed successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to change password' },
-      { status: error.status || 500 }
+      { success: false, message: getErrorMessage(error) || 'Failed to change password' },
+      { status: getErrorStatus(error) }
     );
   }
 }

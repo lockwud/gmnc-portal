@@ -1,8 +1,8 @@
 import type { TelehealthRoomType } from './types';
 export type { TelehealthRoomType } from './types';
-import { env } from '@/lib/env';
+import { requireApiBaseUrl } from '@/lib/env';
 
-const API_BASE_URL = env.API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = requireApiBaseUrl();
 
 class ApiRequestError extends Error {
   status: number;
@@ -120,7 +120,7 @@ export async function createTelehealthRoom(payload: {
   description?: string;
   scheduledStart?: string;
   scheduledEnd?: string;
-  attendeeEmails?: string[];
+  attendees?: Array<{ userId?: string; email?: string | null; phone?: string | null }>;
   providerId?: string;
 }, token?: string | null): Promise<TelehealthRoomType> {
   const res = await apiPost<{
@@ -162,15 +162,36 @@ export async function joinTelehealthRoom(id: string, token?: string | null): Pro
 }
 
 export async function inviteToTelehealthRoom(id: string, emails: string[], token?: string | null): Promise<void> {
-  await apiPost(`/telehealth/rooms/${id}/invite`, { emails }, token);
+  await apiPost(`/telehealth/rooms/${id}/invite`, {
+    attendees: emails.map((email) => ({ email })),
+  }, token);
 }
 
 export async function getRoomParticipants(id: string, token?: string | null): Promise<Array<{ id: string; name: string; email: string; role: string }>> {
   const res = await apiGet<{
     status: boolean;
     message?: string;
-    data: Array<{ id: string; name: string; email: string; role: string }>;
+    data: {
+      total: number;
+      participants: Array<{
+        id: string;
+        role: string;
+        user?: {
+          id: string;
+          fullName: string;
+          email?: string;
+          profileImage?: string;
+        };
+      }>;
+    };
   }>(`/telehealth/rooms/${id}/participants`, token);
 
-  return res.data || [];
+  const participants = (res.data?.participants || []).map((p) => ({
+    id: p.id,
+    name: p.user?.fullName || 'Unknown',
+    email: p.user?.email || '',
+    role: p.role,
+  }));
+
+  return participants;
 }

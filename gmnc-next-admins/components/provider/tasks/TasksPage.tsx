@@ -94,6 +94,22 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
   },
 };
 
+function createInitialTaskFormData() {
+  return {
+    patientId: '',
+    referralId: '',
+    title: '',
+    instructions: '',
+    instructionSteps: [] as string[],
+    frequencyPerDay: 1,
+    frequencyNote: '',
+    durationDays: 7,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    videoUrl: '',
+  };
+}
+
 export default function TasksPage() {
    const router = useRouter();
    const { token, isLoading: authIsLoading } = useAuth();
@@ -113,19 +129,7 @@ export default function TasksPage() {
   const [pageSize, setPageSize] = useState(10);
 
   // Form state
-  const [formData, setFormData] = useState({
-    patientId: '',
-    referralId: '',
-    title: '',
-    instructions: '',
-    instructionSteps: [] as string[],
-    frequencyPerDay: 1,
-    frequencyNote: '',
-    durationDays: 7,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    videoUrl: '',
-  });
+  const [formData, setFormData] = useState(createInitialTaskFormData);
   const [instructionStepInput, setInstructionStepInput] = useState('');
 
   // Options for selects
@@ -137,16 +141,6 @@ export default function TasksPage() {
   const [videos, setVideos] = useState<{ id: string; title: string; videoUrl: string }[]>([]);
   const [videoDropdownOpen, setVideoDropdownOpen] = useState(false);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
-
-   useEffect(() => {
-      // Wait for auth to finish loading before checking token
-      if (!authIsLoading) {
-        fetchTasks();
-        fetchPatients();
-        fetchAcceptedReferrals();
-        fetchVideos();
-      }
-    }, [authIsLoading]);
 
 const fetchTasks = async () => {
      if (!token) {
@@ -173,7 +167,7 @@ const fetchTasks = async () => {
           throw new Error(`Server error: ${text.slice(0, 200) || response.statusText}`);
         }
 
-        if (data && typeof data === 'object' && (data as Record<string, unknown>).status === 'SUCCESS' || (data as Record<string, unknown>).success) {
+        if (data && typeof data === 'object' && ((data as Record<string, unknown>).status === 'SUCCESS' || (data as Record<string, unknown>).success)) {
           const resolved = data as { data?: { tasks?: RehabTask[] }; tasks?: RehabTask[] };
           setTasks(resolved.data?.tasks || resolved.tasks || []);
         } else {
@@ -291,21 +285,22 @@ const fetchPatients = async () => {
 
   const resetWizard = () => {
     setWizardStep(1);
-    setFormData({
-      patientId: '',
-      referralId: '',
-      title: '',
-      instructions: '',
-      instructionSteps: [],
-      frequencyPerDay: 1,
-      frequencyNote: '',
-      durationDays: 7,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      videoUrl: '',
-    });
+    setFormData(createInitialTaskFormData());
     setInstructionStepInput('');
   };
+
+   useEffect(() => {
+      // Wait for auth to finish loading before checking token
+      if (!authIsLoading) {
+        const timeout = window.setTimeout(() => {
+          void fetchTasks();
+          void fetchPatients();
+          void fetchAcceptedReferrals();
+          void fetchVideos();
+        }, 0);
+        return () => window.clearTimeout(timeout);
+      }
+    }, [authIsLoading]);
 
   const handleOpenCreateModal = () => {
     resetWizard();

@@ -1,6 +1,5 @@
 'use client';
 
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -10,8 +9,9 @@ import Modal from '@/components/ui/Modal';
 import SmallDropdown from '@/components/ui/SmallDropdown';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/context/AuthContext';
-import { createTicket, listTickets } from '@/lib/api/support';
+import { adminListTickets, createTicket, listTickets } from '@/lib/api/support';
 import type { SupportCategory, SupportTicket } from '@/lib/api/types';
+import { hasRole } from '@/lib/rbac';
 
 const TICKET_CATEGORIES: { label: string; value: SupportCategory }[] = [
   { label: 'Account', value: 'ACCOUNT' },
@@ -33,7 +33,8 @@ const PRIORITIES: { label: string; value: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' }
 export default function SupportTicketsPage() {
   const router = useRouter();
   const { show } = useToast();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const managesSupportQueue = user ? hasRole(user, 'admin') || hasRole(user, 'support') : false;
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,9 @@ export default function SupportTicketsPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await listTickets({}, token ?? undefined);
+      const data = managesSupportQueue
+        ? await adminListTickets({}, token ?? undefined)
+        : await listTickets({}, token ?? undefined);
       setTickets(data.tickets ?? []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load tickets';
@@ -61,10 +64,11 @@ export default function SupportTicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [show, token]);
+  }, [managesSupportQueue, show, token]);
 
   useEffect(() => {
-    void loadTickets();
+    const timeout = window.setTimeout(() => void loadTickets(), 0);
+    return () => window.clearTimeout(timeout);
   }, [loadTickets]);
 
   const sorted = useMemo(
@@ -137,17 +141,19 @@ export default function SupportTicketsPage() {
     <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col overflow-hidden bg-white">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div>
-          <h1 className="text-[15px] font-semibold text-slate-900">My Tickets</h1>
+          <h1 className="text-[15px] font-semibold text-slate-900">{managesSupportQueue ? 'Support Tickets' : 'My Tickets'}</h1>
           <p className="mt-1 text-xs text-slate-500">
-            Review and continue open support requests.
+            {managesSupportQueue ? 'Review and manage support requests across the system.' : 'Review and continue open support requests.'}
           </p>
         </div>
-        <Button
-          onClick={handleOpenCreateModal}
-          className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
-        >
-          New Ticket
-        </Button>
+        {!managesSupportQueue && (
+          <Button
+            onClick={handleOpenCreateModal}
+            className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
+          >
+            New Ticket
+          </Button>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-6 pb-6">
@@ -179,7 +185,7 @@ export default function SupportTicketsPage() {
               ✉️
             </div>
             <h2 className="text-lg font-semibold text-slate-900">No tickets yet</h2>
-            <p className="mt-2 text-sm text-slate-500">You have no support tickets. Create one and our team will help.</p>
+            <p className="mt-2 text-sm text-slate-500">{managesSupportQueue ? 'There are no support tickets in the queue.' : 'You have no support tickets. Create one and our team will help.'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

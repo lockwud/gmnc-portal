@@ -3,7 +3,7 @@ import TaskPage from '@/components/provider/tasks/TasksPage';
 
 export default function ProviderTasksRoute() {
   return (
-    <ProtectedRoute requiredRole="provider">
+    <ProtectedRoute requiredRole={["admin", "provider"]}>
       <TaskPage />
     </ProtectedRoute>
   );

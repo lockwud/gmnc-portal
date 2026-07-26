@@ -19,6 +19,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
+import { getCaregivers } from '@/lib/api/patients';
 
 export default function TelehealthPage() {
   const { token } = useAuth();
@@ -64,7 +65,8 @@ export default function TelehealthPage() {
   }, [token, show]);
 
   useEffect(() => {
-    void loadRooms();
+    const timeout = window.setTimeout(() => void loadRooms(), 0);
+    return () => window.clearTimeout(timeout);
   }, [loadRooms]);
 
   const handleCreateRoom = async (formData: FormData) => {
@@ -177,16 +179,6 @@ export default function TelehealthPage() {
     }
   };
 
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'scheduled': return 'bg-blue-50 text-blue-700';
-      case 'live': return 'bg-emerald-50 text-emerald-700';
-      case 'completed': return 'bg-slate-100 text-slate-600';
-      case 'canceled': return 'bg-red-50 text-red-700';
-      default: return 'bg-slate-100 text-slate-600';
-    }
-  };
-
   const filteredRooms = rooms.filter((room) => (filter === 'all' ? true : room.status === filter));
 
   if (loading) {
@@ -197,7 +189,9 @@ export default function TelehealthPage() {
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden">
       <div className="mb-4 flex shrink-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight text-slate-900">Telehealth Rooms</h1>
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900">
+            Telehealth Rooms
+          </h1>
           <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">
             Google Meet–powered sessions
           </p>
@@ -246,84 +240,16 @@ export default function TelehealthPage() {
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredRooms.map((room) => {
-            const countdown = room.scheduledStart && room.status === 'scheduled' ? useCountdown(room.scheduledStart) : null;
-            return (
-              <div key={room.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-medium text-slate-900 truncate">{room.title || 'Untitled Room'}</h3>
-                  <span className={`text-[10px] px-2 py-1 rounded-full ${getStatusClass(room.status)}`}>{room.status}</span>
-                </div>
-
-                <div className="mt-3 space-y-2 text-[11px]">
-                  {room.scheduledStart && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-3 w-3 text-slate-400" />
-                      <span>{new Date(room.scheduledStart).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  {room.scheduledEnd && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3 w-3 text-slate-400" />
-                      <span>{new Date(room.scheduledEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  {room.status === 'scheduled' && countdown && (
-                    <span className="text-[11px] tabular-nums">
-                      {countdown.isLive ? (
-                        <span className="text-emerald-600 font-medium animate-pulse">LIVE NOW</span>
-                      ) : countdown.isPast ? (
-                        <span className="text-slate-400">Session ended</span>
-                      ) : (
-                        <span className="text-slate-500">Starts in {[countdown.days > 0 ? `${countdown.days}d` : null, `${countdown.hours}h`, `${countdown.minutes}m`].filter(Boolean).join(' ')}</span>
-                      )}
-                    </span>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => void openParticipants(room)}
-                      className="text-[11px] text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
-                      title="View participants"
-                    >
-                      <Users className="h-3 w-3" />
-                    </button>
-                    {room.status !== 'canceled' && room.status !== 'completed' && (
-                      <>
-                        <button
-                          onClick={() => setReschedulingRoom(room)}
-                          className="text-[11px] text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
-                          title="Reschedule"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => void handleCancel(room)}
-                          className="text-[11px] text-red-500 hover:text-red-600 inline-flex items-center gap-1"
-                          title="Cancel room"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => void handleJoin(room)}
-                      disabled={!room.joinUrl}
-                      className={`text-[11px] font-medium inline-flex items-center gap-1 ${
-                        room.joinUrl ? 'text-emerald-600 hover:text-emerald-700' : 'text-slate-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Join
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {filteredRooms.map((room) => (
+            <RoomCard
+              key={room.id}
+              room={room}
+              onJoin={() => void handleJoin(room)}
+              onCancel={() => void handleCancel(room)}
+              onReschedule={() => setReschedulingRoom(room)}
+              onOpenParticipants={() => void openParticipants(room)}
+            />
+          ))}
         </div>
       )}
 
@@ -358,6 +284,108 @@ export default function TelehealthPage() {
           onClose={() => setParticipantsRoomId(null)}
         />
       </Modal>
+    </div>
+  );
+}
+
+function RoomCard({
+  room,
+  onJoin,
+  onCancel,
+  onReschedule,
+  onOpenParticipants,
+}: {
+  room: TelehealthRoomType;
+  onJoin: () => void;
+  onCancel: () => void;
+  onReschedule: () => void;
+  onOpenParticipants: () => void;
+}) {
+  const countdown = useCountdown(room.scheduledStart && room.status === 'scheduled' ? room.scheduledStart : null);
+
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-50 text-blue-700';
+      case 'live': return 'bg-emerald-50 text-emerald-700';
+      case 'completed': return 'bg-slate-100 text-slate-600';
+      case 'canceled': return 'bg-red-50 text-red-700';
+      default: return 'bg-slate-100 text-slate-600';
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-medium text-slate-900 truncate">{room.title || 'Untitled Room'}</h3>
+        <span className={`text-[10px] px-2 py-1 rounded-full ${getStatusClass(room.status)}`}>{room.status}</span>
+      </div>
+
+      <div className="mt-3 space-y-2 text-[11px]">
+        {room.scheduledStart && (
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3 w-3 text-slate-400" />
+            <span>{new Date(room.scheduledStart).toLocaleDateString()}</span>
+          </div>
+        )}
+        {room.scheduledEnd && (
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3 text-slate-400" />
+            <span>{new Date(room.scheduledEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        {room.status === 'scheduled' && countdown && (
+          <span className="text-[11px] tabular-nums">
+            {countdown.isLive ? (
+              <span className="text-emerald-600 font-medium animate-pulse">LIVE NOW</span>
+            ) : countdown.isPast ? (
+              <span className="text-slate-400">Session ended</span>
+            ) : (
+              <span className="text-slate-500">Starts in {[countdown.days > 0 ? `${countdown.days}d` : null, `${countdown.hours}h`, `${countdown.minutes}m`].filter(Boolean).join(' ')}</span>
+            )}
+          </span>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenParticipants}
+            className="text-[11px] text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
+            title="View participants"
+          >
+            <Users className="h-3 w-3" />
+          </button>
+          {room.status !== 'canceled' && room.status !== 'completed' && (
+            <>
+              <button
+                onClick={onReschedule}
+                className="text-[11px] text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
+                title="Reschedule"
+              >
+                <Edit2 className="h-3 w-3" />
+              </button>
+              <button
+                onClick={onCancel}
+                className="text-[11px] text-red-500 hover:text-red-600 inline-flex items-center gap-1"
+                title="Cancel room"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </>
+          )}
+          <button
+            onClick={onJoin}
+            disabled={!room.joinUrl}
+            className={`text-[11px] font-medium inline-flex items-center gap-1 ${
+              room.joinUrl ? 'text-emerald-600 hover:text-emerald-700' : 'text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            <ExternalLink className="h-3 w-3" />
+            Join
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -453,21 +481,140 @@ function InviteForm({
   onCancel: () => void;
 }) {
   const [emails, setEmails] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState<Array<{ id: string; fullName: string; email?: string }>>([]);
+  const [allUsers, setAllUsers] = useState<Array<{ id: string; fullName: string; email?: string }>>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  React.useEffect(() => {
+    async function loadUsers() {
+      setLoadingUsers(true);
+      try {
+        const caregiversData = await getCaregivers(null);
+        const users = (caregiversData.data || []).map((c) => ({
+          id: c.id || c.userId || '',
+          fullName: c.fullName || 'Unknown',
+          email: c.email,
+        })).filter((u) => u.id);
+        setAllUsers(users);
+      } catch (err) {
+        console.error('Failed to load caregivers:', err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+    loadUsers();
+  }, []);
+
+  const handleToggleUser = (user: { id: string; fullName: string; email?: string }) => {
+    setSelectedUsers((prev) => {
+      const exists = prev.find((u) => u.id === user.id);
+      if (exists) {
+        return prev.filter((u) => u.id !== user.id);
+      }
+      return [...prev, user];
+    });
+  };
+
+  const handleSendInvite = () => {
+    const selectedEmails = selectedUsers
+      .map((u) => u.email)
+      .filter((email): email is string => Boolean(email));
+    const manualEmails = emails
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean);
+    const allEmails = [...new Set([...selectedEmails, ...manualEmails])];
+    onInvite(allEmails.join(','));
+  };
+
+  const filteredUsers = allUsers.filter((user) =>
+    user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="rounded-xl bg-white p-6 shadow-lg">
       <h2 className="text-lg font-semibold text-slate-900 mb-1">Invite Participants</h2>
-      <p className="text-xs text-slate-500 mb-4">Comma-separated emails. Each invitee will receive the Google Meet link.</p>
-      <textarea
-        value={emails}
-        onChange={(e) => setEmails(e.target.value)}
-        rows={4}
-        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none resize-none"
-        placeholder="patient@example.com, assistant@example.com"
-      />
-      <div className="flex justify-end gap-2 pt-4">
+      <p className="text-xs text-slate-500 mb-4">Search and select users, or enter email addresses manually.</p>
+      
+      {/* User Picker */}
+      <div className="mb-4">
+        <label className="block text-[11px] font-medium text-slate-700 mb-2">Search Users</label>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by name or email..."
+          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none mb-2"
+        />
+        
+        {/* Selected Users */}
+        {selectedUsers.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {selectedUsers.map((user) => (
+              <span
+                key={user.id}
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700"
+              >
+                {user.fullName}
+                <button
+                  type="button"
+                  onClick={() => handleToggleUser(user)}
+                  className="ml-1 text-emerald-700 hover:text-emerald-900"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* User List */}
+        <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
+          {loadingUsers ? (
+            <div className="p-3 text-xs text-slate-500">Loading users...</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="p-3 text-xs text-slate-500">No users found</div>
+          ) : (
+            filteredUsers.map((user) => {
+              const isSelected = selectedUsers.some((u) => u.id === user.id);
+              return (
+                <button
+                  key={user.id}
+                  type="button"
+                  onClick={() => handleToggleUser(user)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition ${
+                    isSelected ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <div>
+                    <p className="font-medium">{user.fullName}</p>
+                    {user.email && <p className="text-xs text-slate-500">{user.email}</p>}
+                  </div>
+                  {isSelected && <span className="text-emerald-600">✓</span>}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Manual Email Input */}
+      <div className="mb-4">
+        <label className="block text-[11px] font-medium text-slate-700 mb-2">Or add emails manually</label>
+        <textarea
+          value={emails}
+          onChange={(e) => setEmails(e.target.value)}
+          rows={3}
+          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none resize-none"
+          placeholder="patient@example.com, assistant@example.com"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel} className="text-[11px] text-slate-600 hover:text-slate-800 px-3 py-1">Cancel</button>
-        <Button onClick={() => onInvite(emails)}>Send Invite</Button>
+        <Button onClick={handleSendInvite}>Send Invite</Button>
       </div>
     </div>
   );
@@ -484,16 +631,18 @@ function ParticipantsPanel({
   onInviteMore: () => void;
   onClose: () => void;
 }) {
+  const participantList = Array.isArray(participants) ? participants : [];
+  
   return (
     <div className="rounded-xl bg-white p-6 shadow-lg">
       <h2 className="text-lg font-semibold text-slate-900 mb-4">Participants</h2>
       {loading ? (
         <div className="text-xs text-slate-500">Loading participants...</div>
-      ) : participants.length === 0 ? (
+      ) : participantList.length === 0 ? (
         <EmptyState title="No participants yet" description="Invite patients or staff to this room." />
       ) : (
         <ul className="space-y-2 max-h-80 overflow-y-auto">
-          {participants.map((p) => (
+          {participantList.map((p) => (
             <li key={p.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
               <div>
                 <p className="text-sm font-medium text-slate-800">{p.name || 'Unknown'}</p>

@@ -7,7 +7,7 @@ import { hasPermission, hasRole, type Permission, type Role } from '@/lib/rbac';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: Role;
+  requiredRole?: Role | Role[];
   requiredPermission?: Permission;
 }
 
@@ -44,9 +44,9 @@ export default function ProtectedRoute({
       return;
     }
 
-    // Admin bypass: admin users can access any role-protected page
     const isAdmin = hasRole(user, 'admin');
-    const roleAllowed = !requiredRole || isAdmin || hasRole(user, requiredRole);
+    const requiredRoles = Array.isArray(requiredRole) ? requiredRole : requiredRole ? [requiredRole] : [];
+    const roleAllowed = requiredRoles.length === 0 || requiredRoles.some((role) => hasRole(user, role));
     const permissionAllowed = !requiredPermission || isAdmin || hasPermission(user, requiredPermission);
 
     if (!roleAllowed || !permissionAllowed) {
@@ -81,7 +81,8 @@ export default function ProtectedRoute({
   }
 
   const isAdmin = hasRole(user, 'admin');
-  const roleAllowed = !requiredRole || isAdmin || hasRole(user, requiredRole);
+  const requiredRoles = Array.isArray(requiredRole) ? requiredRole : requiredRole ? [requiredRole] : [];
+  const roleAllowed = requiredRoles.length === 0 || requiredRoles.some((role) => hasRole(user, role));
   const permissionAllowed = !requiredPermission || isAdmin || hasPermission(user, requiredPermission);
 
   if (!roleAllowed || !permissionAllowed) {

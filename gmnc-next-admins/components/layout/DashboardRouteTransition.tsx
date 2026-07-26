@@ -20,7 +20,9 @@ export default function DashboardRouteTransition({
 
   useEffect(() => {
     let isActive = true;
-    setShowSkeleton(true);
+    const startTimeout = window.setTimeout(() => {
+      if (isActive) setShowSkeleton(true);
+    }, 0);
 
     const timeout = window.setTimeout(() => {
       if (isActive) {
@@ -32,6 +34,7 @@ export default function DashboardRouteTransition({
 
     return () => {
       isActive = false;
+      window.clearTimeout(startTimeout);
       window.clearTimeout(timeout);
     };
   }, [pathname]);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Pagination from "@/components/ui/Pagination";
@@ -9,6 +9,7 @@ import AssignmentTable from "./AssignmentTable";
 import AssignRoleModal from "./AssignRoleModal";
 import RoleFilterDropdown from "@/components/admin/roles-access/RoleFilterDropdown";
 import { Plus } from "lucide-react";
+import { useAuth } from "@/lib/context/AuthContext";
 
 import type {
   AppRoleRecord,
@@ -30,45 +31,12 @@ type AuthUser = {
   permissions?: string[];
 };
 
-/**
- * Read and parse the current user from localStorage.
- * Handles both the raw API shape (name) and the normalised shape (fullName).
- */
-function readUserFromStorage(): AuthUser | null {
-  try {
-    const raw = localStorage.getItem("user");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (!parsed?.id) return null;
-
-    const name =
-      (parsed.fullName as string | undefined) ??
-      (parsed.name as string | undefined) ??
-      "";
-
-    return {
-      ...(parsed as AuthUser),
-      name,
-      fullName: name,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function readTokenFromStorage(): string {
-  try {
-    return localStorage.getItem("token") ?? "";
-  } catch {
-    return "";
-  }
-}
-
 // =========================================
 // COMPONENT
 // =========================================
 export default function RoleAssignmentsPage() {
   const { show } = useToast();
+  const { user: authUser, token, isLoading: authLoading } = useAuth();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -86,99 +54,89 @@ export default function RoleAssignmentsPage() {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-
-  const didSetUser = useRef(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // =========================================
   // AUTH HEADERS — always read fresh from storage
   // =========================================
-  const getAuthHeaders = (): Record<string, string> => {
-    const token = readTokenFromStorage();
-    console.log('Token in getAuthHeaders:', token);
+  const getAuthHeaders = useCallback((): Record<string, string> => {
     return {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       "Content-Type": "application/json",
     };
-  };
+  }, [token]);
 
-  const hasRole = (role: string) =>
-    !!currentUser?.roles?.includes(role);
+  const isAdmin = useMemo(
+    () =>
+      currentUser?.userType === 'ADMIN' ||
+      !!currentUser?.roles?.some((currentRole) => currentRole.toLowerCase() === 'admin'),
+    [currentUser?.roles, currentUser?.userType],
+  );
+
+  const readErrorMessage = async (response: Response, fallback: string) => {
+    const data = await response.json().catch(() => null);
+    return data?.message || data?.error || fallback;
+  };
 
   // =========================================
   // LOAD CURRENT USER
-  // Reads from localStorage, which AuthProvider now keeps in sync.
+  // AuthProvider is the source of truth for the current portal user.
   // =========================================
   useEffect(() => {
-    if (didSetUser.current) return;
-    didSetUser.current = true;
+    if (authLoading) return;
 
-    const user = readUserFromStorage();
-    const token = readTokenFromStorage();
+    const timeoutId = window.setTimeout(() => {
+      if (!authUser) {
+        setCurrentUser(null);
+        setUsers([]);
+        setAssignments([]);
+        setLoading(false);
+        setInitialized(true);
+        return;
+      }
 
-    if (user) {
-      setCurrentUser(user);
+      setCurrentUser({
+        id: authUser.id,
+        email: authUser.email ?? undefined,
+        name: authUser.name,
+        fullName: authUser.fullName ?? authUser.name,
+        userType: authUser.userType,
+        roles: authUser.roles,
+        permissions: authUser.permissions,
+      });
       setInitialized(true);
-    } else {
-      // localStorage not populated yet — fall back to /api/auth/me
-      fetch("/api/auth/me", {
-        cache: "no-store",
-        credentials: 'include',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data: { user?: Record<string, unknown>; accessToken?: string } | null) => {
-          if (!data?.user) return;
+    }, 0);
 
-          const name =
-            (data.user.fullName as string | undefined) ??
-            (data.user.name as string | undefined) ??
-            "";
-
-          const normalised: AuthUser = {
-            ...(data.user as AuthUser),
-            name,
-            fullName: name,
-          };
-
-          // Populate localStorage for subsequent reads
-          try {
-            localStorage.setItem("user", JSON.stringify(normalised));
-            if (data.accessToken) {
-              localStorage.setItem("token", data.accessToken);
-            }
-          } catch {
-            // ignore
-          }
-
-          setCurrentUser(normalised);
-          setInitialized(true);
-        })
-        .catch(console.error);
-    }
-  }, []);
+    return () => window.clearTimeout(timeoutId);
+  }, [authLoading, authUser]);
 
   // =========================================
   // FETCH ROLES + USERS
   // =========================================
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!initialized || !currentUser?.id) return;
+
+    const controller = new AbortController();
+    let active = true;
 
     const fetchData = async () => {
       try {
+        setLoadError(null);
         setLoading(true);
 
-        // ROLES
-         const rolesResponse = await fetch("/api/admin/rbac/roles", {
-           headers: getAuthHeaders(),
-           credentials: 'include',
-         });
+        const rolesResponse = await fetch("/api/admin/rbac/roles?lite=true", {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          signal: controller.signal,
+        });
 
-        if (!rolesResponse.ok) throw new Error("Failed to fetch roles");
+        if (!rolesResponse.ok) {
+          throw new Error(await readErrorMessage(rolesResponse, "Failed to fetch roles"));
+        }
 
         const rolesData = await rolesResponse.json();
-        setRoles(Array.isArray(rolesData) ? rolesData : rolesData.data ?? []);
+        const nextRoles = Array.isArray(rolesData) ? rolesData : rolesData.data ?? [];
 
-        // USERS
         let usersData: {
           id: string;
           fullName: string;
@@ -186,33 +144,27 @@ export default function RoleAssignmentsPage() {
           userType: string;
         }[] = [];
 
-        const isAdmin = hasRole("admin");
-
         if (!isAdmin) {
-          // Non-admin: fetch only users under this service provider
-           const spResponse = await fetch(
-             `/api/service-provider/${currentUser.id}`,
-             { headers: getAuthHeaders(), credentials: 'include' },
-           );
-
-          if (!spResponse.ok)
-            throw new Error("Failed to fetch provider users");
-
-          const spData = await spResponse.json();
-          usersData = spData.users ?? [];
+          usersData = [{
+            id: currentUser.id,
+            fullName: currentUser.fullName || currentUser.name || currentUser.email || 'Current user',
+            email: currentUser.email,
+            userType: currentUser.userType || 'SERVICE_PROVIDER',
+          }];
         } else {
-          // Admin: fetch all users
-           const usersResponse = await fetch("/api/admin/users", {
-             headers: getAuthHeaders(),
-             credentials: 'include',
-           });
+          const usersResponse = await fetch("/api/admin/users", {
+            headers: getAuthHeaders(),
+            credentials: 'include',
+            signal: controller.signal,
+          });
 
-          if (!usersResponse.ok) throw new Error("Failed to fetch users");
+          if (!usersResponse.ok) {
+            throw new Error(await readErrorMessage(usersResponse, "Failed to fetch users"));
+          }
 
           const data = await usersResponse.json();
           const raw: Record<string, unknown>[] = data.data ?? data ?? [];
 
-          // Normalise fullName for each user
           usersData = raw.map((u) => ({
             ...(u as { id: string; email?: string; userType: string }),
             fullName:
@@ -222,23 +174,25 @@ export default function RoleAssignmentsPage() {
           }));
         }
 
+        if (!active) return;
+        setRoles(nextRoles);
         setUsers(Array.isArray(usersData) ? usersData : []);
       } catch (err) {
+        if (!active || (err instanceof DOMException && err.name === 'AbortError')) return;
         console.error(err);
-        show({
-          title: "Error loading assignments",
-          message: err instanceof Error ? err.message : "Failed to load data",
-          type: "error",
-          duration: 4000,
-        });
+        setLoadError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+    void fetchData();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [currentUser?.email, currentUser?.fullName, currentUser?.id, currentUser?.name, currentUser?.userType, getAuthHeaders, initialized, isAdmin]);
 
   // =========================================
   // FETCH ASSIGNMENTS FOR ALL USERS
@@ -290,7 +244,6 @@ useEffect(() => {
   };
 
   fetchAssignments();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [users]);
 
   // =========================================
@@ -428,6 +381,17 @@ useEffect(() => {
     );
   }
 
+  if (!currentUser) {
+    return (
+      <div className="flex h-[calc(100vh-76px)] min-h-0 flex-col items-center justify-center overflow-hidden bg-white px-6 text-center">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <h1 className="text-base font-semibold text-slate-900">Unable to load account</h1>
+          <p className="mt-2 text-sm text-slate-500">Please sign in again to manage role assignments.</p>
+        </div>
+      </div>
+    );
+  }
+
   // =========================================
   // UI
   // =========================================
@@ -443,6 +407,11 @@ useEffect(() => {
             <p className="mt-1 text-xs text-slate-500">
               Assign roles to users to manage their access and permissions.
             </p>
+            {loadError ? (
+              <p className="mt-2 max-w-3xl rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                {loadError}
+              </p>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">

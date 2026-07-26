@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '../../../../../lib/env';
 import { ACCESS_TOKEN_COOKIE } from '../../../../../lib/session';
+import { getErrorMessage } from '@/lib/errors';
 
 export async function PATCH(
   request: NextRequest,
@@ -17,7 +18,7 @@ export async function PATCH(
     const body = await request.json();
     const type = body.userType;
 
-    let backendUrl = `${env.API_BASE_URL}/admin/users/${id}`; // Fallback
+    let backendUrl = `${env.API_BASE_URL}/admin/users/${id}`;
     let method = 'PATCH';
 
     if (type === 'SERVICE_PROVIDER') {
@@ -52,9 +53,9 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true, data });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: getErrorMessage(error) },
       { status: 500 }
     );
   }
@@ -100,9 +101,9 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: getErrorMessage(error) },
       { status: 500 }
     );
   }

@@ -3,7 +3,7 @@ import SupportDashboardPage from "@/components/dashboards/SupportDashboardPage";
 
 export default function SupportRoute() {
   return (
-    <ProtectedRoute requiredRole="support">
+    <ProtectedRoute requiredRole={["admin", "support"]}>
       <SupportDashboardPage />
     </ProtectedRoute>
   );

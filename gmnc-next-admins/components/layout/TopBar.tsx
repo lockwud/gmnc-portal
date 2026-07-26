@@ -14,16 +14,15 @@ type Props = {
 const ToggleIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     className={className}
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
     fill="none"
     aria-hidden
     xmlns="http://www.w3.org/2000/svg"
   >
-    <rect x="2" y="3" width="20" height="18" rx="2" stroke="currentColor" strokeWidth="1.6" />
-    <path d="M9 12L7 10L9 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1.2" opacity="0.05" />
+    <rect x="3.25" y="4" width="11.5" height="10" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M7.25 4.25V13.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 
@@ -135,11 +134,10 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
           <button
             onClick={onToggleSidebar}
             aria-label="Toggle sidebar"
-            className="p-1 rounded hover:opacity-80 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-950 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             type="button"
-            style={{ color: 'var(--topbar-text)' }}
           >
-            <ToggleIcon className="text-xs" />
+            <ToggleIcon />
           </button>
         </div>
 
@@ -156,7 +154,7 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
                 }}
                 className="flex items-center gap-2 rounded-xl px-2 py-1 transition-all duration-200 shadow-sm cursor-text"
                 style={{
-                  width: searchOpen ? '208px' : '40px',
+                  width: searchOpen ? '300px' : '40px',
                   backgroundColor: 'var(--input-bg)',
                   border: '1px solid var(--input-border)',
                   color: 'var(--input-text)',
@@ -284,7 +282,7 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
         </div>
       </div>
 
-      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} width="w-64" />
+      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </>
   );
 };

@@ -201,6 +201,7 @@ export default function PlatformSettingsPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { show } = useToast();
+  const saveLabel = title.toLowerCase().includes('preferences') ? 'Save preferences' : 'Save settings';
 
   const handleAuthError = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -259,7 +260,7 @@ export default function PlatformSettingsPage({
 
   if (isLoading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute requiredRole={["admin", "provider"]}>
         <div className="flex h-64 items-center justify-center">
           <div className="text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
@@ -271,17 +272,13 @@ export default function PlatformSettingsPage({
   }
 
   return (
-    <ProtectedRoute>
+      <ProtectedRoute requiredRole={["admin", "provider"]}>
       <div className="w-full pb-8 pt-4">
         <div className="w-full px-6">
           <header className="mb-5 flex items-center gap-3">
             <Link href={backHref} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100">
               <ChevronLeft className="h-4 w-4 text-slate-600" />
             </Link>
-            <div>
-              <h1 className="text-3xl font-semibold text-slate-900">{title}</h1>
-              <p className="mt-1 text-sm text-slate-500">{description}</p>
-            </div>
           </header>
 
           <div className="flex h-[calc(100vh-200px)] flex-col">
@@ -366,10 +363,10 @@ export default function PlatformSettingsPage({
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="rounded-full bg-emerald-600 px-6 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
+                className="flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
               >
                 <Save className="h-3 w-3" />
-                {isSaving ? 'Saving...' : 'Save Settings'}
+                {isSaving ? 'Saving...' : saveLabel}
               </button>
             </div>
           </div>

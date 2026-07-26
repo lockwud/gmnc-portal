@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { registerRequest } from '@/lib/api/auth';
 import { getErrorMessage, getErrorStatus } from '@/lib/errors';

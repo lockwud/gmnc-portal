@@ -627,37 +627,3 @@ export type CarePlan = {
     };
   };
 };
-
-export type ConsentType = 'TREATMENT' | 'DATA_SHARING' | 'RECORDING' | 'PHOTO_VIDEO' | 'RESEARCH';
-
-export type ConsentMethod = 'DIGITAL_SIGNATURE' | 'SMS' | 'PAPER';
-
-export type ConsentRecord = {
-  id: string;
-  patientId: string;
-  grantedByUserId: string;
-  consentType: ConsentType;
-  scope?: string | null;
-  documentId?: string | null;
-  method: ConsentMethod;
-  grantedAt: string;
-  revokedAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  patient?: {
-    id: string;
-    fullName: string;
-  };
-  grantedBy?: {
-    id: string;
-    fullName: string;
-    email: string;
-  };
-};
-
-export type TelehealthRecordingConsent = {
-  participantId: string;
-  isRecordingConsented: boolean;
-  recordingConsentedAt?: string | null;
-  recordingConsentedByUserId?: string | null;
-};

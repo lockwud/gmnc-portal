@@ -1,4 +1,4 @@
-import { env } from '@/lib/env';
+import { requireApiBaseUrl } from '@/lib/env';
 
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -41,7 +41,7 @@ export async function apiClient<T>(
     skipJsonStringify = false,
   } = options;
 
-  const baseUrl = env.API_BASE_URL || 'http://localhost:3001';
+  const baseUrl = requireApiBaseUrl();
   
   let response: Response;
   try {

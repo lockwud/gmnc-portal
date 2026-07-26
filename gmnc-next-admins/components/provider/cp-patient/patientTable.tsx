@@ -21,9 +21,28 @@ type PatientRow = {
   slug: string;
 };
 
-// Keep mock data as fallback or for initial dev if needed, 
-// but we will primarily use the fetched data now.
-const mockPatients: PatientRow[] = [];
+type ApiPatient = {
+  id?: string;
+  _id?: string;
+  slug?: string;
+  user?: Partial<ApiPatient>;
+  fullName?: string;
+  name?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  caregiver?: {
+    fullName?: string;
+    name?: string;
+    user?: {
+      fullName?: string;
+      name?: string;
+    };
+  };
+  latestAssessmentStatus?: PatientRow['latestAssessmentStatus'];
+  nextAppointmentDate?: string | null;
+  openTasksCount?: number;
+  latestReferralStatus?: PatientRow['latestReferralStatus'];
+};
 
 function formatStatus(status?: string | null) {
   if (!status) return 'None';
@@ -104,7 +123,7 @@ export default function CpPatientsPage() {
 
       // Accept both 'status' and 'success' for compatibility
       if ((result.status || result.success) && Array.isArray(result.data)) {
-        const mapped = result.data.map((p: any) => {
+        const mapped = result.data.map((p: ApiPatient) => {
           const userObj = p.user || p;
           return {
             slug: userObj.slug || userObj.id || userObj._id || p.id || '',
@@ -124,7 +143,7 @@ export default function CpPatientsPage() {
       } else {
         setError(result.message || 'Failed to load patients');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred while fetching patients');
     } finally {
       setIsLoading(false);
@@ -132,7 +151,8 @@ export default function CpPatientsPage() {
   };
 
   useEffect(() => {
-    fetchPatients();
+    const timeout = window.setTimeout(() => void fetchPatients(), 0);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const filteredPatients = useMemo(() => {

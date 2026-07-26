@@ -30,6 +30,24 @@ type UserRecord = {
   otpChannel?: OtpChannel;
 };
 
+type ApiUserRecord = Partial<UserRecord> & {
+  _id?: string;
+  name?: string;
+  phone?: string;
+  user?: ApiUserRecord;
+};
+
+type UserSavePayload = {
+  fullName: string;
+  email?: string;
+  phoneNumber: string;
+  gender: Gender;
+  role: UserType;
+  dateOfBirth?: string;
+  otpChannel: OtpChannel;
+  password?: string;
+};
+
 const roleOptions: { value: UserType; label: string }[] = [
   { value: 'ALL', label: 'All user types' },
   { value: 'CAREGIVER', label: 'Caregiver' },
@@ -171,13 +189,13 @@ export default function UserRegistrationPage() {
       const result = await response.json();
       if (result.success) {
         const rawData = result.data;
-        const usersList: any[] = Array.isArray(rawData)
+        const usersList: ApiUserRecord[] = Array.isArray(rawData)
           ? rawData
-          : Array.isArray(rawData?.users)
-            ? rawData.users
+        : Array.isArray(rawData?.users)
+            ? rawData.users as ApiUserRecord[]
             : [];
 
-        const normalized: UserRecord[] = usersList.map((u: any) => {
+        const normalized: UserRecord[] = usersList.map((u) => {
           const userObj = u.user || u;
           return {
             id: userObj.id || userObj._id || Math.random().toString(),
@@ -196,7 +214,7 @@ export default function UserRegistrationPage() {
       } else {
         setFetchError(result.message || 'Failed to fetch users');
       }
-    } catch (err) {
+    } catch {
       setFetchError('A network error occurred while fetching users');
     } finally {
       setIsLoadingUsers(false);
@@ -204,7 +222,8 @@ export default function UserRegistrationPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    const timeout = window.setTimeout(() => void fetchUsers(), 0);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const [page, setPage] = useState(1);
@@ -354,7 +373,7 @@ export default function UserRegistrationPage() {
       const url = isEditMode ? `/api/admin/users/${editingUserId}` : '/api/admin/users';
       const method = isEditMode ? 'PATCH' : 'POST';
 
-      const payload: any = {
+      const payload: UserSavePayload = {
         fullName: formData.fullName,
         email: formData.email || undefined,
         phoneNumber: formData.phoneNumber,
@@ -751,7 +770,7 @@ export default function UserRegistrationPage() {
                     </span>
                   </button>
                   <CalendarPopover
-                    anchorRef={calendarButtonRef.current}
+                    anchorRef={calendarButtonRef}
                     open={isCalendarOpen}
                     selected={selectedDate}
                     onSelect={setSelectedDate}
@@ -876,6 +895,7 @@ export default function UserRegistrationPage() {
                       <span className="font-medium text-slate-900">Password:</span> ••••••••
                     </p>
                   </div>
+
                 </div>
               </div>
             )}

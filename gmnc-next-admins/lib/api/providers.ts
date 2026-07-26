@@ -110,9 +110,14 @@ type ProviderApiResponse = {
   data: Provider;
 };
 
-export async function getProvidersWaitingVerification(token?: string): Promise<Provider[]> {
+export async function getProvidersForVerification(token?: string): Promise<Provider[]> {
    const res = await apiGet<ProvidersListApiResponse>('', token);
    return res.data || [];
+ }
+
+export async function getProvidersWaitingVerification(token?: string): Promise<Provider[]> {
+   const providers = await getProvidersForVerification(token);
+   return providers.filter((provider) => provider.verificationStatus === 'PENDING_REVIEW');
  }
 
  export async function getProviderById(id: string, token?: string): Promise<Provider> {
