@@ -103,9 +103,9 @@ export default function RowActions({
                 setOpen(false);
                 onDelete?.();
               }}
-              className="flex h-8 w-full items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-              aria-label="Delete"
-              title="Delete"
+              className="flex h-8 w-full items-center justify-center rounded-lg text-rose-500 transition hover:bg-rose-50 hover:text-rose-700"
+              aria-label="Deactivate"
+              title="Deactivate"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
