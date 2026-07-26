@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import NotificationsPanel from '@/components/ui/NotificationsPanel';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useTheme } from '@/lib/context/ThemeContext';
@@ -34,7 +35,21 @@ function getErrorStatus(error: unknown): number | null {
   return null;
 }
 
+const SEARCH_ROUTES = [
+  { label: 'Users', path: '/admin/users', keywords: 'accounts admin staff provider support tester' },
+  { label: 'Role Assignments', path: '/admin/role-assignments', keywords: 'rbac roles access assignments' },
+  { label: 'Roles & Access', path: '/admin/roles-access', keywords: 'permissions roles access rbac' },
+  { label: 'Provider Verification', path: '/admin/approvals/providers', keywords: 'providers verification approvals' },
+  { label: 'Reports', path: '/admin/reports', keywords: 'assessment reports patients' },
+  { label: 'Patient List', path: '/provider/cp-patient', keywords: 'patients cerebral palsy cp' },
+  { label: 'Assessments', path: '/provider/assessments', keywords: 'clinical assessment tools' },
+  { label: 'Appointments', path: '/provider/appointments', keywords: 'schedule booking calendar' },
+  { label: 'Support Tickets', path: '/support/tickets', keywords: 'help tickets support' },
+  { label: 'System Settings', path: '/settings', keywords: 'configuration settings platform' },
+];
+
 const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
+  const router = useRouter();
   const { user, logout, selectedRole, token, isLoading } = useAuth();
   const { isDark, setThemeMode, preferences } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -114,10 +129,20 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
   };
 
   const themeIcon = isDark ? 'dark_mode' : preferences.themeMode === 'system' ? 'brightness_6' : 'light_mode';
+  const searchResults = SEARCH_ROUTES.filter((item) => {
+    const value = query.trim().toLowerCase();
+    if (!value) return false;
+    return `${item.label} ${item.keywords}`.toLowerCase().includes(value);
+  }).slice(0, 6);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Search for', query);
+    const value = query.trim();
+    if (!value) return;
+    const firstResult = searchResults[0];
+    const target = firstResult?.path ?? `/admin/users?search=${encodeURIComponent(value)}`;
+    router.push(target === '/admin/users' ? `/admin/users?search=${encodeURIComponent(value)}` : target);
+    setSearchOpen(false);
   };
 
   return (
@@ -176,6 +201,40 @@ const TopBar: React.FC<Props> = ({ onToggleSidebar }) => {
                 />
               </div>
             </form>
+            {searchOpen && query.trim() && (
+              <div
+                className="absolute right-0 top-[calc(100%+8px)] z-50 w-[360px] overflow-hidden rounded-2xl shadow-xl"
+                style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    router.push(`/admin/users?search=${encodeURIComponent(query.trim())}`);
+                    setSearchOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:opacity-80"
+                  style={{ color: 'var(--card-text)' }}
+                >
+                  <span className="material-icons text-sm" style={{ color: 'var(--card-muted)' }}>person_search</span>
+                  <span className="min-w-0 flex-1 truncate">Search users for &quot;{query.trim()}&quot;</span>
+                </button>
+                {searchResults.map((item) => (
+                  <button
+                    key={item.path}
+                    type="button"
+                    onClick={() => {
+                      router.push(item.path);
+                      setSearchOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 border-t px-4 py-3 text-left text-sm transition hover:opacity-80"
+                    style={{ color: 'var(--card-text)', borderColor: 'var(--card-border)' }}
+                  >
+                    <span className="material-icons text-sm" style={{ color: 'var(--card-muted)' }}>search</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <button

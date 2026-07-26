@@ -287,7 +287,7 @@ export default function ReferralsPage() {
       ]);
 
       if (!incomingRes.ok) {
-        console.error('Incoming referrals API error:', incomingRes.status);
+        console.warn('Incoming referrals API error:', incomingRes.status);
         setIncomingReferrals([]);
       } else {
         const incomingData = await incomingRes.json();
@@ -297,7 +297,7 @@ export default function ReferralsPage() {
       }
 
       if (!outgoingRes.ok) {
-        console.error('Outgoing referrals API error:', outgoingRes.status);
+        console.warn('Outgoing referrals API error:', outgoingRes.status);
         setOutgoingReferrals([]);
       } else {
         const outgoingData = await outgoingRes.json();

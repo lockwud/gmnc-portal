@@ -20,10 +20,6 @@ import {
   XCircle,
   Clock as ClockIcon,
   AlertCircle,
-  Video,
-  ListChecks,
-  CalendarDays,
-  Eye,
   Loader2,
   Play,
 } from 'lucide-react';
@@ -119,8 +115,6 @@ export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<RehabTask | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('ALL');
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
 
@@ -308,8 +302,7 @@ const fetchPatients = async () => {
   };
 
   const handleViewTask = (task: RehabTask) => {
-    setSelectedTask(task);
-    setIsViewModalOpen(true);
+    router.push(`/provider/tasks/${task.id}`);
   };
 
   const handleAddInstructionStep = () => {
@@ -517,13 +510,14 @@ const fetchPatients = async () => {
         </td>
         <td className="border-b border-slate-100 px-4 py-3 text-center">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               handleViewTask(task);
             }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+            className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
           >
-            <Eye size={12} />
+            View
           </button>
         </td>
       </tr>
@@ -947,145 +941,6 @@ const fetchPatients = async () => {
               </Button>
             )}
           </div>
-        </div>
-      </Modal>
-
-      {/* View Task Modal */}
-      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)}>
-        <div className="w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6">
-          {selectedTask && (
-            <>
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                    <ClipboardList size={18} className="text-emerald-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">{selectedTask.title}</h2>
-                    <p className="text-sm text-slate-500">{selectedTask.patient?.fullName}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsViewModalOpen(false)}
-                  className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
-                >
-                  <XCircle size={14} />
-                </button>
-              </div>
-
-              <div className="space-y-5">
-                {/* Progress */}
-                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">Progress</span>
-                    <span className="text-sm font-bold text-emerald-600">{selectedTask.progress}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${calculateProgressColor(selectedTask.progress)}`}
-                      style={{ width: `${selectedTask.progress}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                    <span>Completed: {selectedTask.completedDates?.length || 0} days</span>
-                    <span>Total: {selectedTask.durationDays} days</span>
-                  </div>
-                </div>
-
-                 {/* Instructions */}
-                 <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                   <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                     <FileText size={14} className="text-blue-500" />
-                     Instructions
-                   </h3>
-                   <div className="text-sm text-slate-600 max-h-32 overflow-y-auto whitespace-pre-line leading-relaxed">
-                     {selectedTask.instructions}
-                   </div>
-                 </div>
-
-                 {/* Step-by-Step Instructions */}
-                 {selectedTask.instructionSteps && selectedTask.instructionSteps.length > 0 && (
-                   <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                     <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                       <ListChecks size={14} className="text-purple-500" />
-                       Step-by-Step Instructions
-                     </h3>
-                     <div className="max-h-40 overflow-y-auto space-y-2">
-                       {selectedTask.instructionSteps.map((step, idx) => (
-                         <div key={idx} className="flex items-start gap-2">
-                           <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500 mt-0.5 flex-shrink-0">{idx + 1}</span>
-                           <span className="text-sm text-slate-600 leading-relaxed">{step}</span>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 )}
-
-                {/* Task Details Grid */}
-                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <CalendarDays size={14} className="text-slate-400" />
-                      <div>
-                        <p className="text-[10px] text-slate-500">Duration</p>
-                        <p className="text-sm font-medium text-slate-700">{selectedTask.durationDays} days</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock size={14} className="text-slate-400" />
-                      <div>
-                        <p className="text-[10px] text-slate-500">Frequency</p>
-                        <p className="text-sm font-medium text-slate-700">{selectedTask.frequencyPerDay}x per day</p>
-                      </div>
-                    </div>
-                    {selectedTask.frequencyNote && (
-                      <div className="col-span-2 flex items-start gap-2">
-                        <AlertCircle size={14} className="text-slate-400 mt-0.5" />
-                        <div>
-                          <p className="text-[10px] text-slate-500">Note</p>
-                          <p className="text-sm text-slate-600">{selectedTask.frequencyNote}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Video */}
-                {selectedTask.videoUrl && (
-                  <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                    <h3 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                      <Video size={14} className="text-rose-500" />
-                      Instruction Video
-                    </h3>
-                    <a
-                      href={selectedTask.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700"
-                    >
-                      <Play size={14} />
-                      Watch Video
-                    </a>
-                  </div>
-                )}
-
-                {/* Status */}
-                <div className="bg-gradient-to-br from-slate-50/90 to-white rounded-xl p-4 border border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Status</span>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusConfig[selectedTask.status]?.bg} ${statusConfig[selectedTask.status]?.text}`}>
-                      {statusConfig[selectedTask.status]?.icon}
-                      {statusConfig[selectedTask.status]?.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-slate-500">Created</span>
-                    <span className="text-xs text-slate-600">{formatDate(selectedTask.createdAt)}</span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
         </div>
       </Modal>
     </div>
