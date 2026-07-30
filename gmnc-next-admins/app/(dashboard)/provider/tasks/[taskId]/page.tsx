@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/context/AuthContext';
 import {
   ArrowLeft,
@@ -13,7 +11,6 @@ import {
   ClipboardList,
   FileText,
   ListChecks,
-  Play,
   User,
   Users,
   Video,
@@ -129,6 +126,32 @@ function renderJsonList(value: unknown[] | undefined) {
   );
 }
 
+function getEmbeddedVideoUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const videoId = parsed.searchParams.get('v');
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    }
+    if (host === 'youtu.be') {
+      const videoId = parsed.pathname.split('/').filter(Boolean)[0];
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    }
+    if (host === 'vimeo.com') {
+      const videoId = parsed.pathname.split('/').filter(Boolean)[0];
+      return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
+
+function isDirectVideoUrl(url: string) {
+  return /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
+}
+
 export default function ProviderTaskDetailRoute() {
   const params = useParams();
   const router = useRouter();
@@ -196,9 +219,7 @@ export default function ProviderTaskDetailRoute() {
                 <h1 className="truncate text-[17px] font-semibold text-slate-900">{task?.title ?? 'Task details'}</h1>
               </div>
             </div>
-            <Link href="/provider/tasks" className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100">
-              Back to tasks
-            </Link>
+            <div />
           </div>
         </div>
 
@@ -212,7 +233,7 @@ export default function ProviderTaskDetailRoute() {
               {error ?? 'Task not found.'}
             </div>
           ) : (
-            <div className="mx-auto grid max-w-7xl border border-slate-200 bg-white lg:grid-cols-[1.7fr_1fr]">
+            <div className="grid min-h-full w-full bg-white lg:grid-cols-[1.7fr_1fr]">
               <div className="border-r border-slate-200">
                 <section className="border-b border-slate-200 bg-white">
                   <div className="bg-emerald-600 px-6 py-6 text-white">
@@ -368,12 +389,21 @@ export default function ProviderTaskDetailRoute() {
 
                 {task.videoUrl ? (
                   <Section title="Instruction Video" icon={<Video size={15} />}>
-                    <Button className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100 hover:bg-emerald-100">
-                      <a href={task.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2">
-                        <Play size={13} />
-                        Watch video
-                      </a>
-                    </Button>
+                    <div className="overflow-hidden border border-slate-200 bg-slate-950">
+                      {isDirectVideoUrl(task.videoUrl) ? (
+                        <video controls className="aspect-video w-full bg-black" src={task.videoUrl}>
+                          <track kind="captions" />
+                        </video>
+                      ) : (
+                        <iframe
+                          src={getEmbeddedVideoUrl(task.videoUrl)}
+                          title="Instruction video"
+                          className="aspect-video w-full bg-black"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      )}
+                    </div>
                   </Section>
                 ) : null}
               </aside>

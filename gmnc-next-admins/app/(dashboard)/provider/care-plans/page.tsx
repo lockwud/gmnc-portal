@@ -27,6 +27,46 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function readableCarePlanEntry(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(readableCarePlanEntry).filter(Boolean).join(', ');
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => {
+        const label = key
+          .replace(/_/g, ' ')
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/\b\w/g, (char) => char.toUpperCase());
+        return `${label}: ${readableCarePlanEntry(item)}`;
+      })
+      .join(' | ');
+  }
+  return String(value);
+}
+
+function CarePlanList({ title, items }: { title: string; items: unknown[] }) {
+  return (
+    <section className="border-t border-slate-200 px-6 py-5">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500">No {title.toLowerCase()} recorded.</p>
+      ) : (
+        <ol className="mt-4 space-y-3">
+          {items.map((item, index) => (
+            <li key={index} className="flex gap-3 text-sm leading-6 text-slate-700">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                {index + 1}
+              </span>
+              <span className="min-w-0 break-words">{readableCarePlanEntry(item)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 function emptyState(
   title: string,
   description: string,
@@ -223,14 +263,13 @@ export default function ProviderCarePlansPage() {
                 Loading care plan...
               </div>
             ) : detailPlan ? (
-              <div className="mx-auto max-w-3xl space-y-5">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="h-full bg-white">
+                <div className="border-b border-slate-200 px-6 py-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-slate-900">Care Plan</h3>
                       <p className="mt-1 text-xs text-slate-500">
-                        Patient: {detailPlan.patient?.fullName ?? '—'} • Assessment:{' '}
-                        {detailPlan.assessmentId?.slice(0, 8)}
+                        Patient: {detailPlan.patient?.fullName ?? '—'}
                       </p>
                     </div>
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${getStatusClass(detailPlan.status)}`}>
@@ -242,7 +281,7 @@ export default function ProviderCarePlansPage() {
                     <select
                       value={savingStatus ?? detailPlan.status ?? 'ACTIVE'}
                       onChange={(e) => handleStatusChange(detailPlan.id, e.target.value as CarePlanStatus)}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
+                      className="mt-1 w-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
                     >
                       <option value="ACTIVE">ACTIVE</option>
                       <option value="COMPLETED">COMPLETED</option>
@@ -257,32 +296,12 @@ export default function ProviderCarePlansPage() {
                   )}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <h3 className="text-sm font-semibold text-slate-900">Goals</h3>
-                    <pre className="mt-2 max-h-56 overflow-auto rounded-xl bg-slate-50 p-3 text-[11px] leading-6 text-slate-700">
-                      {JSON.stringify(detailPlan.goals ?? [], null, 2)}
-                    </pre>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <h3 className="text-sm font-semibold text-slate-900">Interventions</h3>
-                    <pre className="mt-2 max-h-56 overflow-auto rounded-xl bg-slate-50 p-3 text-[11px] leading-6 text-slate-700">
-                      {JSON.stringify(detailPlan.interventions ?? [], null, 2)}
-                    </pre>
-                  </div>
-                </div>
+                <CarePlanList title="Goals" items={Array.isArray(detailPlan.goals) ? detailPlan.goals : []} />
+                <CarePlanList title="Interventions" items={Array.isArray(detailPlan.interventions) ? detailPlan.interventions : []} />
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-semibold text-slate-900">Metadata</h3>
+                <div className="border-t border-slate-200 px-6 py-5">
+                  <h3 className="text-sm font-semibold text-slate-900">Plan Details</h3>
                   <dl className="mt-3 grid gap-3 text-xs text-slate-600 md:grid-cols-2">
-                    <div>
-                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Patient ID</dt>
-                      <dd className="mt-1 break-all">{detailPlan.patientId}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Assessment ID</dt>
-                      <dd className="mt-1 break-all">{detailPlan.assessmentId}</dd>
-                    </div>
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Created</dt>
                       <dd className="mt-1">{new Date(detailPlan.createdAt).toLocaleString()}</dd>

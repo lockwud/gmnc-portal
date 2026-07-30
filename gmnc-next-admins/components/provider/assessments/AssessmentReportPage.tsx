@@ -23,6 +23,9 @@ import {
   UserRound,
 } from 'lucide-react';
 import { getAssessmentReport } from '@/lib/api/assessments';
+import { generateCarePlan, listCarePlans } from '@/lib/api/care-plans';
+import { useAuth } from '@/lib/context/AuthContext';
+import { useToast } from '@/components/ui/Toast';
 import type { AssessmentReportResponse } from '@/lib/api/types';
 
 function getStatusClass(status?: string | null) {
@@ -298,9 +301,14 @@ function DetailTile({
 export default function AssessmentReportPage({ assessmentId }: { assessmentId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { token } = useAuth();
+  const { show } = useToast();
   const [report, setReport] = useState<AssessmentReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingCarePlan, setGeneratingCarePlan] = useState(false);
+  const [checkingCarePlan, setCheckingCarePlan] = useState(false);
+  const [hasActiveCarePlan, setHasActiveCarePlan] = useState(false);
   const [openScoreKeys, setOpenScoreKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -364,6 +372,7 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
     (typeof assessmentRecord?.status === 'string' ? assessmentRecord.status : null) ||
     (typeof reportRecord?.status === 'string' ? reportRecord.status : null) ||
     'COMPLETED';
+  const canGenerateCarePlan = ['COMPLETED', 'APPROVED'].includes(status.toUpperCase());
   const assessedAt =
     searchParams?.get('assessedAt') ||
     (typeof assessmentRecord?.assessedAt === 'string' ? assessmentRecord.assessedAt : null) ||
@@ -375,6 +384,11 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
     stringValue(assessmentRecord, 'patientName') ||
     stringValue(reportRecord, 'patientName') ||
     'Patient';
+  const patientId =
+    stringValue(patientRecord, 'id') ||
+    stringValue(assessmentRecord, 'patientId') ||
+    stringValue(reportRecord, 'patientId') ||
+    undefined;
   const patientGender =
     searchParams?.get('patientGender') ||
     stringValue(patientRecord, 'gender') ||
@@ -435,6 +449,52 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
       }
       return next;
     });
+  };
+
+  useEffect(() => {
+    if (!patientId || !token) {
+      return;
+    }
+
+    let active = true;
+    async function checkActiveCarePlan() {
+      try {
+        setCheckingCarePlan(true);
+        const plans = await listCarePlans(patientId, token);
+        if (!active) return;
+        setHasActiveCarePlan(plans.some((plan) => plan.status === 'ACTIVE'));
+      } catch {
+        if (active) setHasActiveCarePlan(false);
+      } finally {
+        if (active) setCheckingCarePlan(false);
+      }
+    }
+
+    void checkActiveCarePlan();
+    return () => {
+      active = false;
+    };
+  }, [patientId, token]);
+
+  const handleGenerateCarePlan = async () => {
+    if (hasActiveCarePlan) return;
+    try {
+      setGeneratingCarePlan(true);
+      await generateCarePlan(assessmentId, token);
+      setHasActiveCarePlan(true);
+      show({
+        type: 'success',
+        title: 'Care plan ready',
+        message: 'The care plan has been generated from this assessment.',
+        duration: 3500,
+      });
+      router.push('/provider/care-plans');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to generate care plan.';
+      show({ type: 'error', title: 'Care plan failed', message, duration: 4500 });
+    } finally {
+      setGeneratingCarePlan(false);
+    }
   };
 
   if (loading) {
@@ -500,6 +560,21 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
                 minute: '2-digit',
               }) : '—'}
             </div>
+            {canGenerateCarePlan ? (
+              <button
+                type="button"
+                onClick={handleGenerateCarePlan}
+                disabled={generatingCarePlan || checkingCarePlan || hasActiveCarePlan}
+                title={hasActiveCarePlan ? 'An active care plan already exists for this patient.' : undefined}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${hasActiveCarePlan
+                  ? 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60'
+                }`}
+              >
+                <ClipboardList className="h-4 w-4" aria-hidden />
+                {hasActiveCarePlan ? 'Active Care Plan' : checkingCarePlan ? 'Checking...' : generatingCarePlan ? 'Generating...' : 'Generate Care Plan'}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => window.print()}
