@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
   const headerAccessToken = authHeader?.replace(/^Bearer\s+/i, '');
 
-  const accessToken = cookieAccessToken ?? headerAccessToken;
+  const accessToken = headerAccessToken ?? cookieAccessToken;
 
   if (!accessToken) {
     const res = NextResponse.json(
@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
         accessToken,
         success: true,
       });
+      res.cookies.set(ACCESS_TOKEN_COOKIE, accessToken, sessionCookieOptions);
       res.cookies.set(SESSION_COOKIE, JSON.stringify(freshUser), sessionCookieOptions);
       return res;
     }

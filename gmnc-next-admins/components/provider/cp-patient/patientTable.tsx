@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Pagination from '@/components/ui/Pagination';
 import RowActions from '@/components/ui/RowActions';
 import EmptyState from '@/components/ui/EmptyState';
+import { useAuth } from '@/lib/context/AuthContext';
 
 type PatientRow = {
   fullName: string;
@@ -107,6 +108,7 @@ function getTaskBadgeClass(count: number) {
 
 export default function CpPatientsPage() {
   const router = useRouter();
+  const { token } = useAuth();
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,11 +116,14 @@ export default function CpPatientsPage() {
   const [pageSize, setPageSize] = useState(30);
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
 
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch('/api/patients');
+      const response = await fetch('/api/patients', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: 'no-store',
+      });
       const result = await response.json();
 
       // Accept both 'status' and 'success' for compatibility
@@ -148,12 +153,13 @@ export default function CpPatientsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
+    if (!token) return;
     const timeout = window.setTimeout(() => void fetchPatients(), 0);
     return () => window.clearTimeout(timeout);
-  }, []);
+  }, [fetchPatients, token]);
 
   const filteredPatients = useMemo(() => {
     if (genderFilter === 'ALL') return patients;
