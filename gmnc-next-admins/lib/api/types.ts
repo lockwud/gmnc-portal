@@ -7,8 +7,21 @@ export type LoginRequest = {
 
 export type BackendLoginResponse = Record<string, unknown>;
 
+export type TermsStatusPayload = {
+  reacceptanceRequired: boolean;
+  acceptedTermsVersion?: string | null;
+  acceptedPrivacyPolicyVersion?: string | null;
+  liveTermsVersion?: string;
+  livePrivacyPolicyVersion?: string;
+};
+
 export type LoginResult = {
   accessToken: string;
+  refreshToken?: string | null;
+  userId?: string | null;
+  accessTokenExpiresIn?: string | null;
+  refreshTokenExpiresInDays?: number | null;
+  terms?: TermsStatusPayload | null;
   user: SessionUser;
   raw: BackendLoginResponse;
 };
@@ -74,6 +87,8 @@ export type AssessmentReportResponse = {
 export type AssessmentToolItem = {
   toolName: string;
   toolCode: string;
+  version?: number;
+  status?: string;
   whoCanUseTool: string[];
   canCurrentUserUse: boolean;
 };
@@ -86,29 +101,46 @@ export type AssessmentToolsResponse = {
 export type AssessmentFieldOption = {
   label: string;
   value: string;
+  score?: number;
 };
 
 export type AssessmentFormField = {
-  fieldCode: string;
-  fieldKey?: string;
+  fieldCode?: string;
+  fieldKey: string;
   question: string;
+  helpText?: string | null;
+  fieldType?: string;
   expectedAnswerFormat: string;
-  options?: AssessmentFieldOption[];
+  options?: AssessmentFieldOption[] | null;
   required?: boolean;
   helperText?: string;
 };
 
 export type AssessmentFormSection = {
-  title: string;
+  title?: string;
+  sectionCode?: string;
+  sectionName?: string;
+  sectionDescription?: string | null;
   description?: string;
   fields: AssessmentFormField[];
-  sectionCode?: string;
+};
+
+export type AssessmentClassificationContext = {
+  applicableScales: string[];
+  onFile: Array<{ id: string; classifier: string; level: number; assessedAt: string }> | null;
+  missingScales: string[];
+  staleScales: string[];
+  isStale: boolean;
+  classificationRecommended: boolean;
 };
 
 export type AssessmentToolFormResponse = {
   toolCode: string;
   toolName?: string;
+  version?: string | number;
+  definitionVersion?: number;
   sections: AssessmentFormSection[];
+  classification?: AssessmentClassificationContext;
   dimensions?: Array<{
     code: string;
     name: string;
@@ -121,6 +153,7 @@ export type AssessmentSubmitPayload = {
   patientId: string;
   toolCode: string;
   toolVersion?: string;
+  functionalClassificationId?: string;
   responses: Record<string, unknown>;
   status?: 'DRAFT' | 'COMPLETED';
   isRegularPerformance?: boolean;
@@ -146,6 +179,8 @@ export type AssessmentSubmitResponse = {
     scores: Record<string, unknown>;
     recommendations?: unknown;
   };
+  classificationAttached?: boolean;
+  classificationRecommended?: boolean;
 };
 
 // games
@@ -577,10 +612,28 @@ export type CreateReferralPayload = {
   toProfession: string;
   toProviderId?: string;
   reason: string;
+  crossOrgConfirmed?: boolean;
 };
 
 export type UpdateReferralStatusPayload = {
   status: 'ACCEPTED' | 'DECLINED' | 'COMPLETED';
+};
+
+export type ReferralClassificationFinding = {
+  classifier: string;
+  level: number;
+  suggestedProfessions: string[];
+  note: string;
+};
+
+export type ReferralRecommendationResponse = {
+  assessmentId?: string;
+  toolCode?: string;
+  suggestedProfessions: string[];
+  dimensionFindings: Array<Record<string, unknown>>;
+  classificationFindings?: ReferralClassificationFinding[];
+  classification?: { id: string; classifier: string; level: number; assessedAt: string } | null;
+  reasoning: string;
 };
 
 export type CreateRehabTaskFromReferralPayload = {
@@ -593,12 +646,6 @@ export type CreateRehabTaskFromReferralPayload = {
   startDate?: string;
   endDate?: string;
   videoUrl?: string;
-};
-
-export type ReferralRecommendationResponse = {
-  suggestedProfessions: string[];
-  dimensionFindings: Array<Record<string, unknown>>;
-  reasoning: string;
 };
 
 export type CarePlanStatus = 'ACTIVE' | 'COMPLETED' | 'SUPERSEDED';

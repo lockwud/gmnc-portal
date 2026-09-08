@@ -124,6 +124,29 @@ function getTokenFromPayload(payload: BackendLoginResponse, headers: Headers) {
   return typeof directToken === 'string' && directToken.length > 0 ? directToken : null;
 }
 
+// Backend returns session fields at top level or inside `data` (login,
+// verify-otp, refresh all share this envelope). Reads either shape.
+function getSessionField<T>(payload: BackendLoginResponse, key: string): T | undefined {
+  const top = payload[key] as T | undefined;
+  if (top !== undefined) return top;
+  if (typeof payload.data === 'object' && payload.data !== null) {
+    return (payload.data as Record<string, unknown>)[key] as T | undefined;
+  }
+  return undefined;
+}
+
+function getTermsFromPayload(payload: BackendLoginResponse) {
+  const terms = getSessionField<Record<string, unknown>>(payload, 'terms');
+  if (typeof terms !== 'object' || terms === null) return null;
+  return {
+    reacceptanceRequired: terms.reacceptanceRequired === true,
+    acceptedTermsVersion: typeof terms.acceptedTermsVersion === 'string' ? terms.acceptedTermsVersion : null,
+    acceptedPrivacyPolicyVersion: typeof terms.acceptedPrivacyPolicyVersion === 'string' ? terms.acceptedPrivacyPolicyVersion : null,
+    liveTermsVersion: typeof terms.liveTermsVersion === 'string' ? terms.liveTermsVersion : undefined,
+    livePrivacyPolicyVersion: typeof terms.livePrivacyPolicyVersion === 'string' ? terms.livePrivacyPolicyVersion : undefined,
+  };
+}
+
 function getRawUser(payload: BackendLoginResponse) {
   if (typeof payload.user === 'object' && payload.user !== null) {
     return payload.user as Record<string, unknown>;
@@ -187,7 +210,21 @@ function normalizeUser(payload: BackendLoginResponse, accessToken?: string | nul
         : typeof rawUser.profileImage === 'string'
           ? rawUser.profileImage
           : null,
+    terms:
+      typeof rawUser.terms === 'object' && rawUser.terms !== null
+        ? (rawUser.terms as Record<string, unknown>)
+        : undefined,
   });
+}
+
+function getRefreshToken(payload: BackendLoginResponse): string | null {
+  const value = getSessionField<unknown>(payload, 'refreshToken');
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function getUserId(payload: BackendLoginResponse, user: { id: string }): string {
+  const value = getSessionField<unknown>(payload, 'userId');
+  return typeof value === 'string' && value.length > 0 ? value : user.id;
 }
 
 export async function loginRequest(payload: LoginRequest): Promise<LoginResult> {
@@ -202,11 +239,81 @@ export async function loginRequest(payload: LoginRequest): Promise<LoginResult> 
     throw new ApiError('Login response did not include an access token', 502, response.data);
   }
 
+  const user = normalizeUser(response.data, accessToken);
+
   return {
     accessToken,
-    user: normalizeUser(response.data, accessToken),
+    refreshToken: getRefreshToken(response.data),
+    userId: getUserId(response.data, user),
+    accessTokenExpiresIn: getSessionField<string>(response.data, 'accessTokenExpiresIn') ?? null,
+    refreshTokenExpiresInDays: getSessionField<number>(response.data, 'refreshTokenExpiresInDays') ?? null,
+    terms: getTermsFromPayload(response.data),
+    user: {
+      ...user,
+      terms: getTermsFromPayload(response.data) ?? user.terms ?? null,
+    },
     raw: response.data,
   };
+}
+
+// Rotates the backend session without asking for credentials again.
+// Called by /api/auth/refresh when the 7-day access token expires; the
+// 30-day refresh token keeps rural/provider sessions alive between visits.
+export async function refreshTokenRequest(refreshToken: string, userId: string): Promise<LoginResult> {
+  const response = await apiClient<BackendLoginResponse>('/auth/refresh-token', {
+    method: 'POST',
+    body: { refreshToken, userId },
+  });
+
+  const accessToken = getTokenFromPayload(response.data, response.headers);
+
+  if (!accessToken) {
+    throw new ApiError('Refresh response did not include an access token', 502, response.data);
+  }
+
+  const nextRefreshToken = getRefreshToken(response.data) ?? refreshToken;
+  const provisionalUser = normalizeUser(response.data, accessToken);
+  const user = {
+    ...provisionalUser,
+    id: provisionalUser.id || userId,
+  };
+
+  return {
+    accessToken,
+    refreshToken: nextRefreshToken,
+    userId: getUserId(response.data, user),
+    accessTokenExpiresIn: getSessionField<string>(response.data, 'accessTokenExpiresIn') ?? null,
+    refreshTokenExpiresInDays: getSessionField<number>(response.data, 'refreshTokenExpiresInDays') ?? null,
+    terms: getTermsFromPayload(response.data),
+    user: {
+      ...user,
+      terms: getTermsFromPayload(response.data) ?? user.terms ?? null,
+    },
+    raw: response.data,
+  };
+}
+
+// Submits versioned re-acceptance of the live Terms + Privacy Policy.
+export async function acceptTermsRequest(token: string): Promise<void> {
+  await apiClient<unknown>('/user/accept-terms', {
+    method: 'PATCH',
+    token,
+    body: { acceptedTerms: true, acceptedPrivacyPolicy: true },
+  });
+}
+
+// Starts Google OAuth: returns the backend auth URL plus the CSRF state and
+// PKCE verifier the client must hold and return on the callback.
+export async function googleLoginRequest(): Promise<{ authUrl: string; state: string; codeVerifier: string }> {
+  const response = await apiClient<Record<string, unknown>>('/auth/google', { method: 'GET' });
+  const data = (response.data?.data ?? response.data) as Record<string, unknown>;
+  const authUrl = data.authUrl;
+  const state = data.state;
+  const codeVerifier = data.codeVerifier;
+  if (typeof authUrl !== 'string' || typeof state !== 'string' || typeof codeVerifier !== 'string') {
+    throw new ApiError('Google login is not configured on the server', 502, response.data);
+  }
+  return { authUrl, state, codeVerifier };
 }
 
 export async function forgotPasswordRequest(email: string): Promise<void> {

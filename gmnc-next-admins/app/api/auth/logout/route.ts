@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import {
   ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from '@/lib/session';
@@ -21,6 +22,7 @@ export async function POST() {
   // so the browser discards them even if the path/domain wasn't stored correctly.
   response.headers.append('Set-Cookie', buildExpiredCookieHeader(ACCESS_TOKEN_COOKIE));
   response.headers.append('Set-Cookie', buildExpiredCookieHeader(SESSION_COOKIE));
+  response.headers.append('Set-Cookie', buildExpiredCookieHeader(REFRESH_TOKEN_COOKIE));
 
   // Belt-and-suspenders: also use the Next.js cookie API with explicit options
   response.cookies.set(ACCESS_TOKEN_COOKIE, '', {
@@ -29,6 +31,11 @@ export async function POST() {
     expires: new Date(0),
   });
   response.cookies.set(SESSION_COOKIE, '', {
+    ...sessionCookieOptions,
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  response.cookies.set(REFRESH_TOKEN_COOKIE, '', {
     ...sessionCookieOptions,
     maxAge: 0,
     expires: new Date(0),

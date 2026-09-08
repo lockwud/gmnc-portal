@@ -55,7 +55,7 @@ interface Referral {
   toProviderId: string | null;
   toProfession: string;
   reason: string;
-  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REJECTED' | 'COMPLETED';
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED';
   createdAt: string;
   updatedAt: string;
   patient?: Patient;
@@ -78,6 +78,7 @@ interface CreateReferralData {
   toProfession: string;
   reason: string;
   assessmentId?: string;
+  crossOrgConfirmed?: boolean;
 }
 
 const professionOptions = [
@@ -106,12 +107,6 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
     text: 'text-emerald-700',
     icon: <CheckCircle2 size={12} />,
   },
-  REJECTED: {
-    label: 'Rejected',
-    bg: 'bg-rose-50',
-    text: 'text-rose-700',
-    icon: <XCircle size={12} />,
-  },
   DECLINED: {
     label: 'Declined',
     bg: 'bg-rose-50',
@@ -131,9 +126,11 @@ type ReferralActionsDropdownProps = {
   canAccept: boolean;
   canReject: boolean;
   canReassign: boolean;
+  canComplete: boolean;
   onAccept: () => void;
   onReject: () => void;
   onReassign: () => void;
+  onComplete: () => void;
 };
 
 function ReferralActionsDropdown({
@@ -141,9 +138,11 @@ function ReferralActionsDropdown({
   canAccept,
   canReject,
   canReassign,
+  canComplete,
   onAccept,
   onReject,
   onReassign,
+  onComplete,
 }: ReferralActionsDropdownProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -190,6 +189,13 @@ function ReferralActionsDropdown({
       disabled: !canAccept,
       onClick: onAccept,
       className: 'hover:text-emerald-700',
+    },
+    {
+      label: 'Complete',
+      icon: <CheckCircle2 size={13} />,
+      disabled: !canComplete,
+      onClick: onComplete,
+      className: 'hover:text-blue-700',
     },
   ];
 
@@ -261,7 +267,45 @@ export default function ReferralsPage() {
     reason: '',
     toProviderId: undefined,
     assessmentId: undefined,
+    crossOrgConfirmed: false,
   });
+  const [recommendations, setRecommendations] = useState<{
+    suggestedProfessions: string[];
+    reasoning: string;
+    classificationFindings?: Array<{ classifier: string; level: number; suggestedProfessions: string[]; note: string }>;
+  } | null>(null);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+
+  // Server-side referral recommendations (scores + classification weighting)
+  // for the assessment linked in the create form.
+  useEffect(() => {
+    let active = true;
+    async function loadRecommendations() {
+      if (!formData.assessmentId || !token) {
+        setRecommendations(null);
+        return;
+      }
+      try {
+        setIsLoadingRecommendations(true);
+        const response = await fetch(
+          `/api/assessment/${formData.assessmentId}/referral-recommendations`,
+          { headers: { Authorization: `Bearer ${token}` }, credentials: 'include', cache: 'no-store' },
+        );
+        if (!response.ok) {
+          if (active) setRecommendations(null);
+          return;
+        }
+        const data = await response.json();
+        if (active) setRecommendations(data?.data ?? data ?? null);
+      } catch {
+        if (active) setRecommendations(null);
+      } finally {
+        if (active) setIsLoadingRecommendations(false);
+      }
+    }
+    void loadRecommendations();
+    return () => { active = false; };
+  }, [formData.assessmentId, token]);
   
   // Options for selects
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -525,10 +569,10 @@ export default function ReferralsPage() {
   };
 
   const handleCreateReferral = async () => {
-    if (!formData.patientId || !formData.toProfession || !formData.toProviderId || !formData.reason) {
+    if (!formData.patientId || !formData.toProfession || !formData.reason) {
       show({
         title: 'Validation Error',
-        message: 'Please fill in all required fields including the provider.',
+        message: 'Please fill in patient, specialty, and reason.',
         type: 'error',
         duration: 3000,
       });
@@ -543,6 +587,7 @@ export default function ReferralsPage() {
         reason: formData.reason,
         ...(formData.toProviderId && { toProviderId: formData.toProviderId }),
         ...(formData.assessmentId && { assessmentId: formData.assessmentId }),
+        ...(formData.toProviderId && formData.crossOrgConfirmed ? { crossOrgConfirmed: true } : {}),
       };
 
       const response = await fetch('/api/assessment/referrals', {
@@ -595,10 +640,12 @@ export default function ReferralsPage() {
       reason: '',
       toProviderId: undefined,
       assessmentId: undefined,
+      crossOrgConfirmed: false,
     });
     setProviders([]);
     setAssessments([]);
     setCurrentProvider(null);
+    setRecommendations(null);
   };
 
   const handleUpdateStatus = async (referralId: string, status: string) => {
@@ -711,6 +758,7 @@ export default function ReferralsPage() {
     const canAccept = activeTab === 'incoming' && isPending;
     const canReject = isPending;
     const canReassign = activeTab === 'outgoing' && isPending;
+    const canComplete = referral.status === 'ACCEPTED';
     
     return (
       <tr
@@ -752,9 +800,11 @@ export default function ReferralsPage() {
             canAccept={canAccept}
             canReject={canReject}
             canReassign={canReassign}
+            canComplete={canComplete}
             onAccept={() => handleUpdateStatus(referral.id, 'ACCEPTED')}
             onReject={() => handleUpdateStatus(referral.id, 'DECLINED')}
             onReassign={() => handleReassignReferral(referral)}
+            onComplete={() => handleUpdateStatus(referral.id, 'COMPLETED')}
           />
         </td>
       </tr>
@@ -944,18 +994,21 @@ export default function ReferralsPage() {
 
               <div className="space-y-3 md:col-span-2">
                 <label className="text-sm font-medium text-slate-700">
-                  Refer To *
+                  Refer To (optional)
                 </label>
                 <SmallDropdown
                   value={formData.toProviderId || ''}
-                  options={providers.map((p) => ({
-                    value: p.id,
-                    label: `${p.user?.fullName} (${p.profession?.replace('_', ' ')})`,
-                  }))}
+                  options={[
+                    { value: '', label: 'Any available provider (broadcast by specialty)' },
+                    ...providers.map((p) => ({
+                      value: p.id,
+                      label: `${p.user?.fullName} (${p.profession?.replace('_', ' ')})`,
+                    })),
+                  ]}
                   onChange={(value) => {
-                    setFormData((prev) => ({ ...prev, toProviderId: value }));
+                    setFormData((prev) => ({ ...prev, toProviderId: value || undefined }));
                   }}
-                  placeholder="Select provider"
+                  placeholder="Any available provider"
                   open={openDropdown === 'provider'}
                   onOpenChange={(nextOpen) => setOpenDropdown(nextOpen ? 'provider' : null)}
                   pageSize={4}
@@ -966,7 +1019,22 @@ export default function ReferralsPage() {
                     Loading providers...
                   </div>
                 )}
-                <p className="text-[11px] text-slate-400 mt-1">Select a specific provider to refer this patient to</p>
+                <p className="text-[11px] text-slate-400 mt-1">Leave empty to broadcast to the whole specialty, or pick a specific provider</p>
+                {formData.toProviderId ? (
+                  <label className="mt-2 flex cursor-pointer items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.crossOrgConfirmed)}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, crossOrgConfirmed: e.target.checked }))}
+                      className="mt-0.5 h-4 w-4 rounded border-amber-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] text-amber-800">
+                      <span className="font-bold">Cross-organization disclosure:</span> I confirmed with
+                      the caregiver that this patient&apos;s information may be shared with a provider
+                      outside our organization. Required by the server for cross-org referrals.
+                    </span>
+                  </label>
+                ) : null}
               </div>
 
               <div className="space-y-3 md:col-span-2">
@@ -999,6 +1067,23 @@ export default function ReferralsPage() {
                 {formData.patientId && !isLoadingAssessments && assessments.length === 0 && (
                   <p className="text-[11px] text-slate-400 mt-1">No assessments found for this patient</p>
                 )}
+                {isLoadingRecommendations ? (
+                  <p className="text-[11px] text-slate-400 mt-1">Loading referral recommendations…</p>
+                ) : recommendations ? (
+                  <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                    <p className="text-[11px] font-bold text-emerald-800">
+                      Suggested: {(recommendations.suggestedProfessions ?? []).join(', ') || 'Routine follow-up'}
+                    </p>
+                    {recommendations.reasoning ? (
+                      <p className="mt-1 text-[11px] text-slate-600">{recommendations.reasoning}</p>
+                    ) : null}
+                    {(recommendations.classificationFindings ?? []).map((finding, index) => (
+                      <p key={index} className="mt-1 text-[11px] text-slate-600">
+                        <span className="font-bold">{finding.classifier} L{finding.level}:</span> {finding.note}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="space-y-3 md:col-span-2">

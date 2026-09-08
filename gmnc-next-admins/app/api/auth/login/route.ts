@@ -4,7 +4,9 @@ import { loginRequest } from '@/lib/api/auth';
 import { getErrorMessage, getErrorStatus } from '@/lib/errors';
 import {
   ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
   SESSION_COOKIE,
+  refreshCookieOptions,
   serializeSessionUser,
   sessionCookieOptions,
 } from '@/lib/session';
@@ -32,10 +34,15 @@ export async function POST(req: NextRequest) {
       success: true,
       user: data.user,
       accessToken: data.accessToken,
+      terms: data.terms ?? null,
+      reacceptanceRequired: data.terms?.reacceptanceRequired ?? false,
     });
 
     response.cookies.set(ACCESS_TOKEN_COOKIE, data.accessToken, sessionCookieOptions);
     response.cookies.set(SESSION_COOKIE, serializeSessionUser(data.user), sessionCookieOptions);
+    if (data.refreshToken) {
+      response.cookies.set(REFRESH_TOKEN_COOKIE, data.refreshToken, refreshCookieOptions);
+    }
 
     return response;
   } catch (error) {

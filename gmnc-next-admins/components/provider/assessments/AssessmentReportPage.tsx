@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { getAssessmentReport } from '@/lib/api/assessments';
 import { generateCarePlan, listCarePlans } from '@/lib/api/care-plans';
+import { getClassification, type FunctionalClassification } from '@/lib/api/functionalClassification';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import type { AssessmentReportResponse } from '@/lib/api/types';
@@ -298,6 +299,27 @@ function DetailTile({
   );
 }
 
+function ClassificationStrip({ classificationId }: { classificationId: string }) {
+  const [classification, setClassification] = React.useState<FunctionalClassification | null>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    getClassification(classificationId)
+      .then((data) => { if (active) setClassification(data); })
+      .catch(() => { if (active) setClassification(null); });
+    return () => { active = false; };
+  }, [classificationId]);
+
+  if (!classification) return null;
+
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 ring-1 ring-violet-100">
+      <span className="font-bold">{classification.classifier} Level {classification.level}</span>
+      <span className="text-violet-500">• {new Date(classification.assessedAt).toLocaleDateString()}</span>
+    </div>
+  );
+}
+
 export default function AssessmentReportPage({ assessmentId }: { assessmentId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -477,7 +499,11 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
   }, [patientId, token]);
 
   const handleGenerateCarePlan = async () => {
-    if (hasActiveCarePlan) return;
+    // Backend supersedes the previous ACTIVE plan (exactly one ACTIVE per
+    // patient) — confirm instead of blocking when one already exists.
+    if (hasActiveCarePlan && !window.confirm('An active care plan already exists for this patient. Generating a new one will supersede it. Continue?')) {
+      return;
+    }
     try {
       setGeneratingCarePlan(true);
       await generateCarePlan(assessmentId, token);
@@ -548,6 +574,9 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
               {patientAge != null ? <span className="text-blue-500">• {patientAge} yrs</span> : null}
               {patientGender ? <span className="text-blue-500">• {formatLabel(patientGender)}</span> : null}
             </div>
+            {typeof assessmentRecord?.functionalClassificationId === 'string' && assessmentRecord.functionalClassificationId ? (
+              <ClassificationStrip classificationId={assessmentRecord.functionalClassificationId} />
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -564,15 +593,15 @@ export default function AssessmentReportPage({ assessmentId }: { assessmentId: s
               <button
                 type="button"
                 onClick={handleGenerateCarePlan}
-                disabled={generatingCarePlan || checkingCarePlan || hasActiveCarePlan}
-                title={hasActiveCarePlan ? 'An active care plan already exists for this patient.' : undefined}
+                disabled={generatingCarePlan || checkingCarePlan}
+                title={hasActiveCarePlan ? 'An active care plan exists — generating will supersede it.' : undefined}
                 className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${hasActiveCarePlan
-                  ? 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'
+                  ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-200 hover:bg-amber-200'
                   : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60'
                 }`}
               >
                 <ClipboardList className="h-4 w-4" aria-hidden />
-                {hasActiveCarePlan ? 'Active Care Plan' : checkingCarePlan ? 'Checking...' : generatingCarePlan ? 'Generating...' : 'Generate Care Plan'}
+                {checkingCarePlan ? 'Checking...' : generatingCarePlan ? 'Generating...' : hasActiveCarePlan ? 'Supersede Care Plan' : 'Generate Care Plan'}
               </button>
             ) : null}
             <button

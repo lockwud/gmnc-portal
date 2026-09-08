@@ -103,32 +103,41 @@ export async function getAssessmentTools(): Promise<AssessmentToolsResponse> {
   return assessmentToolsPromise;
 }
 
-export async function getAssessmentToolForm(toolCode: string): Promise<AssessmentToolFormResponse> {
+export async function getAssessmentToolForm(toolCode: string, patientId?: string): Promise<AssessmentToolFormResponse> {
   const normalizedToolCode = toolCode.trim();
+  const cacheKey = patientId ? `${normalizedToolCode}::${patientId}` : normalizedToolCode;
 
-  if (!assessmentToolFormPromises.has(normalizedToolCode)) {
+  if (!assessmentToolFormPromises.has(cacheKey)) {
+    const query = patientId ? `?patientId=${encodeURIComponent(patientId)}` : '';
     assessmentToolFormPromises.set(
-      normalizedToolCode,
+      cacheKey,
       apiGet<{
         status: boolean;
         message?: string;
         data: AssessmentToolFormResponse;
-      }>(`/api/assessment/tools/${normalizedToolCode}/form`).then((res) => res.data),
+      }>(`/api/assessment/tools/${normalizedToolCode}/form${query}`).then((res) => res.data),
     );
   }
 
-  return assessmentToolFormPromises.get(normalizedToolCode)!;
+  return assessmentToolFormPromises.get(cacheKey)!;
 }
 
-export function clearAssessmentToolFormCache(toolCode?: string) {
+export function clearAssessmentToolFormCache(toolCode?: string, patientId?: string) {
   if (!toolCode) {
     assessmentToolFormPromises.clear();
     return;
   }
 
   const key = toolCode.trim();
-  if (assessmentToolFormPromises.has(key)) {
-    assessmentToolFormPromises.delete(key);
+  assessmentToolFormPromises.delete(key);
+  if (patientId) {
+    assessmentToolFormPromises.delete(`${key}::${patientId}`);
+  } else {
+    for (const cacheKey of [...assessmentToolFormPromises.keys()]) {
+      if (cacheKey.startsWith(`${key}::`)) {
+        assessmentToolFormPromises.delete(cacheKey);
+      }
+    }
   }
 }
 

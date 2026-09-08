@@ -3,6 +3,16 @@ import { z } from 'zod';
 export const roleSchema = z.enum(['admin', 'provider', 'support', 'tester', 'caregiver']);
 export const userTypeSchema = z.enum(['SERVICE_PROVIDER', 'ADMIN']);
 
+// Mirrors backend termsReacceptanceRequired() (Group 3): login and /auth/me
+// attach this so the portal can gate on document version bumps.
+export const termsStatusSchema = z.object({
+  reacceptanceRequired: z.boolean(),
+  acceptedTermsVersion: z.string().nullable().optional(),
+  acceptedPrivacyPolicyVersion: z.string().nullable().optional(),
+  liveTermsVersion: z.string().optional(),
+  livePrivacyPolicyVersion: z.string().optional(),
+});
+
 export const sessionUserSchema = z.object({
   id: z.string().min(1),
   email: z.string().email().nullable().optional().transform((value) => value ?? null),
@@ -11,6 +21,7 @@ export const sessionUserSchema = z.object({
   permissions: z.array(z.string()).default([]),
   userType: userTypeSchema.optional(),
   avatar: z.string().nullable().optional().transform((value) => value ?? null),
+  terms: termsStatusSchema.nullable().optional().transform((value) => value ?? null).optional(),
 });
 
 export const loginSchema = z.object({
@@ -30,6 +41,11 @@ export const resetPasswordSchema = z.object({
 export const genderSchema = z.enum(['MALE', 'FEMALE']);
 export const otpChannelSchema = z.enum(['sms', 'email']);
 
+export const acceptTermsSchema = z.object({
+  acceptedTerms: z.literal(true, { message: 'You must accept the Terms to continue' }),
+  acceptedPrivacyPolicy: z.literal(true, { message: 'You must accept the Privacy Policy to continue' }),
+});
+
 export const registerSchema = z.object({
   fullName: z.string().trim().min(1, 'Full name is required'),
   email: z.string().email('A valid email address is required').optional().nullable(),
@@ -47,6 +63,8 @@ export const registerSchema = z.object({
 });
 
 export type SessionUser = z.infer<typeof sessionUserSchema>;
+export type TermsStatus = z.infer<typeof termsStatusSchema>;
+export type AcceptTermsInput = z.infer<typeof acceptTermsSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

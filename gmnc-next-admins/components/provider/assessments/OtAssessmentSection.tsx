@@ -7,17 +7,21 @@ type FieldOption = string | { label: string; value: string };
 type OtAssessmentValues = Record<string, unknown>;
 
 type OtAssessmentField = {
-  fieldCode: string;
-  fieldKey?: string;
+  fieldCode?: string;
+  fieldKey: string;
   question: string;
+  helpText?: string | null;
+  fieldType?: string;
   expectedAnswerFormat: string;
-  options?: FieldOption[];
+  options?: FieldOption[] | null;
   required?: boolean;
   helperText?: string;
 };
 
 export type OtAssessmentSectionData = {
-  title: string;
+  title?: string;
+  sectionName?: string;
+  sectionDescription?: string | null;
   description?: string;
   fields: OtAssessmentField[];
   sectionCode?: string;
@@ -25,7 +29,7 @@ export type OtAssessmentSectionData = {
 
 const ADL_OPTIONS = ['Able', 'With Difficulties', 'Need Adaptations', 'Unable'];
 
-function normalizeOptions(options?: FieldOption[]): { label: string; value: string }[] {
+function normalizeOptions(options?: FieldOption[] | null): { label: string; value: string }[] {
   if (!Array.isArray(options)) return [];
   return options.map((option) => {
     if (typeof option === 'string') return { label: option, value: option };
@@ -51,7 +55,7 @@ type Props = {
 function DropdownField({ field, value, onChange }: { field: OtAssessmentField; value: unknown; onChange: (next: unknown) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const key = field.fieldKey || field.fieldCode;
+  const key = field.fieldKey || field.fieldCode || '';
   const options = normalizeOptions(field.options);
   const selectedValue = String(value ?? '');
   const selectedOption = options.find((o) => o.value === selectedValue);
@@ -174,7 +178,7 @@ function AdlRadioField({
   );
 }
 export default function OtAssessmentSection({ section, values, onFieldChange }: Props) {
-  const responseKey = (field: OtAssessmentField) => field.fieldKey || field.fieldCode;
+  const responseKey = (field: OtAssessmentField) => field.fieldKey || field.fieldCode || '';
 
   const update = (field: OtAssessmentField, next: unknown) =>
     onFieldChange(responseKey(field), next);
@@ -266,10 +270,14 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
     const key = responseKey(field);
     const value = values[key];
     const rawFormat = String(field.expectedAnswerFormat || '').toUpperCase();
-    // If backend returns `string` but provides `options`, treat as `SELECT`
-    // so dropdowns render correctly (covers string or object option formats).
+    const fieldType = String((field as { fieldType?: unknown }).fieldType || '').toUpperCase();
+    // New schema-driven fieldType (Group 5) wins; legacy expectedAnswerFormat
+    // is the fallback. If backend returns `string` but provides `options`,
+    // treat as `SELECT` so dropdowns render correctly.
     const hasOptions = Array.isArray(field.options) && field.options.length > 0;
-    const format = (rawFormat === 'STRING' && hasOptions) ? 'SELECT' : rawFormat;
+    const format = fieldType === 'SINGLE_CHOICE' || fieldType === 'MULTI_CHOICE' || fieldType === 'SCALE_1_5'
+      ? 'SELECT'
+      : (rawFormat === 'STRING' && hasOptions) ? 'SELECT' : rawFormat;
     const isLabelField = (field.fieldKey === 'houseTypeAndLevel') || String(field.expectedAnswerFormat || '').toUpperCase() === 'LABEL';
     const options = normalizeOptions(field.options);
 
@@ -384,8 +392,8 @@ export default function OtAssessmentSection({ section, values, onFieldChange }: 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
       <div className="mb-4">
-        <h2 className="text-sm font-bold text-slate-900">{section.title}</h2>
-        {section.description ? <p className="mt-1 text-xs text-slate-500">{section.description}</p> : null}
+        <h2 className="text-sm font-bold text-slate-900">{section.sectionName ?? section.title ?? 'Section'}</h2>
+        {(section.sectionDescription ?? section.description) ? <p className="mt-1 text-xs text-slate-500">{section.sectionDescription ?? section.description}</p> : null}
       </div>
 
       <div className={`grid grid-cols-1 gap-4 ${gridClass}`}>

@@ -224,12 +224,10 @@ export default function ProviderDetailPage({
 
   const statusBadge = getStatusBadge();
 
-  // Construct authenticated image URL
-  const getAuthenticatedImageUrl = (url: string) => {
-    if (!url) return '';
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}token=${token}`;
-  };
+  // Verification assets are stored as public CDN URLs (UploadService) —
+  // no auth token needed. Never append ?token= (backend ignores query
+  // tokens, and it would leak the session token into URLs and logs).
+  const getAuthenticatedImageUrl = (url: string) => url || '';
 
   const verificationDocuments = [
     ...(provider.licenseImage

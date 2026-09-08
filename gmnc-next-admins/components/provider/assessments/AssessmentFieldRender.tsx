@@ -5,11 +5,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 type FieldOption = string | { label: string; value: string };
 
 type AssessmentFormField = {
-  fieldCode: string;
-  fieldKey?: string;
+  fieldCode?: string;
+  fieldKey: string;
   question: string;
+  helpText?: string | null;
+  fieldType?: string;
   expectedAnswerFormat: string;
-  options?: FieldOption[];
+  options?: FieldOption[] | null;
   required?: boolean;
   helperText?: string;
 };
@@ -22,6 +24,30 @@ type Props = {
 
 function normalizeFormat(format?: string) {
   return String(format || '').toUpperCase();
+}
+
+// Backend Group 5 field types → the legacy render formats below.
+// fieldType wins when present; expectedAnswerFormat is the fallback for
+// older cached schemas.
+function formatFromFieldType(fieldType?: string): string | null {
+  switch (String(fieldType || '').toUpperCase()) {
+    case 'SINGLE_CHOICE':
+      return 'SELECT';
+    case 'MULTI_CHOICE':
+      return 'MULTI_CHOICE';
+    case 'SCALE_1_5':
+    case 'NUMBER':
+      return 'NUMBER';
+    case 'DATE':
+      return 'DATE';
+    case 'BOOLEAN':
+      return 'BOOLEAN';
+    case 'FILE_UPLOAD':
+    case 'TEXT':
+      return 'TEXT';
+    default:
+      return null;
+  }
 }
 
 const ASHWORTH_SCORE_LABELS: Record<string, string> = {
@@ -68,12 +94,13 @@ export default function AssessmentFieldRenderer({
   value,
   onChange,
 }: Props) {
-  const format = normalizeFormat(field.expectedAnswerFormat);
-  const normalizedOptions = useMemo(() => normalizeOptions(field.options), [field.options]);
+  const format = formatFromFieldType(field.fieldType) ?? normalizeFormat(field.expectedAnswerFormat);
+  const normalizedOptions = useMemo(() => normalizeOptions(field.options ?? undefined), [field.options]);
   const hasOptions = normalizedOptions.length > 0;
 
-  const label = field.question || field.fieldCode;
-  const id = field.fieldKey || field.fieldCode;
+  const label = field.question || field.fieldKey || field.fieldCode || 'Question';
+  const helpText = field.helpText ?? field.helperText ?? null;
+  const id = field.fieldKey || field.fieldCode || label;
 
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -127,6 +154,48 @@ export default function AssessmentFieldRenderer({
               </button>
             );
           })}
+        </div>
+      </div>
+    );
+  }
+
+  if (format === 'MULTI_CHOICE') {
+    const selected: string[] = Array.isArray(value) ? value.map(String) : [];
+    const toggle = (optionValue: string) => {
+      onChange(
+        selected.includes(optionValue)
+          ? selected.filter((entry) => entry !== optionValue)
+          : [...selected, optionValue],
+      );
+    };
+    return (
+      <div className="space-y-2">
+        <span className="block text-sm font-medium text-slate-800">
+          {label}
+          {field.required ? <span className="ml-1 text-rose-500">*</span> : null}
+        </span>
+        {helpText ? <p className="text-xs text-slate-500">{helpText}</p> : null}
+        <div className="flex flex-wrap gap-2">
+          {(hasOptions ? normalizedOptions : []).map((option) => {
+            const active = selected.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => toggle(option.value)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  active
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+          {!hasOptions ? (
+            <span className="text-xs text-slate-400">No options configured for this field.</span>
+          ) : null}
         </div>
       </div>
     );
@@ -317,8 +386,8 @@ export default function AssessmentFieldRenderer({
             NT
           </button>
         </div>
-        {field.helperText ? (
-          <p className="text-xs text-slate-500">{field.helperText}</p>
+        {helpText ? (
+          <p className="text-xs text-slate-500">{helpText}</p>
         ) : null}
       </div>
     );
@@ -367,7 +436,9 @@ export default function AssessmentFieldRenderer({
     <div className="space-y-2">
       <label htmlFor={id} className="block text-sm font-medium text-slate-800">
         {label}
+        {field.required ? <span className="ml-1 text-rose-500">*</span> : null}
       </label>
+      {helpText ? <p className="-mt-1 text-xs text-slate-500">{helpText}</p> : null}
       <input
         id={id}
         type="text"

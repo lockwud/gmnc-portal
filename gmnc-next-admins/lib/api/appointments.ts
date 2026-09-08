@@ -154,8 +154,8 @@ export async function updateAppointment(id: string, payload: Partial<CreateAppoi
   return res.data;
 }
 
-export async function approveAppointment(id: string, payload: { status: string; notes?: string }, token?: string | null): Promise<CreateAppointmentResponse> {
-  void payload;
+export async function approveAppointment(id: string, token?: string | null): Promise<CreateAppointmentResponse> {
+  // Backend approve is strict { appointmentId } only — notes would 400.
   const res = await apPatch<{
     status: boolean;
     message?: string;

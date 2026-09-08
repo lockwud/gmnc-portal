@@ -7,7 +7,8 @@ function getToken(request: NextRequest) {
     || request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 }
 
-async function proxyUserRequest(
+/** Pass-through proxy for the admin logs API (file list, file read, SQL query). */
+async function proxyLogsRequest(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
@@ -18,18 +19,19 @@ async function proxyUserRequest(
 
   const { path } = await context.params;
   const url = new URL(request.url);
-  const encodedPath = path.map(encodeURIComponent).join('/');
   const body = request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.text();
-
-  const response = await fetch(`${requireApiBaseUrl()}/user/${encodedPath}${url.search}`, {
-    method: request.method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': request.headers.get('content-type') ?? 'application/json',
+  const response = await fetch(
+    `${requireApiBaseUrl()}/admin/logs/${(path ?? []).map(encodeURIComponent).join('/')}${url.search}`,
+    {
+      method: request.method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': request.headers.get('content-type') ?? 'application/json',
+      },
+      body,
+      cache: 'no-store',
     },
-    body,
-    cache: 'no-store',
-  });
+  );
 
   const responseText = await response.text();
   return new NextResponse(responseText, {
@@ -39,21 +41,9 @@ async function proxyUserRequest(
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  return proxyUserRequest(request, context);
-}
-
-export async function PUT(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  return proxyUserRequest(request, context);
-}
-
-export async function PATCH(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  return proxyUserRequest(request, context);
+  return proxyLogsRequest(request, context);
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  return proxyUserRequest(request, context);
-}
-
-export async function DELETE(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  return proxyUserRequest(request, context);
+  return proxyLogsRequest(request, context);
 }
