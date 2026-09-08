@@ -9,6 +9,14 @@ import { useRouter } from 'next/navigation';
 // =========================================
 export type Role = 'admin' | 'provider' | 'support' | 'tester' | (string & Record<never, never>);
 
+export interface TermsStatus {
+  reacceptanceRequired: boolean;
+  acceptedTermsVersion?: string | null;
+  acceptedPrivacyPolicyVersion?: string | null;
+  liveTermsVersion?: string;
+  livePrivacyPolicyVersion?: string;
+}
+
 export interface User {
   id: string;
   name?: string;
@@ -37,6 +45,7 @@ export interface User {
     };
   };
   avatar?: string | null;
+  terms?: TermsStatus | null;
   hasNoRole?: boolean;
 }
 
@@ -109,6 +118,16 @@ function normaliseUser(raw: Record<string, unknown>, token?: string | null): Use
   const permissions: string[] = Array.isArray(raw.permissions) ? (raw.permissions as string[]) : [];
   const userType = (raw.userType as string | undefined) ?? getTokenUserType(token);
   const isProviderWithoutRole = userType === 'SERVICE_PROVIDER' && roles.length === 0;
+  const rawTerms = raw.terms as Record<string, unknown> | null | undefined;
+  const terms: TermsStatus | null = rawTerms && typeof rawTerms === 'object'
+    ? {
+      reacceptanceRequired: rawTerms.reacceptanceRequired === true,
+      acceptedTermsVersion: typeof rawTerms.acceptedTermsVersion === 'string' ? rawTerms.acceptedTermsVersion : null,
+      acceptedPrivacyPolicyVersion: typeof rawTerms.acceptedPrivacyPolicyVersion === 'string' ? rawTerms.acceptedPrivacyPolicyVersion : null,
+      liveTermsVersion: typeof rawTerms.liveTermsVersion === 'string' ? rawTerms.liveTermsVersion : undefined,
+      livePrivacyPolicyVersion: typeof rawTerms.livePrivacyPolicyVersion === 'string' ? rawTerms.livePrivacyPolicyVersion : undefined,
+    }
+    : null;
 
   return {
     ...((raw as unknown) as User),
@@ -117,8 +136,13 @@ function normaliseUser(raw: Record<string, unknown>, token?: string | null): Use
     roles,
     permissions,
     userType,
+    terms,
     hasNoRole: isProviderWithoutRole,
   };
+}
+
+function needsReacceptance(user: User | null): boolean {
+  return user?.terms?.reacceptanceRequired === true;
 }
 
 /**
@@ -253,6 +277,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSelectedRoleState(resolveSelectedRole(normalisedUser, storedRole));
 
         persistAuth(normalisedUser, accessToken);
+
+        // Versioned terms re-acceptance (backend Group 3): intercept here so
+        // a version bump never leaves the user working under stale consent.
+        if (needsReacceptance(normalisedUser)) {
+          router.replace('/accept-terms');
+          return;
+        }
       } catch {
         if (isMounted) {
           setUser(null);
@@ -339,6 +370,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSelectedRoleState(role);
 
       persistAuth(normalisedUser, accessToken);
+
+      if (needsReacceptance(normalisedUser)) {
+        router.replace('/accept-terms');
+        router.refresh();
+        return;
+      }
 
       if (role) {
         localStorage.setItem('gmnc_selected_role', role);

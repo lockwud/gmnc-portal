@@ -2,8 +2,11 @@ import { env } from '@/lib/env';
 import { sessionUserSchema, type SessionUser } from '@/lib/validators/auth';
 
 export const ACCESS_TOKEN_COOKIE = 'gmnc_access_token';
+export const REFRESH_TOKEN_COOKIE = 'gmnc_refresh_token';
 export const SESSION_COOKIE = 'gmnc_session';
-export const SESSION_MAX_AGE = 60 * 60 * 8;
+// Backend: 7-day access tokens, 30-day refresh tokens (rotated on use).
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
+export const REFRESH_MAX_AGE = 60 * 60 * 24 * 30;
 
 export const sessionCookieOptions = {
   httpOnly: true,
@@ -11,6 +14,11 @@ export const sessionCookieOptions = {
   sameSite: 'lax' as const,
   path: '/',
   maxAge: SESSION_MAX_AGE,
+};
+
+export const refreshCookieOptions = {
+  ...sessionCookieOptions,
+  maxAge: REFRESH_MAX_AGE,
 };
 
 export function serializeSessionUser(user: SessionUser) {

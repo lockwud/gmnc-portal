@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Pagination from '@/components/ui/Pagination';
-import RowActions from '@/components/ui/RowActions';
 import EmptyState from '@/components/ui/EmptyState';
+import { useAuth } from '@/lib/context/AuthContext';
 
 type PatientRow = {
   fullName: string;
@@ -18,6 +18,7 @@ type PatientRow = {
   nextAppointmentDate?: string | null;
   openTasksCount: number;
   latestReferralStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED' | null;
+  enrollmentStatus?: string | null;
   slug: string;
 };
 
@@ -42,6 +43,8 @@ type ApiPatient = {
   nextAppointmentDate?: string | null;
   openTasksCount?: number;
   latestReferralStatus?: PatientRow['latestReferralStatus'];
+  enrollmentStatus?: string | null;
+  enrollmentRecord?: { status?: string | null } | null;
 };
 
 function formatStatus(status?: string | null) {
@@ -107,6 +110,7 @@ function getTaskBadgeClass(count: number) {
 
 export default function CpPatientsPage() {
   const router = useRouter();
+  const { token } = useAuth();
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,11 +118,14 @@ export default function CpPatientsPage() {
   const [pageSize, setPageSize] = useState(30);
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
 
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch('/api/patients');
+      const response = await fetch('/api/patients', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: 'no-store',
+      });
       const result = await response.json();
 
       // Accept both 'status' and 'success' for compatibility
@@ -137,6 +144,17 @@ export default function CpPatientsPage() {
             nextAppointmentDate: p.nextAppointmentDate || userObj.nextAppointmentDate || null,
             openTasksCount: p.openTasksCount || userObj.openTasksCount || 0,
             latestReferralStatus: p.latestReferralStatus || userObj.latestReferralStatus || null,
+            // Enrollment rides on the cp-patient record itself (Group 3/6):
+            // prefer the embedded record, fall back to a flat status field.
+            enrollmentStatus:
+              (p.enrollmentRecord && typeof p.enrollmentRecord === 'object'
+                ? (p.enrollmentRecord as { status?: string }).status
+                : undefined) ||
+              (typeof p.enrollmentStatus === 'string' ? p.enrollmentStatus : undefined) ||
+              (userObj.enrollmentRecord && typeof userObj.enrollmentRecord === 'object'
+                ? (userObj.enrollmentRecord as { status?: string }).status
+                : undefined) ||
+              null,
           };
         });
         setPatients(mapped);
@@ -148,12 +166,13 @@ export default function CpPatientsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
+    if (!token) return;
     const timeout = window.setTimeout(() => void fetchPatients(), 0);
     return () => window.clearTimeout(timeout);
-  }, []);
+  }, [fetchPatients, token]);
 
   const filteredPatients = useMemo(() => {
     if (genderFilter === 'ALL') return patients;
@@ -169,8 +188,10 @@ export default function CpPatientsPage() {
     return filteredPatients.slice(start, start + pageSize);
   }, [filteredPatients, currentPage, pageSize]);
 
-  const handleRowClick = (slug: string) => {
-    router.push(`/provider/cp-patient/${slug}`);
+  const handleRowClick = (slug: string, fullName: string) => {
+    // No standalone patient-detail route exists: jump straight into the
+    // working flow — starting an assessment with the patient preselected.
+    router.push(`/provider/assessments/create?patientId=${encodeURIComponent(slug)}&patientName=${encodeURIComponent(fullName)}`);
   };
 
   const handlePageSizeChange = (size: number) => {
@@ -277,6 +298,7 @@ export default function CpPatientsPage() {
                         <th className="px-4 py-3 text-left text-[11px] font-medium">Next Appointment</th>
                         <th className="px-4 py-3 text-left text-[11px] font-medium">Open Tasks</th>
                         <th className="px-4 py-3 text-left text-[11px] font-medium">Referral</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-medium">Enrollment</th>
                         <th className="px-4 py-3 text-center text-[11px] font-medium">Action</th>
                       </tr>
                     </thead>
@@ -285,7 +307,7 @@ export default function CpPatientsPage() {
                       {paginatedPatients.map((patient, index) => (
                         <tr
                           key={patient.slug}
-                          onClick={() => handleRowClick(patient.slug)}
+                          onClick={() => handleRowClick(patient.slug, patient.fullName)}
                           className={`cursor-pointer transition ${
                             index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
                           } hover:bg-emerald-50`}
@@ -350,15 +372,30 @@ export default function CpPatientsPage() {
                             </span>
                           </td>
 
+                          <td className="border-b border-slate-100 px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                                (patient.enrollmentStatus || '').toUpperCase() === 'ACTIVE'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-slate-100 text-slate-500'
+                              }`}
+                            >
+                              {formatStatus(patient.enrollmentStatus) === 'None' ? 'Unknown' : formatStatus(patient.enrollmentStatus)}
+                            </span>
+                          </td>
+
                           <td
                             className="border-b border-slate-100 px-4 py-3 text-center"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="flex justify-center">
-                              <RowActions
-                                onEdit={() => console.log('Edit patient', patient.slug)}
-                                onDelete={() => console.log('Delete patient', patient.slug)}
-                              />
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/provider/assessments/create?patientId=${encodeURIComponent(patient.slug)}&patientName=${encodeURIComponent(patient.fullName)}`)}
+                                className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                              >
+                                New assessment
+                              </button>
                             </div>
                           </td>
                         </tr>

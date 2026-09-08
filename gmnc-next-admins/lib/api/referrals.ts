@@ -1,5 +1,6 @@
 import type {
   ReferralListItem,
+  ReferralRecommendationResponse,
   CreateReferralPayload,
   UpdateReferralStatusPayload,
   CreateRehabTaskFromReferralPayload,
@@ -122,6 +123,18 @@ export async function updateReferralStatus(
   }>(`/api/assessment/referrals/${referralId}/status`, payload);
 
   return { referral: res.data };
+}
+
+export async function getReferralRecommendations(
+  assessmentId: string,
+): Promise<ReferralRecommendationResponse> {
+  const res = await refGet<{
+    status: boolean;
+    message?: string;
+    data: ReferralRecommendationResponse;
+  }>(`/api/assessment/${assessmentId}/referral-recommendations`);
+
+  return res.data;
 }
 
 export async function createRehabTaskFromReferral(

@@ -305,3 +305,35 @@ export async function markFaqHelpful(faqId: string, token?: string | null) {
   });
   return response.data;
 }
+
+export type CpIntroSection = {
+  id: string;
+  title: string;
+  body: string;
+};
+
+export type CpIntro = {
+  version: number;
+  language: string;
+  title: string;
+  updatedAt?: string | null;
+  sections: CpIntroSection[];
+  offlineNote?: string;
+};
+
+// Public CP intro (no auth needed) — the same content the mobile app caches
+// for offline rural use before login.
+export async function getCpIntro(): Promise<CpIntro> {
+  const response = await apiClient<{ data: CpIntro }>(`/faq/intro`, { method: 'GET' });
+  return response.data.data;
+}
+
+// Admin intro management (ADMIN RBAC role required).
+export async function updateCpIntro(payload: Partial<CpIntro>, token?: string | null): Promise<CpIntro> {
+  const response = await apiClient<{ data: CpIntro }>(`/admin/faq/intro`, {
+    method: 'PUT',
+    body: payload,
+    token: token ?? undefined,
+  });
+  return response.data.data;
+}

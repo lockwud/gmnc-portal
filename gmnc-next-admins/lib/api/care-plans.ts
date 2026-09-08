@@ -2,6 +2,12 @@ import { apiClient } from './client';
 
 export type CarePlanStatus = 'ACTIVE' | 'COMPLETED' | 'SUPERSEDED';
 
+export type ClassificationBranch = {
+  classification: { id: string; classifier: string; level: number; assessedAt: string } | null;
+  intensity: 'standard' | 'enhanced';
+  reviewWeeks: number;
+};
+
 export type CarePlan = {
   id: string;
   patientId: string;
@@ -13,6 +19,7 @@ export type CarePlan = {
   interventions: unknown[];
   createdAt: string;
   updatedAt: string;
+  classificationBranch?: ClassificationBranch | null;
   patient?: {
     id: string;
     fullName: string;
@@ -76,7 +83,9 @@ export async function generateCarePlan(assessmentId: string, token?: string | nu
 }
 
 export async function updateCarePlanStatus(carePlanId: string, status: CarePlanStatus, token?: string | null) {
-  const response = await apiClient<CarePlanResponse>(`/care-plan/${encodeURIComponent(carePlanId)}/status`, {
+  // Backend exposes a single PATCH /care-plan/:carePlanId endpoint for
+  // status, goals, interventions, and reviewDate.
+  const response = await apiClient<CarePlanResponse>(`/care-plan/${encodeURIComponent(carePlanId)}`, {
     method: 'PATCH',
     body: { status },
     token: token ?? undefined,
@@ -86,7 +95,7 @@ export async function updateCarePlanStatus(carePlanId: string, status: CarePlanS
 }
 
 export async function updateCarePlanContent(carePlanId: string, payload: Record<string, unknown>, token?: string | null) {
-  const response = await apiClient<CarePlanResponse>(`/care-plan/${encodeURIComponent(carePlanId)}/content`, {
+  const response = await apiClient<CarePlanResponse>(`/care-plan/${encodeURIComponent(carePlanId)}`, {
     method: 'PATCH',
     body: payload,
     token: token ?? undefined,

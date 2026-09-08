@@ -16,10 +16,34 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
+  const [googleLoading, setGoogleLoading] = React.useState(false);
+  const [googleError, setGoogleError] = React.useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await login(identifier, password);
+  };
+
+  // Google OAuth: fetch the backend auth URL (+ CSRF state and PKCE
+  // verifier), persist both client-side, then hand off to Google. The
+  // callback returns them for verification (see app/api/auth/google).
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setGoogleError(null);
+    try {
+      const response = await fetch('/api/auth/google', { method: 'GET', cache: 'no-store' });
+      const data = await response.json() as { authUrl?: string; state?: string; codeVerifier?: string; message?: string };
+      if (!response.ok || !data.authUrl || !data.state || !data.codeVerifier) {
+        throw new Error(data.message ?? 'Google sign-in is not available right now');
+      }
+      sessionStorage.setItem('gmnc_google_state', data.state);
+      sessionStorage.setItem('gmnc_google_verifier', data.codeVerifier);
+      window.location.href = data.authUrl;
+    } catch (err) {
+      setGoogleError(err instanceof Error ? err.message : 'Google sign-in failed');
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   React.useEffect(() => {
@@ -240,6 +264,32 @@ export default function LoginPage() {
                   <span className="bg-white px-4 py-0.5">Secure Access</span>
                 </div>
               </div>
+
+              {googleError && (
+                <div className="mb-4 flex items-center gap-2 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-xs font-bold text-rose-600">
+                  <div className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+                  {googleError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading || isLoading}
+                className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {googleLoading ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z" />
+                  </svg>
+                )}
+                <span>{googleLoading ? 'Redirecting to Google…' : 'Continue with Google'}</span>
+              </button>
             </form>
           </div>
         </div>

@@ -155,7 +155,16 @@ export default function ProviderCarePlansPage() {
     try {
       setError(null);
       const created = await generateCarePlan(assessmentId, token);
-      setPlans((current) => [created, ...current]);
+      // Backend supersedes any previous ACTIVE plan: mark older ACTIVE rows
+      // for the same patient as SUPERSEDED locally so the list stays truthful.
+      setPlans((current) => [
+        created,
+        ...current.map((plan) =>
+          plan.id !== created.id && plan.patientId === created.patientId && plan.status === 'ACTIVE'
+            ? { ...plan, status: 'SUPERSEDED' as const }
+            : plan,
+        ),
+      ]);
       setSelectedPlanId(created.id);
       setDetailPlan(created);
     } catch (err) {
@@ -294,6 +303,15 @@ export default function ProviderCarePlansPage() {
                       {formatDate(detailPlan.reviewDate)}
                     </p>
                   )}
+                  {detailPlan.classificationBranch ? (
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      <span className="font-bold text-slate-800">Classification branch:</span>{' '}
+                      {detailPlan.classificationBranch.classification
+                        ? `${detailPlan.classificationBranch.classification.classifier} Level ${detailPlan.classificationBranch.classification.level}`
+                        : 'No classification on file'}
+                      {' '}· {detailPlan.classificationBranch.intensity} intensity · {detailPlan.classificationBranch.reviewWeeks}-week review
+                    </div>
+                  ) : null}
                 </div>
 
                 <CarePlanList title="Goals" items={Array.isArray(detailPlan.goals) ? detailPlan.goals : []} />

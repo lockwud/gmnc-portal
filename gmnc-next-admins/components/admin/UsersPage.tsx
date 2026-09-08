@@ -24,7 +24,7 @@ type UserRecord = {
   email?: string | null;
   phoneNumber: string;
   userType: Exclude<UserType, 'ALL'>;
-  accountStatus: 'ACTIVE' | 'PENDING' | 'INVITED';
+  accountStatus: 'ACTIVE' | 'PENDING' | 'INVITED' | 'DEACTIVATED' | 'DELETED';
   updatedAt: string;
   gender?: Gender;
   dateOfBirth?: string;
@@ -247,6 +247,7 @@ export default function UserRegistrationPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingUserStatus, setEditingUserStatus] = useState<UserRecord['accountStatus'] | null>(null);
 
   const [step, setStep] = useState<RegistrationStep>(1);
   const [modalRole, setModalRole] = useState<Exclude<UserType, 'ALL'>>('SERVICE_PROVIDER');
@@ -264,6 +265,7 @@ export default function UserRegistrationPage() {
     gender: 'MALE' as Gender,
     otpChannel: 'sms' as OtpChannel,
     dateOfBirth: '',
+    accountStatus: 'ACTIVE' as UserRecord['accountStatus'],
   });
 
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -334,14 +336,17 @@ export default function UserRegistrationPage() {
       gender: 'MALE',
       otpChannel: 'sms',
       dateOfBirth: '',
+      accountStatus: 'ACTIVE',
     });
     setIsEditMode(false);
     setEditingUserId(null);
+    setEditingUserStatus(null);
   };
 
   const handleEdit = (user: UserRecord) => {
     setIsEditMode(true);
     setEditingUserId(user.id);
+    setEditingUserStatus(user.accountStatus);
     setModalRole(user.userType);
     setFormData({
       fullName: user.fullName,
@@ -351,6 +356,7 @@ export default function UserRegistrationPage() {
       gender: user.gender || 'MALE',
       otpChannel: user.otpChannel || 'sms',
       dateOfBirth: user.dateOfBirth || '',
+      accountStatus: user.accountStatus,
     });
 
     const parsedDate = user.dateOfBirth ? new Date(user.dateOfBirth) : null;
@@ -412,6 +418,36 @@ export default function UserRegistrationPage() {
       const result = await response.json();
 
       if (result.success) {
+        // Account status lives on a dedicated backend endpoint — apply it
+        // separately when changed (profile fields go to role endpoints).
+        let finalStatus = formData.accountStatus;
+        if (isEditMode && editingUserId && formData.accountStatus !== editingUserStatus) {
+          try {
+            const statusRes = await fetch(`/api/admin/users/${editingUserId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: formData.accountStatus }),
+              credentials: 'include',
+            });
+            const statusResult = await statusRes.json();
+            if (!statusResult.success) {
+              show({
+                title: 'Status not updated',
+                message: statusResult.message || 'Profile saved, but account status did not change.',
+                duration: 4000,
+              });
+              finalStatus = editingUserStatus ?? formData.accountStatus;
+            }
+          } catch {
+            show({
+              title: 'Status not updated',
+              message: 'Profile saved, but the status change failed.',
+              duration: 4000,
+            });
+            finalStatus = editingUserStatus ?? formData.accountStatus;
+          }
+        }
+
         show({
           title: 'Success',
           message: isEditMode ? 'User updated successfully.' : 'User registered successfully.',
@@ -429,6 +465,7 @@ export default function UserRegistrationPage() {
                     phoneNumber: formData.phoneNumber,
                     gender: formData.gender,
                     dateOfBirth: formData.dateOfBirth,
+                    accountStatus: finalStatus,
                     otpChannel: modalRole === 'ADMIN' || modalRole === 'SUPPORT' || modalRole === 'TESTER' ? 'email' : formData.otpChannel,
                     updatedAt: new Date().toISOString(),
                   }
@@ -745,6 +782,28 @@ export default function UserRegistrationPage() {
                     widthClass="w-full"
                   />
                 </div>
+
+                {isEditMode ? (
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-slate-700">Account status</label>
+                    <SmallDropdown
+                      value={formData.accountStatus}
+                      options={[
+                        { value: 'ACTIVE', label: 'Active' },
+                        { value: 'DEACTIVATED', label: 'Deactivated' },
+                        { value: 'DELETED', label: 'Deleted' },
+                      ]}
+                      onChange={(value) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          accountStatus: value as 'ACTIVE' | 'DEACTIVATED' | 'DELETED',
+                        }))
+                      }
+                      ariaLabel="Select account status"
+                      widthClass="w-full"
+                    />
+                  </div>
+                ) : null}
 
                 <Input
                   placeholder="Email address"

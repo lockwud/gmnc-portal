@@ -10,8 +10,8 @@ type Props = {
   onFieldChange: (fieldKey: string, nextValue: unknown) => void;
 };
 
-function fieldResponseKey(field: { fieldKey?: string; fieldCode: string }) {
-  return field.fieldKey || field.fieldCode;
+function fieldResponseKey(field: { fieldKey?: string; fieldCode?: string }) {
+  return field.fieldKey || field.fieldCode || '';
 }
 
 export default function AssessmentSection({
@@ -32,9 +32,9 @@ export default function AssessmentSection({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-slate-900">{section.title}</h2>
-        {section.description ? (
-          <p className="mt-1 text-xs text-slate-500">{section.description}</p>
+        <h2 className="text-sm font-semibold text-slate-900">{section.sectionName ?? section.title ?? 'Section'}</h2>
+        {(section.sectionDescription ?? section.description) ? (
+          <p className="mt-1 text-xs text-slate-500">{section.sectionDescription ?? section.description}</p>
         ) : null}
       </div>
 

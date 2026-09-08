@@ -18,10 +18,18 @@ export async function PATCH(
     const body = await request.json();
     const type = body.userType;
 
+    // Status-only updates go to the dedicated admin endpoint
+    // (PATCH /admin/users/:id/status) — the only generic user mutation
+    // the backend exposes.
+    const keys = Object.keys(body).filter((key) => key !== 'userType');
+    const isStatusOnly = keys.length === 1 && keys[0] === 'status';
+
     let backendUrl = `${env.API_BASE_URL}/admin/users/${id}`;
     let method = 'PATCH';
 
-    if (type === 'SERVICE_PROVIDER') {
+    if (isStatusOnly) {
+      backendUrl = `${env.API_BASE_URL}/admin/users/${id}/status`;
+    } else if (type === 'SERVICE_PROVIDER') {
       backendUrl = `${env.API_BASE_URL}/service-provider/${id}`;
       method = 'PUT';
     } else if (type === 'CAREGIVER') {
@@ -30,6 +38,13 @@ export async function PATCH(
     } else if (type === 'CP_PATIENT' || type === 'PATIENT') {
       backendUrl = `${env.API_BASE_URL}/cp-patient/${id}`;
       method = 'PATCH';
+    } else {
+      // ADMIN/SUPPORT/TESTER rows have no profile-update endpoint: only
+      // account status can change (handled above).
+      return NextResponse.json(
+        { success: false, message: 'Only account status can be changed for this user type. Profile fields are editable for caregivers and providers via their own endpoints.' },
+        { status: 400 },
+      );
     }
 
     console.log(`[API/ADMIN/USERS/[ID]] Proxying ${method} to: ${backendUrl}`);

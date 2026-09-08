@@ -12,6 +12,10 @@ import {
   clearAssessmentToolFormCache,
 } from '@/lib/api/assessments';
 import {
+  listClassifications,
+  type FunctionalClassification,
+} from '@/lib/api/functionalClassification';
+import {
   AssessmentToolFormResponse,
   AssessmentToolItem,
 } from '@/lib/api/types';
@@ -50,6 +54,8 @@ export default function AssessmentCreatePage() {
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [classifications, setClassifications] = useState<FunctionalClassification[]>([]);
+  const [selectedClassificationId, setSelectedClassificationId] = useState<string>('');
 
   const patientId = searchParams?.get('patientId') || '';
   const patientName = searchParams?.get('patientName') || '';
@@ -120,9 +126,24 @@ export default function AssessmentCreatePage() {
       try {
         setLoadingSchema(true);
         setSchemaError(null);
-        const data = await getAssessmentToolForm(selectedTool.toolCode);
+        const data = await getAssessmentToolForm(selectedTool.toolCode, patientId || undefined);
         if (!active) return;
         setFormSchema(data);
+
+        // Classification context ships with the form (Group 4): preload the
+        // patient's records so the picker below can attach one to the submit.
+        if (patientId) {
+          try {
+            const list = await listClassifications(patientId);
+            if (!active) return;
+            setClassifications(list.records ?? []);
+          } catch {
+            if (active) setClassifications([]);
+          }
+        } else {
+          setClassifications([]);
+        }
+        setSelectedClassificationId('');
 
         if (patientId) {
           const saved = window.localStorage.getItem(
@@ -205,34 +226,30 @@ export default function AssessmentCreatePage() {
       setSubmitting(true);
       setSubmitError(null);
 
-      const GMFM_DIMENSIONS = [
-        { code: 'A', start: 1, end: 17 },
-        { code: 'B', start: 18, end: 37 },
-        { code: 'C', start: 38, end: 51 },
-        { code: 'D', start: 52, end: 64 },
-        { code: 'E', start: 65, end: 88 },
-      ];
-
-      const allGMFMKeys: string[] = [];
-      GMFM_DIMENSIONS.forEach(({ code, start, end }) => {
-        for (let i = start; i <= end; i++) {
-          allGMFMKeys.push(`${code}${i}`);
-        }
-      });
-
-      const existingResponses = (values as Record<string, string | number | boolean>);
-      const sanitizedResponses: Record<string, string | number> = {};
-      allGMFMKeys.forEach((key) => {
+      const isGmfm = selectedTool.toolCode.trim().toUpperCase() === 'GMFM_88';
+      // Schema-driven responses (Group 5): collect exactly the published
+      // version's fieldKeys instead of hardcoding GMFM keys for every tool.
+      const schemaKeys = new Set(
+        (formSchema?.sections ?? []).flatMap((section) =>
+          (section.fields ?? []).map((field) => field.fieldKey).filter(Boolean),
+        ),
+      );
+      const existingResponses = values as Record<string, string | number | boolean | string[]>;
+      const sanitizedResponses: Record<string, unknown> = {};
+      for (const key of schemaKeys) {
         const raw = existingResponses[key];
-        if (raw === undefined || raw === null || raw === '') {
-          sanitizedResponses[key] = '';
-        } else if (raw === 'NT' || raw === 'nt') {
-          sanitizedResponses[key] = 'NT';
-        } else {
-          const num = typeof raw === 'number' ? raw : Number(raw);
-          sanitizedResponses[key] = Number.isNaN(num) ? '' : num;
+        if (raw === undefined || raw === null || raw === '') continue;
+        if (isGmfm && typeof key === 'string' && /^[A-E]\d+$/.test(key)) {
+          if (raw === 'NT' || raw === 'nt') {
+            sanitizedResponses[key] = 'NT';
+          } else {
+            const num = typeof raw === 'number' ? raw : Number(raw);
+            if (!Number.isNaN(num)) sanitizedResponses[key] = num;
+          }
+          continue;
         }
-      });
+        sanitizedResponses[key] = raw;
+      }
 
       const isRegularPerformance = existingResponses['isRegularPerformance'] as boolean | undefined;
       const clinicalNotesComment =
@@ -247,6 +264,7 @@ export default function AssessmentCreatePage() {
         responses: sanitizedResponses,
         isRegularPerformance,
         clinicalNotesComment,
+        ...(selectedClassificationId ? { functionalClassificationId: selectedClassificationId } : {}),
       });
 
       window.localStorage.removeItem(draftStorageKey(patientId, selectedTool.toolCode));
@@ -492,11 +510,55 @@ export default function AssessmentCreatePage() {
                   {schemaError}
                 </div>
               ) : formSchema ? (
-                <DynamicAssessmentForm
-                  schema={formSchema}
-                  values={values}
-                  onFieldChange={handleFieldChange}
-                />
+                <>
+                  {formSchema.classification ? (
+                    <div
+                      className={`shrink-0 rounded-2xl border px-4 py-3 text-xs ${
+                        formSchema.classification.classificationRecommended
+                          ? 'border-amber-200 bg-amber-50 text-amber-800'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      }`}
+                    >
+                      {formSchema.classification.classificationRecommended ? (
+                        <p className="font-semibold">
+                          {formSchema.classification.missingScales.length > 0
+                            ? `No ${formSchema.classification.missingScales.join('/')} classification on file for this patient — recording one is recommended.`
+                            : `Classification on file is stale (>12 months: ${formSchema.classification.staleScales.join(', ')}) — re-assessment is recommended.`}
+                        </p>
+                      ) : (
+                        <p className="font-semibold">
+                          Classification on file
+                          {formSchema.classification.onFile && formSchema.classification.onFile.length > 0
+                            ? `: ${formSchema.classification.onFile.map((c) => `${c.classifier} L${c.level}`).join(', ')}`
+                            : ''}
+                          {' '}— you can attach it to this submission below.
+                        </p>
+                      )}
+                      {classifications.length > 0 ? (
+                        <label className="mt-2 flex flex-col gap-1 font-medium">
+                          <span>Attach classification to this assessment (optional)</span>
+                          <select
+                            value={selectedClassificationId}
+                            onChange={(e) => setSelectedClassificationId(e.target.value)}
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-emerald-500"
+                          >
+                            <option value="">No classification attached</option>
+                            {classifications.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.classifier} Level {c.level} — {new Date(c.assessedAt).toLocaleDateString()}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <DynamicAssessmentForm
+                    schema={formSchema}
+                    values={values}
+                    onFieldChange={handleFieldChange}
+                  />
+                </>
               ) : (
                 <EmptyState
                   title="No form available"

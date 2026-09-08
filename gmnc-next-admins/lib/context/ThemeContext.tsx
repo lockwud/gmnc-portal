@@ -245,8 +245,8 @@ export const COLOR_PRESETS: Record<ThemePreset, { name: string; primary: string;
     lightBg: '#FEFCE8',
     darkBg: '#1E1A08',
     darkCard: '#332D14',
-    darkText: '#1F2937',
-    darkMuted: '#78716C',
+    darkText: '#FEF9C3',
+    darkMuted: '#D6D3D1',
   },
 };
 

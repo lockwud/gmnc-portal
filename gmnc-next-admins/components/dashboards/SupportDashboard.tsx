@@ -72,32 +72,32 @@ function CompactStatCard({
   badge,
 }: CompactStatCardProps) {
   return (
-    <div className="group relative min-h-[132px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md">
+    <div className="support-surface group relative min-h-[132px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
       <div className="relative z-10 flex h-full flex-col justify-between">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-semibold leading-none text-slate-600 dark:text-slate-200">
+          <p className="support-muted text-xs font-semibold leading-none text-slate-600 dark:text-slate-200">
             {title}
           </p>
 
           <div className="flex items-center gap-1.5">
             {badge && (
-                <Badge className="border-none bg-slate-50 px-1.5 py-0.5 text-[8px] font-medium uppercase leading-none text-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                <Badge className="support-muted-surface support-muted border-none bg-slate-50 px-1.5 py-0.5 text-[8px] font-medium uppercase leading-none text-slate-500 dark:bg-slate-800 dark:text-slate-200">
                 {badge}
               </Badge>
             )}
-            <div className="rounded-lg bg-slate-50 p-2 text-slate-400 dark:bg-slate-800 dark:text-slate-200">{icon}</div>
+            <div className="support-muted-surface support-muted rounded-lg bg-slate-50 p-2 text-slate-400 dark:bg-slate-800 dark:text-slate-200">{icon}</div>
           </div>
         </div>
 
         <div>
-          <h3 className="text-[30px] font-bold leading-none tracking-tight text-slate-950 dark:text-slate-50">
+          <h3 className="support-text text-[30px] font-bold leading-none tracking-tight text-slate-950 dark:text-slate-50">
             {value}
           </h3>
 
           {meta ? (
-            <p className="mt-2 line-clamp-1 text-xs leading-none text-slate-400 dark:text-slate-300">
+            <p className="support-soft mt-2 line-clamp-1 text-xs leading-none text-slate-400 dark:text-slate-300">
               {meta}
             </p>
           ) : (
@@ -145,9 +145,9 @@ function SupportCard({
   const colors = ['red', 'blue', 'green', 'amber', 'slate'] as const;
 
   return (
-    <div className="border border-slate-200 bg-white p-3 transition hover:border-emerald-200 hover:bg-emerald-50/30">
+    <div className="support-surface border border-slate-200 bg-white p-3 transition hover:border-emerald-200 hover:bg-emerald-50/30">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-300">{item.time}</p>
+        <p className="support-soft text-[11px] font-medium text-slate-400 dark:text-slate-300">{item.time}</p>
         <span className={cn('rounded-full px-2.5 py-1 text-[9px] font-bold uppercase', priorityClass)}>
           {item.priority}
         </span>
@@ -158,10 +158,10 @@ function SupportCard({
       </div>
 
       <div className="mt-3">
-        <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900 dark:text-slate-50">
+        <p className="support-text line-clamp-2 text-sm font-semibold leading-5 text-slate-900 dark:text-slate-50">
           {item.title}
         </p>
-        <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-300">
+        <p className="support-soft mt-1 text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-300">
           {item.subtitle}
         </p>
       </div>
@@ -180,7 +180,7 @@ function SupportCard({
           </div>
         </div>
 
-        <span className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-300">{item.ref}</span>
+        <span className="support-muted shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-300">{item.ref}</span>
       </div>
     </div>
   );
@@ -291,10 +291,10 @@ export function SupportDashboard() {
   );
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-6 overflow-hidden">
+    <div className="support-dashboard flex h-full min-h-0 w-full min-w-0 flex-col gap-6 overflow-hidden">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50">
+            <h1 className="support-text text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50">
             Support
           </h1>
           {analyticsError ? (
@@ -382,13 +382,13 @@ export function SupportDashboard() {
         {supportBoard.map((column) => (
           <div
             key={column.title}
-            className="flex h-full min-h-[720px] min-w-0 flex-col border border-slate-200 bg-white p-3 xl:min-h-0"
+            className="support-surface flex h-full min-h-[720px] min-w-0 flex-col border border-slate-200 bg-white p-3 xl:min-h-0"
           >
             <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="truncate pr-3 text-sm font-bold text-slate-950 dark:text-slate-50">
+              <h3 className="support-text truncate pr-3 text-sm font-bold text-slate-950 dark:text-slate-50">
                 {column.title}
               </h3>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-200">{column.count}</span>
+              <span className="support-muted-surface support-muted rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-200">{column.count}</span>
             </div>
 
             <div className="support-column-scroll min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -397,7 +397,7 @@ export function SupportDashboard() {
               ))}
 
               {column.items.length === 0 && (
-                <div className="flex h-40 items-center justify-center border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                <div className="support-muted-surface support-soft flex h-40 items-center justify-center border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                   No items
                 </div>
               )}
@@ -407,6 +407,46 @@ export function SupportDashboard() {
       </div>
 
       <style jsx>{`
+        .support-dashboard {
+          --support-surface: #ffffff;
+          --support-muted-surface: #f8fafc;
+          --support-border: #e2e8f0;
+          --support-text: #020617;
+          --support-muted: #475569;
+          --support-soft: #64748b;
+        }
+
+        :global(.dark) .support-dashboard {
+          --support-surface: #101827;
+          --support-muted-surface: rgba(255, 255, 255, 0.07);
+          --support-border: rgba(255, 255, 255, 0.14);
+          --support-text: #f8fafc;
+          --support-muted: #dbeafe;
+          --support-soft: #cbd5e1;
+        }
+
+        .support-dashboard :global(.support-surface) {
+          background-color: var(--support-surface) !important;
+          border-color: var(--support-border) !important;
+        }
+
+        .support-dashboard :global(.support-muted-surface) {
+          background-color: var(--support-muted-surface) !important;
+          border-color: var(--support-border) !important;
+        }
+
+        .support-dashboard :global(.support-text) {
+          color: var(--support-text) !important;
+        }
+
+        .support-dashboard :global(.support-muted) {
+          color: var(--support-muted) !important;
+        }
+
+        .support-dashboard :global(.support-soft) {
+          color: var(--support-soft) !important;
+        }
+
         .support-column-scroll::-webkit-scrollbar {
           width: 6px;
         }

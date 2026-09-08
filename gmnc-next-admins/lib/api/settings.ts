@@ -37,22 +37,26 @@ async function parseJson<T>(res: Response): Promise<T> {
 }
 
 async function tryRefreshSession(): Promise<boolean> {
-  try {
-    const res = await fetch('/api/auth/me', {
-      method: 'GET',
-      cache: 'no-store',
-      credentials: 'include',
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.accessToken) {
-        localStorage.setItem('token', data.accessToken);
-        localStorage.setItem('gmnc_token', data.accessToken);
-        return true;
+  // Rotate via the dedicated refresh endpoint (30-day refresh cookie);
+  // fall back to /api/auth/me, which also attempts rotation server-side.
+  for (const endpoint of ['/api/auth/refresh', '/api/auth/me']) {
+    try {
+      const res = await fetch(endpoint, {
+        method: endpoint.endsWith('/refresh') ? 'POST' : 'GET',
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.accessToken) {
+          localStorage.setItem('token', data.accessToken);
+          localStorage.setItem('gmnc_token', data.accessToken);
+          return true;
+        }
       }
+    } catch {
+      // ignore and try next
     }
-  } catch {
-    // ignore
   }
   return false;
 }
@@ -216,17 +220,74 @@ export type AssessmentSettings = {
   mobileAssessmentInstructions: string;
 };
 
+export type ToolDefinitionStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type ToolScoringStrategy = 'SUM' | 'WEIGHTED_SUM' | 'RUBRIC' | 'CUSTOM_FN_REF';
+
 export type AssessmentToolAdminRecord = {
   id: string;
-  toolCode: string;
-  toolName: string;
-  version: string;
+  code: string;
+  name: string;
   description?: string | null;
-  schema?: Record<string, unknown> | null;
-  isActive: boolean;
-  professions?: Array<{ profession: string } | string>;
+  status: ToolDefinitionStatus;
+  applicableScales: string[];
+  allowedProfessions: string[];
+  scoringStrategy: ToolScoringStrategy;
+  customFnRef?: string | null;
+  currentVersion: number;
+  createdBy?: string | null;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type ToolDefinitionDetail = AssessmentToolAdminRecord & {
+  sections: Array<{
+    id: string;
+    order: number;
+    code?: string | null;
+    title: string;
+    description?: string | null;
+    fields: Array<{
+      id: string;
+      fieldKey: string;
+      order: number;
+      label: string;
+      helpText?: string | null;
+      fieldType: string;
+      options?: Array<{ value: string; label: string; score?: number }> | null;
+      validation?: Record<string, unknown> | null;
+      scoringWeight?: number | null;
+    }>;
+  }>;
+  versions: Array<{
+    id: string;
+    version: number;
+    status: ToolDefinitionStatus;
+    scoringStrategy: ToolScoringStrategy;
+    publishedAt?: string | null;
+    createdAt: string;
+  }>;
+};
+
+export type ToolPreview = {
+  code: string;
+  name: string;
+  version: number;
+  published: boolean;
+  applicableScales: string[];
+  allowedProfessions: string[];
+  sections: Array<{
+    sectionCode?: string | null;
+    sectionName: string;
+    sectionDescription?: string | null;
+    fields: Array<{
+      fieldKey: string;
+      question: string;
+      helpText?: string | null;
+      fieldType: string;
+      options?: Array<{ value: string; label: string }> | null;
+      required: boolean;
+    }>;
+  }>;
 };
 
 export type ClinicalNotesSettings = {
@@ -414,55 +475,125 @@ export async function updateAssessmentSettings(
 export async function getAdminAssessmentTools(token?: string | null): Promise<AssessmentToolAdminRecord[]> {
   const res = await apiGet<{
     status?: boolean;
-    data?: AssessmentToolAdminRecord[] | { data?: AssessmentToolAdminRecord[] };
-  }>('/api/admin/assessment-tools?limit=200', token);
+    data?: AssessmentToolAdminRecord[];
+  }>('/api/admin/assessment-tools', token);
 
-  if (Array.isArray(res.data)) return res.data;
-  return res.data?.data ?? [];
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+async function toolBuilderRequest<T>(path: string, method: string, body?: unknown, token?: string | null): Promise<T> {
+  const authToken = token ?? getToken();
+  const res = await fetch(path, {
+    method,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await parseJson<{ data: T }>(res);
+  return data.data;
 }
 
 export async function createAdminAssessmentTool(
   payload: {
-    toolCode: string;
-    toolName: string;
-    version?: string;
+    code: string;
+    name: string;
     description?: string;
-    schema?: Record<string, unknown>;
-    professions?: string[];
+    applicableScales?: string[];
+    allowedProfessions?: string[];
+    scoringStrategy?: ToolScoringStrategy;
+    customFnRef?: string | null;
   },
   token?: string | null
 ): Promise<AssessmentToolAdminRecord> {
-  const authToken = token ?? getToken();
-  const res = await fetch('/api/admin/assessment-tools', {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-  const data = await parseJson<{ data: AssessmentToolAdminRecord }>(res);
-  return data.data;
+  return toolBuilderRequest('/api/admin/assessment-tools', 'POST', payload, token);
 }
 
-export async function updateAdminAssessmentTool(
+export async function getToolDefinition(
   id: string,
-  payload: Partial<Pick<AssessmentToolAdminRecord, 'isActive' | 'description' | 'schema'>>,
+  token?: string | null
+): Promise<ToolDefinitionDetail> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/${id}`, 'GET', undefined, token);
+}
+
+export async function updateToolDraft(
+  id: string,
+  payload: Partial<Pick<AssessmentToolAdminRecord, 'name' | 'description' | 'applicableScales' | 'allowedProfessions' | 'scoringStrategy' | 'customFnRef' | 'status'>>,
   token?: string | null
 ): Promise<AssessmentToolAdminRecord> {
-  const authToken = token ?? getToken();
-  const res = await fetch(`/api/admin/assessment-tools/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-  const data = await parseJson<{ data: AssessmentToolAdminRecord }>(res);
-  return data.data;
+  return toolBuilderRequest(`/api/admin/assessment-tools/${id}`, 'PATCH', payload, token);
+}
+
+export async function previewToolDefinition(
+  id: string,
+  token?: string | null
+): Promise<ToolPreview> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/${id}/preview`, 'GET', undefined, token);
+}
+
+export async function publishToolDefinition(
+  id: string,
+  token?: string | null
+): Promise<unknown> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/${id}/publish`, 'POST', {}, token);
+}
+
+export async function addToolSection(
+  toolId: string,
+  payload: { title: string; code?: string; description?: string; order?: number },
+  token?: string | null
+): Promise<{ id: string }> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/${toolId}/sections`, 'POST', payload, token);
+}
+
+export async function updateToolSection(
+  sectionId: string,
+  payload: { title?: string; code?: string; description?: string; order?: number },
+  token?: string | null
+): Promise<unknown> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/sections/${sectionId}`, 'PATCH', payload, token);
+}
+
+export async function deleteToolSection(
+  sectionId: string,
+  token?: string | null
+): Promise<unknown> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/sections/${sectionId}`, 'DELETE', undefined, token);
+}
+
+export async function addToolField(
+  toolId: string,
+  sectionId: string,
+  payload: {
+    fieldKey: string;
+    label: string;
+    fieldType: string;
+    helpText?: string;
+    options?: Array<{ value: string; label: string; score?: number }>;
+    validation?: Record<string, unknown>;
+    scoringWeight?: number;
+    order?: number;
+  },
+  token?: string | null
+): Promise<{ id: string }> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/${toolId}/sections/${sectionId}/fields`, 'POST', payload, token);
+}
+
+export async function updateToolField(
+  fieldId: string,
+  payload: Record<string, unknown>,
+  token?: string | null
+): Promise<unknown> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/fields/${fieldId}`, 'PATCH', payload, token);
+}
+
+export async function deleteToolField(
+  fieldId: string,
+  token?: string | null
+): Promise<unknown> {
+  return toolBuilderRequest(`/api/admin/assessment-tools/fields/${fieldId}`, 'DELETE', undefined, token);
 }
 
 // ── Clinical Notes ──────────────────────────────────────────────────────
